@@ -1,4 +1,4 @@
-#include "core/master.hpp"
+#include "core/master/master.hpp"
 
 using namespace husky;
 
@@ -19,8 +19,9 @@ int main() {
     WorkersPool workers_pool(2);
 
     // master connection
+    std::string bind_addr = "tcp://*:45123";
     zmq::context_t context;
-    MasterConnection master_connection(context);
+    MasterConnection master_connection(context, bind_addr);
     auto connect_str = "tcp://"+remote_addr+":"+remote_port;
     master_connection.add_proc(0, connect_str);
 

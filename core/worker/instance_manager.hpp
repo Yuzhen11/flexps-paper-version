@@ -4,10 +4,12 @@
 #include "zmq.hpp" 
 
 #include "base/debug.hpp"
+#include "base/log.hpp"
 
-#include "core/instance.hpp"
-#include "core/worker_info.hpp"
-#include "core/zmq_helpers.hpp"
+#include "core/common/instance.hpp"
+#include "core/common/worker_info.hpp"
+#include "core/common/zmq_helpers.hpp"
+#include "core/worker/master_connector.hpp"
 
 namespace husky {
 
@@ -16,10 +18,9 @@ namespace husky {
 class InstanceManager {
 public:
     InstanceManager() = delete;
-    InstanceManager(WorkerInfo& worker_info_, const std::string main_loop_port_, zmq::context_t& zmq_context_)
+    InstanceManager(WorkerInfo& worker_info_, MasterConnector& master_connector_)
         : worker_info(worker_info_),
-          main_loop_port(main_loop_port_),
-          zmq_context(zmq_context_)
+        master_connector(master_connector_)
     {}
 
     Instance extract_local_instance(const Instance& instance) const {
@@ -34,20 +35,16 @@ public:
 
     void run_instance(const Instance& instance) {
         assert(instances.find(instance) == instances.end());
-        std::cout << "[Instance]: instance " + std::to_string(instance.get_id()) + " added" << std::endl;
+        base::log_msg("[Instance]: instance " + std::to_string(instance.get_id()) + " added");
         instances.insert(instance);
 
-
-        std::string connect_addr = "tcp://"+worker_info.get_host()+":"+main_loop_port;
         int instance_id = instance.get_id();
         auto local_instance = extract_local_instance(instance);
         for (auto tid : local_instance.get_threads()) {
             // worker threads
-            std::thread([this, instance_id, tid, connect_addr](){
-                zmq::socket_t socket(zmq_context, ZMQ_PUSH);
-                std::cout << "[Thread]: Hello World" << std::endl;
-                std::cout << "[Thread]: " + connect_addr << std::endl;
-                socket.connect(connect_addr);
+            std::thread([this, instance_id, tid](){
+                zmq::socket_t socket = master_connector.get_socket_to_recv();
+                base::log_msg("[Thread]: Hello World");
                 zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
                 zmq_sendmore_int32(&socket, instance_id);
                 zmq_send_int32(&socket, tid);
@@ -55,11 +52,6 @@ public:
         }
         std::unordered_set<int> s(local_instance.get_threads().begin(), local_instance.get_threads().end());
         instance_keeper.insert({instance.get_id(), std::move(s)});
-    }
-
-    void finailize_instance(int id) {
-        std::cout << "[Instance]: instance " + std::to_string(id) + " finished" << std::endl;
-        instances.erase(Instance(id));
     }
 
     void finish_thread(int instance_id, int tid) {
@@ -75,9 +67,8 @@ public:
     }
 
 private:
-    std::string main_loop_port;
-    zmq::context_t& zmq_context;
     WorkerInfo& worker_info;
+    MasterConnector& master_connector;
     std::unordered_set<int> available_threads;
     std::unordered_set<Instance, InstanceHasher> instances;
     std::unordered_map<int, std::unordered_set<int>> instance_keeper;

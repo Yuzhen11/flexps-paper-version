@@ -17,6 +17,7 @@ include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
 add_library(base-objs OBJECT
     serialization.cpp
+    log.cpp
     )
 set_property(TARGET base-objs PROPERTY CXX_STANDARD 14)
 

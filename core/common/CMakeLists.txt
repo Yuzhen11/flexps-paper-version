@@ -15,8 +15,13 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
-add_subdirectory(common)
-add_subdirectory(worker)
-add_subdirectory(master)
+if(DEP_FOUND)
+    include_directories(${ZMQ_INCLUDE_DIR})
+endif(DEP_FOUND)
 
-add_library(husky-core STATIC $<TARGET_OBJECTS:common-objs>)
+add_library(common-objs OBJECT
+    worker_info.cpp
+    )
+set_property(TARGET common-objs PROPERTY CXX_STANDARD 14)
+
+# add_library(husky-core STATIC $<TARGET_OBJECTS:core-objs>)

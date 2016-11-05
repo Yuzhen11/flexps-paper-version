@@ -15,8 +15,3 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
-add_subdirectory(common)
-add_subdirectory(worker)
-add_subdirectory(master)
-
-add_library(husky-core STATIC $<TARGET_OBJECTS:common-objs>)

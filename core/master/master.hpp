@@ -1,14 +1,15 @@
 #pragma once
 
 #include "base/debug.hpp"
+#include "base/log.hpp"
 
 #include "base/serialization.hpp"
-#include "core/constants.hpp"
-#include "core/worker_info.hpp"
-#include "core/master_connection.hpp"
-#include "core/workers_pool.hpp"
-#include "core/assigner.hpp"
-#include "core/instance.hpp"
+#include "core/common/constants.hpp"
+#include "core/common/instance.hpp"
+#include "core/common/worker_info.hpp"
+#include "core/master/master_connection.hpp"
+#include "core/master/workers_pool.hpp"
+#include "core/master/task_manager.hpp"
 
 namespace husky {
 
@@ -27,14 +28,31 @@ public:
         base::BinStream bin;
         bin << instance;
         
-        for (auto& socket : master_connection.get_sockets()) {
-            std::cout << "[Master]: Trying to send to process "+std::to_string(socket.first) << std::endl;
+        for (auto& socket : master_connection.get_send_sockets()) {
+            base::log_msg("[Master]: Trying to send to process "+std::to_string(socket.first));
             zmq_sendmore_int32(&socket.second, constants::TASK_TYPE);
             zmq_sendmore_string(&socket.second, "hello");
-            std::cout << "[Master]: Send done" << std::endl;
+            base::log_msg("[Master]: Send done");
             zmq_send_binstream(&socket.second, bin);
         }
     }
+
+    void init_tasks() {
+        // recv tasks from proc 0 
+        auto& socket = master_connection.get_recv_socket();
+        auto bin = zmq_recv_binstream(&socket);
+        int num_tasks;
+        bin >> num_tasks;
+        for (int i = 0; i < num_tasks; ++ i) {
+            Task task;
+            bin >> task;
+            task_manager.add_task(task);
+        }
+        base::log_msg("[Master]: Init tasks done");
+    }
+    void master_loop() {
+    }
+
 
 private:
     // Store the worker info
@@ -46,8 +64,8 @@ private:
     // connect to workers
     MasterConnection master_connection;
 
-    // 
-    Assigner assigner;
+    // store the tasks
+    TaskManager task_manager;
 };
 
 }  // namespace husky

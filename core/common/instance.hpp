@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/cluster.hpp"
+#include "core/common/cluster.hpp"
 #include "base/serialization.hpp"
 #include "base/debug.hpp"
 

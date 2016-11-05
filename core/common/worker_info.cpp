@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/worker_info.hpp"
+#include "core/common/worker_info.hpp"
 
 #include <string>
 
