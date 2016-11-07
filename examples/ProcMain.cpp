@@ -1,5 +1,7 @@
 
-#include "core/worker/main_loop.hpp"
+#include <chrono>
+
+#include "core/worker/worker.hpp"
 
 using namespace husky;
 
@@ -21,7 +23,17 @@ int main() {
     zmq::context_t context;
     MasterConnector master_connector(context, bind_addr, master_addr, host_name);
 
-    husky::MainLoop main_loop(std::move(worker_info),
+
+    // tasks
+    Task task1(0,1,2);  // id: 0, total_epoch: 1, num_workers: 2
+
+    husky::Worker worker(std::move(worker_info),
             std::move(master_connector));
-    main_loop.serve();
+    // add task
+    worker.add_task(task1, [](){
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        base::log_msg("task1 is running");
+    });
+    worker.send_tasks_to_master();
+    worker.main_loop();
 }

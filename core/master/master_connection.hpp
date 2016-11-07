@@ -37,7 +37,7 @@ public:
 
 private:
     zmq::context_t& context;
-    std::unordered_map<int, zmq::socket_t> proc_sockets;  // send tasks to proc
+    std::unordered_map<int, zmq::socket_t> proc_sockets;  // send tasks to proc {proc_id, socket}
     zmq::socket_t recv_socket;  // recv info from proc 
 };
 

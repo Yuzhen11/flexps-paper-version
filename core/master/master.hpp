@@ -8,23 +8,24 @@
 #include "core/common/instance.hpp"
 #include "core/common/worker_info.hpp"
 #include "core/master/master_connection.hpp"
-#include "core/master/workers_pool.hpp"
-#include "core/master/task_manager.hpp"
+#include "core/master/cluster_manager.hpp"
 
 namespace husky {
 
 class Master {
 public:
     Master() = delete;
-    Master(WorkerInfo&& worker_info_, WorkersPool&& workers_pool_, MasterConnection&& master_connection_)
+    Master(WorkerInfo&& worker_info_, MasterConnection&& master_connection_)
         :worker_info(std::move(worker_info_)),
-        workers_pool(std::move(workers_pool_)),
-        master_connection(std::move(master_connection_)) 
+        master_connection(std::move(master_connection_)),
+        cluster_manager(worker_info, master_connection)
     {}
 
     void test_connection() {
-        Cluster cluster({0,1});
-        Instance instance(0, cluster);
+        Instance instance(0);
+        std::unordered_map<int, std::vector<int>> cluster;
+        cluster.insert({0, {0,1}}); // {0, {0,1}}
+        instance.set_cluster(cluster);  
         base::BinStream bin;
         bin << instance;
         
@@ -37,35 +38,51 @@ public:
         }
     }
 
-    void init_tasks() {
+    void recv_tasks_from_worker() {
         // recv tasks from proc 0 
         auto& socket = master_connection.get_recv_socket();
         auto bin = zmq_recv_binstream(&socket);
-        int num_tasks;
+        std::vector<Task> tasks;
+        size_t num_tasks;
         bin >> num_tasks;
         for (int i = 0; i < num_tasks; ++ i) {
             Task task;
             bin >> task;
-            task_manager.add_task(task);
+            tasks.push_back(std::move(task));
+            cluster_manager.init_tasks(tasks);
         }
-        base::log_msg("[Master]: Init tasks done");
+        base::log_msg("[Master]: recv_task_from_wroker done");
+        base::log_msg("[Master]: Totally "+std::to_string(num_tasks)+" tasks received");
     }
+
+    void assign_initial_tasks() {
+        cluster_manager.assign_next_tasks();
+    }
+
     void master_loop() {
+        auto& recv_socket = master_connection.get_recv_socket();
+        while (true) {
+            auto bin = zmq_recv_binstream(&recv_socket);
+            cluster_manager.finish_local_instance(bin);
+            cluster_manager.assign_next_tasks();
+
+            bool is_finished = cluster_manager.is_finished();
+            if (is_finished) {
+                break;
+            }
+        }
     }
 
 
 private:
-    // Store the worker info
+    // store the worker info
     WorkerInfo worker_info;
-
-    // Store the available workers
-    WorkersPool workers_pool;
 
     // connect to workers
     MasterConnection master_connection;
 
-    // store the tasks
-    TaskManager task_manager;
+    // manage the cluster
+    ClusterManager cluster_manager;
 };
 
 }  // namespace husky

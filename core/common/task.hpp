@@ -5,18 +5,17 @@ namespace husky {
 class Task {
 public:
     Task() = default;
-    Task(int task_id_, int total_epoch_, int num_workers_)
-        : task_id(task_id_),
+    Task(int id_, int total_epoch_, int num_workers_)
+        : id(id_),
         total_epoch(total_epoch_),
         num_workers(num_workers_)
     {}
 
     int get_task_id() const {
-        return task_id;
+        return id;
     }
-          
-private:
-    int task_id;
+
+    int id;
 
     int total_epoch;  // total epoch numbers
     int current_epoch = 0;

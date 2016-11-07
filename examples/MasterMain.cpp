@@ -15,9 +15,6 @@ int main() {
     worker_info.set_num_workers(2);
     worker_info.set_proc_id(-1);
 
-    // workers pool
-    WorkersPool workers_pool(2);
-
     // master connection
     std::string bind_addr = "tcp://*:45123";
     zmq::context_t context;
@@ -27,7 +24,9 @@ int main() {
 
 
     Master master(std::move(worker_info),
-            std::move(workers_pool),
             std::move(master_connection));
-    master.test_connection();
+    master.recv_tasks_from_worker();
+    // master.test_connection();
+    master.assign_initial_tasks();
+    master.master_loop();
 }

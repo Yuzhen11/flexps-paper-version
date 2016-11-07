@@ -18,12 +18,12 @@ public:
         recv_socket.bind(bind_addr);
         base::log_msg("[MasterConnector]: Bind to "+bind_addr);
         send_socket.connect(master_addr);
-        base::log_msg("[MasterConnection]: Connect to "+master_addr);
+        base::log_msg("[MasterConnector]: Connect to "+master_addr);
 
         local_addr = bind_addr;
         auto pos = local_addr.find("*");
         local_addr.replace(pos, 1, host_name);
-        base::log_msg("[MasterConnection]: Local address: "+local_addr);
+        base::log_msg("[MasterConnector]: Local address: "+local_addr);
     }
     auto& get_recv_socket() {
         return recv_socket;
