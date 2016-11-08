@@ -49,8 +49,8 @@ public:
             Task task;
             bin >> task;
             tasks.push_back(std::move(task));
-            cluster_manager.init_tasks(tasks);
         }
+        cluster_manager.init_tasks(tasks);
         base::log_msg("[Master]: recv_task_from_wroker done");
         base::log_msg("[Master]: Totally "+std::to_string(num_tasks)+" tasks received");
     }

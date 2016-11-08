@@ -17,6 +17,9 @@ public:
     auto& get_task_map() {
         return task_map;
     }
+    auto get_func(int id) {
+        return task_map[id].second;
+    }
 
 private:
     std::unordered_map<int, std::pair<Task, std::function<void()>>> task_map;

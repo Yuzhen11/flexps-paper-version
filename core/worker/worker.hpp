@@ -21,7 +21,7 @@ public:
     Worker(WorkerInfo&& worker_info_, MasterConnector&& master_connector_)
         : worker_info(std::move(worker_info_)),
         master_connector(std::move(master_connector_)),
-        instance_runner(worker_info, master_connector){
+        instance_runner(worker_info, master_connector, task_store){
     }
 
     // User need to add task to taskstore

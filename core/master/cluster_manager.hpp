@@ -33,9 +33,11 @@ public:
 
     // try to assign next tasks
     void assign_next_tasks() {
+        base::log_msg("[ClusterManager]: Assigning next tasks");
         auto instances = task_scheduler->extract_instances();
         auto& sockets = master_connection.get_send_sockets();
         for (auto& instance : instances) {
+            instance.show_instance();
             base::BinStream bin;
             bin << instance;
             auto& cluster = instance.get_cluster();

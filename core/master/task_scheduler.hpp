@@ -82,7 +82,7 @@ private:
             selected_workers.push_back(tid);
         }
         // create the instance
-        Instance instance(task.id);
+        Instance instance(task.id, task.current_epoch);
         for (auto tid : selected_workers) {
             int proc_id = worker_info.get_proc_id(tid);
             instance.add_thread(proc_id, tid);

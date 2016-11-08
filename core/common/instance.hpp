@@ -16,9 +16,13 @@ public:
     explicit Instance(int id_)
         :id(id_)
     {}
+    Instance(int id_, int current_epoch_)
+        :id(id_),
+        current_epoch(current_epoch_)
+    {}
 
     void show_instance() const {
-        base::log_msg("[Instance]: Instance id: "+std::to_string(id));
+        base::log_msg("[Instance]: Instance id: "+std::to_string(id) + " epoch: "+std::to_string(current_epoch));
         for (auto& kv : cluster) {
             std::stringstream ss;
             ss << "Proc id: " << kv.first << ": { ";
@@ -32,6 +36,10 @@ public:
 
     inline int get_id() const {
         return id;
+    }
+    
+    inline int get_epoch() const {
+        return current_epoch;
     }
 
     auto& get_cluster() {
@@ -73,6 +81,7 @@ public:
     // serialization functions
     friend BinStream& operator<<(BinStream& stream, const Instance& instance) {
         stream << instance.id;
+        stream << instance.current_epoch;
         stream << instance.cluster.size();
         for (auto& kv : instance.cluster) {
             stream << kv.first << kv.second;
@@ -81,6 +90,7 @@ public:
     }
     friend BinStream& operator>>(BinStream& stream, Instance& instance) {
         stream >> instance.id;
+        stream >> instance.current_epoch;
         size_t size;
         stream >> size;
         instance.cluster.clear();
@@ -94,6 +104,7 @@ public:
     }
 private:
     int id;
+    int current_epoch;
     std::unordered_map<int, std::vector<int>> cluster;  //  {proc_id, {tid...}}
 };
 

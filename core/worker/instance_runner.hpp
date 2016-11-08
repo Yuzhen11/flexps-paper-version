@@ -11,6 +11,7 @@
 #include "core/common/worker_info.hpp"
 #include "core/common/zmq_helpers.hpp"
 #include "core/worker/master_connector.hpp"
+#include "core/worker/task_store.hpp"
 
 namespace husky {
 
@@ -19,9 +20,10 @@ namespace husky {
 class InstanceRunner {
 public:
     InstanceRunner() = delete;
-    InstanceRunner(WorkerInfo& worker_info_, MasterConnector& master_connector_)
+    InstanceRunner(WorkerInfo& worker_info_, MasterConnector& master_connector_, TaskStore& task_store_)
         : worker_info(worker_info_),
-        master_connector(master_connector_)
+        master_connector(master_connector_),
+        task_store(task_store_)
     {}
 
     std::vector<int> extract_local_instance(const Instance& instance) const {
@@ -45,6 +47,8 @@ public:
             std::thread([this, instance_id, tid](){
                 zmq::socket_t socket = master_connector.get_socket_to_recv();
                 base::log_msg("[Thread]: Hello World");
+                // run the task
+                task_store.get_func(instance_id)();
                 // tell worker when I finished
                 zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
                 zmq_sendmore_int32(&socket, instance_id);
@@ -82,6 +86,7 @@ public:
 private:
     WorkerInfo& worker_info;
     MasterConnector& master_connector;
+    TaskStore& task_store;
     std::unordered_map<int, Instance> instances;
     std::unordered_map<int, std::unordered_set<int>> instance_keeper;
 };
