@@ -38,6 +38,9 @@ class WorkerInfo {
     inline int global_to_local_id(int global_worker_id) const {
         return global_to_local_[global_worker_id];
     }
+    inline auto& get_procs() {
+        return host_;
+    }
 
     void set_num_processes(int num_proc);
     void set_num_workers(int num_workers);

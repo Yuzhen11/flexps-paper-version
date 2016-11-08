@@ -52,6 +52,13 @@ public:
     bool is_finished() {
         return task_scheduler->is_finished();
     }
+
+    void send_exit_signal() {
+        auto& proc_sockets = master_connection.get_send_sockets();
+        for (auto& socket : proc_sockets) {
+            zmq_send_int32(&socket.second, constants::MASTER_FINISHED);
+        }
+    }
 private:
     MasterConnection& master_connection;
 

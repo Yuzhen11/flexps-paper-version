@@ -21,6 +21,9 @@ endif(DEP_FOUND)
 
 add_library(common-objs OBJECT
     worker_info.cpp
+    network.cpp
+    config.cpp
+    context.cpp
     )
 set_property(TARGET common-objs PROPERTY CXX_STANDARD 14)
 

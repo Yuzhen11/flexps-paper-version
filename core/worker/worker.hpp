@@ -67,6 +67,10 @@ public:
                     instance_runner.remove_instance(instance_id);
                 }
             }
+            else if (type == constants::MASTER_FINISHED) {
+                base::log_msg("[Worker]: worker exit");
+                break;
+            }
         }
     }
 

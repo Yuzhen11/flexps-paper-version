@@ -68,6 +68,7 @@ public:
 
             bool is_finished = cluster_manager.is_finished();
             if (is_finished) {
+                cluster_manager.send_exit_signal();
                 break;
             }
         }

@@ -1,26 +1,22 @@
-#include <chrono>
-
 #include "core/worker/worker.hpp"
+#include "core/common/context.hpp"
 
 using namespace husky;
 
-int main() {
-    std::string bind_addr = "tcp://*:12345";  // for main loop
-    std::string master_addr = "tcp://proj10:45123";
-    std::string host_name = "proj10";
+int main(int argc, char** argv) {
+    Context::init_global();
+    bool rt = Context::get_config()->init_with_args(argc, argv, {});
+    if (!rt) return 1;
+
+    std::string bind_addr = "tcp://*:"+std::to_string(Context::get_config()->get_worker_port());
+    std::string master_addr = "tcp://"+Context::get_config()->get_master_host()+":"+std::to_string(Context::get_config()->get_master_port());
+    std::string host_name = Context::get_param("hostname");
 
     // worker info
-    WorkerInfo worker_info;
-    worker_info.add_proc(0, "proj10");
-    worker_info.add_worker(0,0,0);
-    worker_info.add_worker(0,1,1);
-    worker_info.set_num_processes(1);
-    worker_info.set_num_workers(2);
-    worker_info.set_proc_id(0);
+    WorkerInfo worker_info = *Context::get_worker_info();
 
     // master connector
-    zmq::context_t context;
-    MasterConnector master_connector(context, bind_addr, master_addr, host_name);
+    MasterConnector master_connector(Context::get_zmq_context(), bind_addr, master_addr, host_name);
 
     // create worker
     husky::Worker worker(std::move(worker_info),
