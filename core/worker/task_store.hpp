@@ -4,13 +4,14 @@
 #include <functional>
 #include <unordered_map>
 #include "core/common/task.hpp"
+#include "core/worker/info.hpp"
 
 namespace husky {
 
 class TaskStore {
 public:
     TaskStore() = default;
-    void add_task(const Task& task, std::function<void()> func) {
+    void add_task(const Task& task, std::function<void(Info)> func) {
         assert(task_map.find(task.get_task_id()) == task_map.end());
         task_map.insert({task.get_task_id(), {task, func}});
     }
@@ -22,7 +23,7 @@ public:
     }
 
 private:
-    std::unordered_map<int, std::pair<Task, std::function<void()>>> task_map;
+    std::unordered_map<int, std::pair<Task, std::function<void(Info)>>> task_map;
 };
 
 }  // namespace husky

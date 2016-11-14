@@ -35,6 +35,9 @@ class WorkerInfo {
     inline int local_to_global_id(int proc_id, int local_worker_id) const {
         return local_to_global_[proc_id][local_worker_id];
     }
+    inline int local_to_global_id(int local_worker_id) const {
+        return local_to_global_[proc_id_][local_worker_id];
+    }
     inline int global_to_local_id(int global_worker_id) const {
         return global_to_local_[global_worker_id];
     }

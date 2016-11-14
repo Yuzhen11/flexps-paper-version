@@ -12,6 +12,7 @@
 #include "core/common/zmq_helpers.hpp"
 #include "core/worker/master_connector.hpp"
 #include "core/worker/task_store.hpp"
+#include "core/worker/info.hpp"
 
 namespace husky {
 
@@ -48,7 +49,10 @@ public:
                 zmq::socket_t socket = master_connector.get_socket_to_recv();
                 base::log_msg("[Thread]: Hello World");
                 // run the task
-                task_store.get_func(instance_id)();
+                Info info;
+                info.local_id = tid;
+                info.global_id = worker_info.local_to_global_id(tid);
+                task_store.get_func(instance_id)(info);
                 // tell worker when I finished
                 zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
                 zmq_sendmore_int32(&socket, instance_id);

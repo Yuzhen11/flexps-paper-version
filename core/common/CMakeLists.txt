@@ -24,6 +24,8 @@ add_library(common-objs OBJECT
     network.cpp
     config.cpp
     context.cpp
+    mailbox.cpp
+    hash_ring.cpp
     )
 set_property(TARGET common-objs PROPERTY CXX_STANDARD 14)
 

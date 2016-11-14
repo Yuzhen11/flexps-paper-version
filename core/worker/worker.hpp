@@ -25,7 +25,7 @@ public:
     }
 
     // User need to add task to taskstore
-    void add_task(const Task& task, std::function<void()> func) {
+    void add_task(const Task& task, std::function<void(Info)> func) {
         task_store.add_task(task, func);
     }
 
