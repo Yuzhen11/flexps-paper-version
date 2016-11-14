@@ -37,18 +37,18 @@ public:
         }
     }
     virtual void finish_local_instance(int instance_id, int proc_id) override {
-        tracker.erase(proc_id);
-        if (tracker.size() == 0) {
-            // instance done
+        tracker.erase(proc_id);  // Mark a process to finished
+        if (tracker.size() == 0) {  // If all the processes are done, the instance is done
             auto& task = tasks_queue.front();
-            task.current_epoch += 1;
-            if (task.current_epoch == task.total_epoch) {
+            task.current_epoch += 1;  // Trying to work on next epoch
+            if (task.current_epoch == task.total_epoch) {  // If all the epochs are done, then task is done
                 tasks_queue.pop();
             }
         }
     }
     virtual std::vector<Instance> extract_instances() override {
-        if (tasks_queue.empty())
+        // Assign no instance if 1. task_queue is empty or 2. current instance is still running 
+        if (tasks_queue.empty() || !tracker.empty())   
             return {};
         auto& task = tasks_queue.front();
         auto instance = task_to_instance(task);
@@ -83,9 +83,9 @@ private:
         }
         // create the instance
         Instance instance(task.id, task.current_epoch);
-        for (auto tid : selected_workers) {
-            int proc_id = worker_info.get_proc_id(tid);
-            instance.add_thread(proc_id, tid);
+        for (int i = 0; i < selected_workers.size(); ++i) {
+            int proc_id = worker_info.get_proc_id(selected_workers[i]);
+            instance.add_thread(proc_id, selected_workers[i], i);
         }
         return instance;
     }

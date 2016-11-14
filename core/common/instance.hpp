@@ -22,16 +22,30 @@ public:
     {}
 
     void show_instance() const {
-        base::log_msg("[Instance]: Instance id: "+std::to_string(id) + " epoch: "+std::to_string(current_epoch));
+        int num_threads = 0;
+        for (auto& kv : cluster)
+            num_threads += kv.second.size();
+        base::log_msg("[Instance]: Task id:"+std::to_string(id) + " Epoch:"+std::to_string(current_epoch) + " Proc Num:"+std::to_string(cluster.size())+" Thread Num:"+std::to_string(num_threads));
         for (auto& kv : cluster) {
             std::stringstream ss;
             ss << "Proc id: " << kv.first << ": { ";
             for (auto tid : kv.second) {
-                ss << tid << " ";
+                ss << "<" << tid.first << "," << tid.second  << "> ";
             }
             ss << "}";
             base::log_msg("[Instance]: "+ss.str());
         }
+    }
+
+    void show_instance(int proc_id) const {
+        auto iter = cluster.find(proc_id);
+        std::stringstream ss;
+        ss << "Task id:" << id <<  " Proc id:" << iter->first << ": { ";
+        for (auto tid : iter->second) {
+            ss << "<" << tid.first << "," << tid.second  << "> ";
+        }
+        ss << "}";
+        base::log_msg("[Instance]: "+ss.str()+" Added");
     }
 
     inline int get_id() const {
@@ -49,8 +63,8 @@ public:
         return cluster;
     }
 
-    void add_thread(int proc_id, int tid) {
-        cluster[proc_id].push_back(tid);
+    void add_thread(int proc_id, int tid, int id) {
+        cluster[proc_id].push_back({tid, id});
     }
 
     auto get_threads(int proc_id) const {
@@ -70,7 +84,7 @@ public:
         return cluster.size();
     }
 
-    void set_cluster(const std::unordered_map<int, std::vector<int>>& cluster_) {
+    void set_cluster(const std::unordered_map<int, std::vector<std::pair<int,int>>>& cluster_) {
         cluster = cluster_;
     }
 
@@ -96,7 +110,7 @@ public:
         instance.cluster.clear();
         for (size_t i = 0; i < size; ++ i) {
             int k;
-            std::vector<int> v;
+            std::vector<std::pair<int,int>> v;
             stream >> k >> v;
             instance.cluster.insert({k, std::move(v)});
         }
@@ -105,7 +119,7 @@ public:
 private:
     int id;
     int current_epoch;
-    std::unordered_map<int, std::vector<int>> cluster;  //  {proc_id, {tid...}}
+    std::unordered_map<int, std::vector<std::pair<int,int>>> cluster;  //  {proc_id, {<tid, id(counting from 0 in this instance)>, ...}}
 };
 
 

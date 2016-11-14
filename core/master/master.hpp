@@ -23,8 +23,8 @@ public:
 
     void test_connection() {
         Instance instance(0);
-        std::unordered_map<int, std::vector<int>> cluster;
-        cluster.insert({0, {0,1}}); // {0, {0,1}}
+        std::unordered_map<int, std::vector<std::pair<int,int>>> cluster;
+        cluster.insert({0, {{0,0},{1,1}}}); // {0, {<0,0>,<1,1>}}
         instance.set_cluster(cluster);  
         base::BinStream bin;
         bin << instance;
@@ -51,7 +51,6 @@ public:
             tasks.push_back(std::move(task));
         }
         cluster_manager.init_tasks(tasks);
-        base::log_msg("[Master]: recv_task_from_wroker done");
         base::log_msg("[Master]: Totally "+std::to_string(num_tasks)+" tasks received");
     }
 

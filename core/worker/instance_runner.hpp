@@ -27,11 +27,10 @@ public:
         task_store(task_store_)
     {}
 
-    std::vector<int> extract_local_instance(const Instance& instance) const {
-        std::vector<int> local_threads;
-        local_threads = instance.get_threads(worker_info.get_proc_id());
+    std::vector<std::pair<int,int>> extract_local_instance(const Instance& instance) const {
+        auto local_threads = instance.get_threads(worker_info.get_proc_id());
         for (auto& th : local_threads) {
-            th = worker_info.global_to_local_id(th);
+            th.first = worker_info.global_to_local_id(th.first);
         }
         return local_threads;
     }
@@ -47,26 +46,28 @@ public:
             // worker threads
             std::thread([this, instance_id, tid](){
                 zmq::socket_t socket = master_connector.get_socket_to_recv();
-                base::log_msg("[Thread]: Hello World");
                 // run the task
                 Info info;
-                info.local_id = tid;
-                info.global_id = worker_info.local_to_global_id(tid);
+                info.local_id = tid.first;
+                info.global_id = worker_info.local_to_global_id(tid.first);
+                info.cluster_id = tid.second;
                 task_store.get_func(instance_id)(info);
                 // tell worker when I finished
                 zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
                 zmq_sendmore_int32(&socket, instance_id);
-                zmq_send_int32(&socket, tid);
+                zmq_send_int32(&socket, tid.first);
             }).detach();
         }
-        std::unordered_set<int> local_threads_set(local_threads.begin(), local_threads.end());
+        std::unordered_set<int> local_threads_set;
+        for (auto tid : local_threads)
+            local_threads_set.insert(tid.first);
         instance_keeper.insert({instance_id, std::move(local_threads_set)});
-        base::log_msg("[InstanceRunner]: instance " + std::to_string(instance.get_id()) + " added");
+        // base::log_msg("[InstanceRunner]: instance " + std::to_string(instance.get_id()) + " added");
     }
 
     void finish_thread(int instance_id, int tid) {
         instance_keeper[instance_id].erase(tid);
-        base::log_msg("[InstanceRunner]: instance_id: " + std::to_string(instance_id) + " tid: " + std::to_string(tid) + " finished");
+        // base::log_msg("[InstanceRunner]: instance_id: " + std::to_string(instance_id) + " tid: " + std::to_string(tid) + " finished");
     }
     bool is_instance_done(int instance_id) {
         return instance_keeper[instance_id].empty();
@@ -83,8 +84,6 @@ public:
         bin << proc_id;
         auto& socket = master_connector.get_send_socket();
         zmq_send_binstream(&socket, bin);  // {instance_id, proc_id}
-
-        base::log_msg("[InstanceRunner]: instance " + std::to_string(instance_id) + " done ");
     }
 
 private:

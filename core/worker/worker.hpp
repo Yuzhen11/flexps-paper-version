@@ -50,13 +50,15 @@ public:
         auto& send_socket = master_connector.get_send_socket();
         while (true) {
             int type = zmq_recv_int32(&socket);
-            base::log_msg("[Worker]: " + std::to_string(type) );
+            // base::log_msg("[Worker]: Msg Type: " + std::to_string(type));
             if (type == constants::TASK_TYPE) {
                 auto bin = zmq_recv_binstream(&socket);
                 Instance instance;
                 bin >> instance;
-                instance.show_instance();
+                // instance.show_instance();
                 instance_runner.run_instance(instance);
+                // Print debug info
+                instance.show_instance(worker_info.get_proc_id());
             }
             else if (type == constants::THREAD_FINISHED) {
                 int instance_id = zmq_recv_int32(&socket);
@@ -64,6 +66,7 @@ public:
                 instance_runner.finish_thread(instance_id, thread_id);
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
+                    base::log_msg("[Worker]: task id:"+std::to_string(instance_id)+" finished on Proc:"+std::to_string(worker_info.get_proc_id()));
                     instance_runner.remove_instance(instance_id);
                 }
             }

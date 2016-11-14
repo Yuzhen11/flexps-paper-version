@@ -28,7 +28,7 @@ public:
         int instance_id, proc_id;
         bin >> instance_id >> proc_id;
         task_scheduler->finish_local_instance(instance_id, proc_id);
-        base::log_msg("[ClusterManager]: instance_id: "+std::to_string(instance_id)+" proc_id: "+std::to_string(proc_id) + " done");
+        base::log_msg("[ClusterManager]: task id: "+std::to_string(instance_id)+" proc id: "+std::to_string(proc_id) + " done");
     }
 
     // try to assign next tasks

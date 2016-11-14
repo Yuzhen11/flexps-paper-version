@@ -45,14 +45,14 @@ int main(int argc, char** argv) {
     // add tasks
     Task task1(0,1,2);  // id: 0, total_epoch: 1, num_workers: 2
     worker.add_task(task1, [](Info info){
-        base::log_msg(std::to_string(info.local_id) + " " + std::to_string(info.global_id));
+        base::log_msg("local_id:"+std::to_string(info.local_id) + " global_id:" + std::to_string(info.global_id)+" cluster_id:" + std::to_string(info.cluster_id));
         std::this_thread::sleep_for(std::chrono::seconds(1));
         base::log_msg("task1 is running");
     });
 
-    Task task2(1,2,1);  // id: 1, total_epoch: 2, num_workers: 1
+    Task task2(1,3,4);  // id: 1, total_epoch: 2, num_workers: 1
     worker.add_task(task2, [](Info info){
-        base::log_msg(std::to_string(info.local_id) + " " + std::to_string(info.global_id));
+        base::log_msg("local_id:"+std::to_string(info.local_id) + " global_id:" + std::to_string(info.global_id)+" cluster_id:" + std::to_string(info.cluster_id));
         std::this_thread::sleep_for(std::chrono::seconds(1));
         base::log_msg("task2 is running");
     });
