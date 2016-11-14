@@ -13,6 +13,7 @@
 #include "core/worker/master_connector.hpp"
 #include "core/worker/task_store.hpp"
 #include "core/worker/info.hpp"
+#include "core/worker/utility.hpp"
 
 namespace husky {
 
@@ -37,31 +38,31 @@ public:
 
     void run_instance(const Instance& instance) {
         assert(instances.find(instance.get_id()) == instances.end());
-        auto instance_id = instance.get_id();
         // retrieve local threads
         auto local_threads = extract_local_instance(instance);
         instances.insert({instance.get_id(), instance});  // store the instance
 
         for (auto tid : local_threads) {
             // worker threads
-            std::thread([this, instance_id, tid](){
+            std::thread([this, instance, tid](){
                 zmq::socket_t socket = master_connector.get_socket_to_recv();
-                // run the task
-                Info info;
+                // set the info
+                Info info = utility::instance_to_info(instance);
                 info.local_id = tid.first;
                 info.global_id = worker_info.local_to_global_id(tid.first);
                 info.cluster_id = tid.second;
-                task_store.get_func(instance_id)(info);
+                // run the UDF!!!
+                task_store.get_func(instance.get_id())(info);
                 // tell worker when I finished
                 zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
-                zmq_sendmore_int32(&socket, instance_id);
+                zmq_sendmore_int32(&socket, instance.get_id());
                 zmq_send_int32(&socket, tid.first);
             }).detach();
         }
         std::unordered_set<int> local_threads_set;
         for (auto tid : local_threads)
             local_threads_set.insert(tid.first);
-        instance_keeper.insert({instance_id, std::move(local_threads_set)});
+        instance_keeper.insert({instance.get_id(), std::move(local_threads_set)});
         // base::log_msg("[InstanceRunner]: instance " + std::to_string(instance.get_id()) + " added");
     }
 

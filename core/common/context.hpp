@@ -37,6 +37,9 @@ public:
     static void set_mailboxes(const std::vector<LocalMailbox*>& mailboxes_) {
         global->mailboxes = mailboxes_;
     }
+    static LocalMailbox* get_mailbox(int id) {
+        return global->mailboxes[id];
+    }
     static std::string get_recver_bind_addr() { return "tcp://*:" + std::to_string(global->config.get_comm_port()); }
 
 private:

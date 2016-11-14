@@ -48,6 +48,20 @@ int main(int argc, char** argv) {
         base::log_msg("local_id:"+std::to_string(info.local_id) + " global_id:" + std::to_string(info.global_id)+" cluster_id:" + std::to_string(info.cluster_id));
         std::this_thread::sleep_for(std::chrono::seconds(1));
         base::log_msg("task1 is running");
+
+        auto* mailbox = Context::get_mailbox(info.local_id);
+        if (info.cluster_id == 0) {  // cluster_id: 0
+            std::string str = "Hello World";
+            BinStream bin;
+            bin << str;
+            mailbox->send(info.get_tid(1), 0, 0, bin);
+        } else if (info.cluster_id == 1) {  // cluster_id: 1
+            mailbox->poll(0,0);
+            BinStream bin = mailbox->recv(0,0);
+            std::string str;
+            bin >> str;
+            base::log_msg("recved: "+str);
+        }
     });
 
     Task task2(1,3,4);  // id: 1, total_epoch: 2, num_workers: 1

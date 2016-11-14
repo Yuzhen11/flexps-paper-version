@@ -19,4 +19,4 @@ add_subdirectory(common)
 add_subdirectory(worker)
 add_subdirectory(master)
 
-add_library(husky-core STATIC $<TARGET_OBJECTS:common-objs>)
+add_library(husky-core STATIC $<TARGET_OBJECTS:common-objs> $<TARGET_OBJECTS:worker-objs>)

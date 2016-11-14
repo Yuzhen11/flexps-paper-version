@@ -15,3 +15,7 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
+add_library(worker-objs OBJECT
+    utility.cpp
+    )
+set_property(TARGET worker-objs PROPERTY CXX_STANDARD 14)
