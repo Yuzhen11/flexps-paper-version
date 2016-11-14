@@ -9,7 +9,7 @@
 namespace husky {
 namespace utility {
 
-Info instance_to_info(const Instance& instance);
+Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info);
 
 }  // namespace utility
 }  // namespace husky

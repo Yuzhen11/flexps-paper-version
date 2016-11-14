@@ -47,7 +47,7 @@ public:
             std::thread([this, instance, tid](){
                 zmq::socket_t socket = master_connector.get_socket_to_recv();
                 // set the info
-                Info info = utility::instance_to_info(instance);
+                Info info = utility::instance_to_info(instance, worker_info);
                 info.local_id = tid.first;
                 info.global_id = worker_info.local_to_global_id(tid.first);
                 info.cluster_id = tid.second;

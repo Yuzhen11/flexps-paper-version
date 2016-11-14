@@ -49,18 +49,38 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         base::log_msg("task1 is running");
 
+        // info.show();
         auto* mailbox = Context::get_mailbox(info.local_id);
         if (info.cluster_id == 0) {  // cluster_id: 0
-            std::string str = "Hello World";
+            // send
+            std::string str = "Hello World from cluster id 0";
             BinStream bin;
             bin << str;
             mailbox->send(info.get_tid(1), 0, 0, bin);
+            mailbox->send_complete(0,0,&info.hash_ring);
+
+            // recv
+            while(mailbox->poll(0,0)) {
+                BinStream bin = mailbox->recv(0,0);
+                std::string recv;
+                bin >> recv;
+                base::log_msg("cluster_id:" + std::to_string(info.cluster_id)+" recv: "+recv);
+            }
         } else if (info.cluster_id == 1) {  // cluster_id: 1
-            mailbox->poll(0,0);
-            BinStream bin = mailbox->recv(0,0);
-            std::string str;
-            bin >> str;
-            base::log_msg("recved: "+str);
+            // send
+            std::string str = "Hello World from cluster id 1";
+            BinStream bin;
+            bin << str;
+            mailbox->send(info.get_tid(0), 0, 0, bin);
+            mailbox->send_complete(0,0,&info.hash_ring);
+
+            // recv
+            while(mailbox->poll(0,0)) {
+                BinStream bin = mailbox->recv(0,0);
+                std::string recv;
+                bin >> recv;
+                base::log_msg("cluster_id:" + std::to_string(info.cluster_id)+" recv: "+recv);
+            }
         }
     });
 

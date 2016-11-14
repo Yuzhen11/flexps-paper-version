@@ -2,6 +2,7 @@
 #include <unordered_map>
 
 #include "base/log.hpp"
+#include "core/common/hash_ring.hpp"
 
 namespace husky {
 
@@ -9,6 +10,7 @@ struct Info {
     int local_id;
     int global_id;
     int cluster_id;  // The id within this cluster
+    HashRing hash_ring;
 
     std::unordered_map<int,int> cluster_id_to_global_id;  // {cluster_id, global_id}
 
