@@ -46,7 +46,13 @@ set_property(TARGET MasterMain PROPERTY CXX_STANDARD 14)
 add_executable(ProcMainWithContext ProcMainWithContext.cpp)
 target_link_libraries(ProcMainWithContext ${husky})
 target_link_libraries(ProcMainWithContext ${EXTERNAL_LIB})
-set_property(TARGET ProcMain PROPERTY CXX_STANDARD 14)
+set_property(TARGET ProcMainWithContext PROPERTY CXX_STANDARD 14)
+
+# ProcMainWithContextDriver
+add_executable(ProcMainWithContextDriver ProcMainWithContextDriver.cpp)
+target_link_libraries(ProcMainWithContextDriver ${husky})
+target_link_libraries(ProcMainWithContextDriver ${EXTERNAL_LIB})
+set_property(TARGET ProcMainWithContextDriver PROPERTY CXX_STANDARD 14)
 
 # MasterMainWithContext
 add_executable(MasterMainWithContext MasterMainWithContext.cpp)
