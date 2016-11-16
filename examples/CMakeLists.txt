@@ -26,36 +26,42 @@ if(MONGOCLIENT_FOUND)
 endif(MONGOCLIENT_FOUND)
 
 # set(husky husky-lib husky-io husky-core husky-base) 
-set(husky husky-core husky-base) 
+set(proj core base husky) 
 
 ### Applications
 
 # ProcMain
 add_executable(ProcMain ProcMain.cpp)
-target_link_libraries(ProcMain ${husky})
+target_link_libraries(ProcMain ${proj})
 target_link_libraries(ProcMain ${EXTERNAL_LIB})
 set_property(TARGET ProcMain PROPERTY CXX_STANDARD 14)
 
 # MasterMain
 add_executable(MasterMain MasterMain.cpp)
-target_link_libraries(MasterMain ${husky})
+target_link_libraries(MasterMain ${proj})
 target_link_libraries(MasterMain ${EXTERNAL_LIB})
 set_property(TARGET MasterMain PROPERTY CXX_STANDARD 14)
 
 # ProcMainWithContext
 add_executable(ProcMainWithContext ProcMainWithContext.cpp)
-target_link_libraries(ProcMainWithContext ${husky})
+target_link_libraries(ProcMainWithContext ${proj})
 target_link_libraries(ProcMainWithContext ${EXTERNAL_LIB})
 set_property(TARGET ProcMainWithContext PROPERTY CXX_STANDARD 14)
 
 # ProcMainWithContextDriver
 add_executable(ProcMainWithContextDriver ProcMainWithContextDriver.cpp)
-target_link_libraries(ProcMainWithContextDriver ${husky})
+target_link_libraries(ProcMainWithContextDriver ${proj})
 target_link_libraries(ProcMainWithContextDriver ${EXTERNAL_LIB})
 set_property(TARGET ProcMainWithContextDriver PROPERTY CXX_STANDARD 14)
 
 # MasterMainWithContext
 add_executable(MasterMainWithContext MasterMainWithContext.cpp)
-target_link_libraries(MasterMainWithContext ${husky})
+target_link_libraries(MasterMainWithContext ${proj})
 target_link_libraries(MasterMainWithContext ${EXTERNAL_LIB})
 set_property(TARGET MasterMainWithContext PROPERTY CXX_STANDARD 14)
+
+# PI
+add_executable(PI pi.cpp)
+target_link_libraries(PI ${proj})
+target_link_libraries(PI ${EXTERNAL_LIB})
+set_property(TARGET PI PROPERTY CXX_STANDARD 14)

@@ -15,10 +15,13 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
-add_library(base-objs OBJECT
-    serialization.cpp
-    log.cpp
-    )
-set_property(TARGET base-objs PROPERTY CXX_STANDARD 14)
+add_subdirectory(channel)
 
-add_library(base STATIC $<TARGET_OBJECTS:base-objs>)
+if(DEP_FOUND)
+    include_directories(${ZMQ_INCLUDE_DIR})
+endif(DEP_FOUND)
+
+add_library(husky-core-objs OBJECT
+    objlist_factory.cpp)
+set_property(TARGET husky-core-objs PROPERTY CXX_STANDARD 14)
+

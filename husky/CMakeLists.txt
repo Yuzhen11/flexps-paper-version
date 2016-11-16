@@ -15,10 +15,7 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
-add_library(base-objs OBJECT
-    serialization.cpp
-    log.cpp
-    )
-set_property(TARGET base-objs PROPERTY CXX_STANDARD 14)
+add_subdirectory(core)
 
-add_library(base STATIC $<TARGET_OBJECTS:base-objs>)
+add_library(husky STATIC $<TARGET_OBJECTS:husky-core-objs> $<TARGET_OBJECTS:husky-channel-objs>)
+# add_library(husky STATIC $<TARGET_OBJECTS:husky-core-objs>)

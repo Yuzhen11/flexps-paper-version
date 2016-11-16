@@ -51,6 +51,8 @@ public:
                 info.local_id = tid.first;
                 info.global_id = worker_info.local_to_global_id(tid.first);
                 info.cluster_id = tid.second;
+                info.num_local_threads = instance.get_threads(worker_info.get_proc_id()).size();
+                info.num_global_threads = instance.get_num_threads();
                 // run the UDF!!!
                 task_store.get_func(instance.get_id())(info);
                 // tell worker when I finished

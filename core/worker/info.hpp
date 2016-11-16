@@ -10,6 +10,8 @@ struct Info {
     int local_id;
     int global_id;
     int cluster_id;  // The id within this cluster
+    int num_local_threads;
+    int num_global_threads;
     HashRing hash_ring;
 
     std::unordered_map<int,int> cluster_id_to_global_id;  // {cluster_id, global_id}
