@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/worker/info.hpp"
+#include "core/common/info.hpp"
 #include "core/common/instance.hpp"
 #include "core/common/hash_ring.hpp"
 #include "core/common/worker_info.hpp"
@@ -9,7 +9,7 @@
 namespace husky {
 namespace utility {
 
-Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info);
+Info instance_to_info(const Instance& instance);
 
 }  // namespace utility
 }  // namespace husky

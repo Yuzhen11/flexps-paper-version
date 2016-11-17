@@ -36,13 +36,14 @@ int main(int argc, char** argv) {
         }
         ObjList<PIObject> pi_list;
         PushChannel<int, PIObject> ch(&pi_list, &pi_list);
+
         // mailbox
         auto* mailbox = Context::get_mailbox(info.local_id);
-        // hashring
         // worker_info
         auto* worker_info = Context::get_worker_info();
         // TODO, Channel depends on too many things, bad! At least worker_info can be deleted
         ch.setup(info.local_id, info.global_id, worker_info, mailbox, &info.hash_ring);
+
         ch.push(cnt, 0);
         ch.flush();
         ch.prepare_messages();

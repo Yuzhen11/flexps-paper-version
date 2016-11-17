@@ -10,10 +10,10 @@
 #include "core/common/instance.hpp"
 #include "core/common/worker_info.hpp"
 #include "core/common/zmq_helpers.hpp"
+#include "core/common/info.hpp"
+#include "core/common/utility.hpp"
 #include "core/worker/master_connector.hpp"
 #include "core/worker/task_store.hpp"
-#include "core/worker/info.hpp"
-#include "core/worker/utility.hpp"
 
 namespace husky {
 
@@ -47,7 +47,7 @@ public:
             std::thread([this, instance, tid](){
                 zmq::socket_t socket = master_connector.get_socket_to_recv();
                 // set the info
-                Info info = utility::instance_to_info(instance, worker_info);
+                Info info = utility::instance_to_info(instance);
                 info.local_id = tid.first;
                 info.global_id = worker_info.local_to_global_id(tid.first);
                 info.cluster_id = tid.second;

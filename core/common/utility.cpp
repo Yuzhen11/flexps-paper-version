@@ -2,7 +2,7 @@
 
 namespace husky {
 namespace utility {
-Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info) {
+Info instance_to_info(const Instance& instance) {
     Info info;
     auto& cluster = instance.get_cluster();
     for (auto& kv : cluster) {
