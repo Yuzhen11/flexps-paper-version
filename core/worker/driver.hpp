@@ -8,7 +8,9 @@ namespace husky {
 
 class Engine {
 public:
-    Engine() = default;
+    Engine() {
+        start();
+    }
     ~Engine() {
         recver.reset();
         el.reset();
@@ -18,7 +20,19 @@ public:
         // the sockets so we cannot delete zmq_context now
         // Context::finalize_global();
     }
-    std::unique_ptr<Worker>& create_worker() {
+
+    template<typename TaskType>
+    void add_task(const TaskType& task, const std::function<void(Info)>& func) {
+        static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
+        worker->add_task(task, func);
+    }
+
+    void run() {
+        worker->send_tasks_to_master();
+        worker->main_loop();
+    }
+private:
+    void start() {
         std::string bind_addr = "tcp://*:"+std::to_string(Context::get_config()->get_worker_port());
         std::string master_addr = "tcp://"+Context::get_config()->get_master_host()+":"+std::to_string(Context::get_config()->get_master_port());
         std::string host_name = Context::get_param("hostname");
@@ -51,19 +65,8 @@ public:
         // create worker
         worker.reset(new Worker(std::move(worker_info),
                 std::move(master_connector)));
-
-        return worker;
     }
 
-    void add_task(const Task& task, std::function<void(Info)> func) {
-        worker->add_task(task, func);
-    }
-
-    void run() {
-        worker->send_tasks_to_master();
-        worker->main_loop();
-    }
-private:
     std::unique_ptr<Worker> worker;
     std::unique_ptr<CentralRecver> recver;
     std::unique_ptr<MailboxEventLoop> el;

@@ -3,6 +3,7 @@
 #include "base/debug.hpp"
 #include "base/log.hpp"
 
+#include "base/exception.hpp"
 #include "base/serialization.hpp"
 #include "core/common/constants.hpp"
 #include "core/common/instance.hpp"
@@ -42,13 +43,38 @@ public:
         // recv tasks from proc 0 
         auto& socket = master_connection.get_recv_socket();
         auto bin = zmq_recv_binstream(&socket);
-        std::vector<Task> tasks;
+        std::vector<std::shared_ptr<Task>> tasks;
         size_t num_tasks;
         bin >> num_tasks;
         for (int i = 0; i < num_tasks; ++ i) {
-            Task task;
-            bin >> task;
-            tasks.push_back(std::move(task));
+            Task::Type type;
+            bin >> type;
+            switch (type) {
+                case Task::Type::BasicTaskType: {
+                    Task task;
+                    bin >> task;
+                    tasks.emplace_back(new Task(task));
+                    break;
+                }
+                case Task::Type::HuskyTaskType: {
+                    HuskyTask task;
+                    bin >> task;
+                    tasks.emplace_back(new HuskyTask(task));
+                    break;
+                }
+                case Task::Type::PSTaskType: {
+                    PSTask task;
+                    bin >> task;
+                    tasks.emplace_back(new PSTask(task));
+                    break;
+                }
+                default:
+                    throw base::HuskyException("Deserializing task error");
+            }
+
+            // Task task;
+            // bin >> task;
+            // tasks.push_back(std::move(task));
         }
         cluster_manager.init_tasks(tasks);
         base::log_msg("[Master]: Totally "+std::to_string(num_tasks)+" tasks received");

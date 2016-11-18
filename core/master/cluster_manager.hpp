@@ -18,10 +18,10 @@ public:
         task_scheduler(new SequentialTaskScheduler(worker_info_)) {
     }
 
-    void init_tasks(const std::vector<Task>& tasks) {
+    void init_tasks(const std::vector<std::shared_ptr<Task>>& tasks) {
         task_scheduler->init_tasks(tasks);
         for (auto& task : tasks) {
-            base::log_msg("[ClusterManager]: Task: "+std::to_string(task.get_task_id())+" added");
+            base::log_msg("[ClusterManager]: Task: "+std::to_string(task->get_id())+" added");
         }
     }
     void finish_local_instance(base::BinStream& bin) {

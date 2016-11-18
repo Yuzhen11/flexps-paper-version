@@ -18,9 +18,8 @@ int main(int argc, char** argv) {
     if (!rt) return 1;
 
     Engine engine;
-    engine.create_worker();
 
-    Task task(0, 1, 4);
+    HuskyTask task(0, 1, 4);
     engine.add_task(task, [](Info info) {
         int num_pts_per_thread = 1000;
         std::random_device rd;

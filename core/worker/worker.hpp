@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "base/debug.hpp"
 #include "base/log.hpp"
 
@@ -25,7 +27,9 @@ public:
     }
 
     // User need to add task to taskstore
-    void add_task(const Task& task, std::function<void(Info)> func) {
+    template<typename TaskType>
+    void add_task(const TaskType& task, const std::function<void(Info)>& func) {
+        static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
         task_store.add_task(task, func);
     }
 
@@ -36,8 +40,9 @@ public:
             auto& task_map = task_store.get_task_map();
             bin << task_map.size();
             for (auto& kv : task_map) {
-                Task task = kv.second.first;  // push the Task to buffer
-                bin << task;
+                auto& task = kv.second.first;
+                bin << task->get_type();  // push the task type first
+                task->serialize(bin);  // push the task
             }
             auto& socket = master_connector.get_send_socket();
             zmq_send_binstream(&socket, bin);

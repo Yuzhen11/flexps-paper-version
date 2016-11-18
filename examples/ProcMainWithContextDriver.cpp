@@ -8,7 +8,6 @@ int main(int argc, char** argv) {
     if (!rt) return 1;
 
     Engine engine;
-    engine.create_worker();
 
     // add tasks
     Task task1(0,1,2);  // id: 0, total_epoch: 1, num_workers: 2

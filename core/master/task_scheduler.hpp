@@ -13,7 +13,7 @@ public:
     TaskScheduler(WorkerInfo& worker_info_)
         : worker_info(worker_info_) {
     }
-    virtual void init_tasks(const std::vector<Task>&) = 0;
+    virtual void init_tasks(const std::vector<std::shared_ptr<Task>>&) = 0;
     virtual void finish_local_instance(int instance_id, int proc_id) = 0;
     virtual std::vector<Instance> extract_instances() = 0;
     virtual bool is_finished() = 0;
@@ -31,7 +31,7 @@ public:
 
     virtual ~SequentialTaskScheduler() override {}
 
-    virtual void init_tasks(const std::vector<Task>& tasks) override {
+    virtual void init_tasks(const std::vector<std::shared_ptr<Task>>& tasks) override {
         for (auto& task : tasks) {
             tasks_queue.push(task);
         }
@@ -40,8 +40,8 @@ public:
         tracker.erase(proc_id);  // Mark a process to finished
         if (tracker.size() == 0) {  // If all the processes are done, the instance is done
             auto& task = tasks_queue.front();
-            task.current_epoch += 1;  // Trying to work on next epoch
-            if (task.current_epoch == task.total_epoch) {  // If all the epochs are done, then task is done
+            task->inc_epoch();  // Trying to work on next epoch
+            if (task->get_current_epoch() == task->get_total_epoch()) {  // If all the epochs are done, then task is done
                 tasks_queue.pop();
             }
         }
@@ -51,7 +51,7 @@ public:
         if (tasks_queue.empty() || !tracker.empty())   
             return {};
         auto& task = tasks_queue.front();
-        auto instance = task_to_instance(task);
+        auto instance = task_to_instance(*task);
         init_tracker(instance);
         return {instance};
     }
@@ -60,7 +60,7 @@ public:
     }
 
 protected:
-    std::queue<Task> tasks_queue;
+    std::queue<std::shared_ptr<Task>> tasks_queue;
     std::unordered_set<int> tracker;
 private:
     void init_tracker(const Instance& instance) {
@@ -71,10 +71,10 @@ private:
     }
     Instance task_to_instance(const Task& task) {
         auto num_workers = worker_info.get_num_workers();
-        assert(num_workers >= task.num_workers);
+        assert(num_workers >= task.get_num_workers());
         // randomly select threads 
         std::vector<int> selected_workers;
-        while (selected_workers.size() < task.num_workers) {
+        while (selected_workers.size() < task.get_num_workers()) {
             int tid = rand()%num_workers;
             while (std::find(selected_workers.begin(), selected_workers.end(), tid) != selected_workers.end()) {
                 tid = rand()%num_workers;
@@ -82,7 +82,7 @@ private:
             selected_workers.push_back(tid);
         }
         // create the instance
-        Instance instance(task.id, task.current_epoch);
+        Instance instance(task.get_id(), task.get_current_epoch());
         for (int i = 0; i < selected_workers.size(); ++i) {
             int proc_id = worker_info.get_proc_id(selected_workers[i]);
             instance.add_thread(proc_id, selected_workers[i], i);
