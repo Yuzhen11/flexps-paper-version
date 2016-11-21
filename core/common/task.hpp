@@ -67,8 +67,9 @@ protected:
 class PSTask : public Task {
 public:
     PSTask() = default;
-    PSTask(int id, int total_epoch, int num_workers)
-        : Task(id, total_epoch, num_workers, Type::PSTaskType) 
+    PSTask(int id, int total_epoch, int num_workers, int num_servers = 1)
+        : num_servers_(num_servers),
+          Task(id, total_epoch, num_workers, Type::PSTaskType)
     {}
     // TODO When we add new class member here, we need to override the serialize and
     // deserialize functions!!!
@@ -78,6 +79,21 @@ public:
     friend BinStream& operator>>(BinStream& bin, PSTask& task) {
         return task.deserialize(bin);
     }
+
+    inline int get_num_ps_servers() const {
+        return num_servers_;
+    }
+    inline int get_num_ps_workers() const {
+        return num_workers_ - num_servers_;
+    }
+    inline bool is_worker(int id) const {
+        return !is_server(id);
+    }
+    inline bool is_server(int id) const {
+        return id < num_servers_;
+    }
+private:
+    int num_servers_;
 };
 class HuskyTask : public Task {
 public:
@@ -92,5 +108,18 @@ public:
         return task.deserialize(bin);
     }
 };
+
+// conversion functions to cast down along the task hierarchy
+namespace {
+Task get_task(std::shared_ptr<Task>& task) {
+    return *task.get();
+}
+PSTask get_pstask(std::shared_ptr<Task>& task) {
+    return *dynamic_cast<PSTask*>(task.get());
+}
+HuskyTask get_huskytask(std::shared_ptr<Task>& task) {
+    return *dynamic_cast<HuskyTask*>(task.get());
+}
+}  // namespace
 
 }  // namespace husky

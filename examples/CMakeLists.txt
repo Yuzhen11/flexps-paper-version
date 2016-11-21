@@ -65,3 +65,9 @@ add_executable(PI pi.cpp)
 target_link_libraries(PI ${proj})
 target_link_libraries(PI ${EXTERNAL_LIB})
 set_property(TARGET PI PROPERTY CXX_STANDARD 14)
+
+# SimpleKVApp
+add_executable(SimpleKVApp simple_kv_app.cpp)
+target_link_libraries(SimpleKVApp ${proj})
+target_link_libraries(SimpleKVApp ${EXTERNAL_LIB})
+set_property(TARGET SimpleKVApp PROPERTY CXX_STANDARD 14)

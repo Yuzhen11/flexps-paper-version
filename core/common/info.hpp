@@ -1,7 +1,9 @@
 #pragma once
 #include <unordered_map>
+#include <memory>
 
 #include "base/log.hpp"
+#include "core/common/task.hpp"
 #include "core/common/hash_ring.hpp"
 
 namespace husky {
@@ -13,6 +15,7 @@ struct Info {
     int num_local_threads;
     int num_global_threads;
     HashRing hash_ring;
+    std::shared_ptr<Task> task;
 
     std::unordered_map<int,int> cluster_id_to_global_id;  // {cluster_id, global_id}
 
