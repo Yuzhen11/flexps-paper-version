@@ -23,12 +23,21 @@ struct KVPairs {
 
 class SimpleApp {
 public:
+    void ShutDown() {
+        // To shut down, send an empty BinStream to every worker
+        for (int i = 0; i < info_.num_global_threads; ++ i) {
+            int dst = info_.get_tid(i);
+            husky::base::BinStream bin;
+            this->obj_->send(dst, bin);
+        }
+    }
 protected:
     using RecvHandle = std::function<void(int ts, husky::base::BinStream& bin)>;
-    SimpleApp(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle)
-        : obj_(new Customer(mailbox, recv_handle)) {
+    SimpleApp(husky::Info& info, husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int total_workers, int channel_id)
+        : info_(info), obj_(new Customer(mailbox, recv_handle, total_workers, channel_id)) {
     }
     std::unique_ptr<Customer> obj_;
+    husky::Info& info_;
 private:
 };
 
@@ -40,12 +49,11 @@ template<typename Val>
 class KVWorker : public SimpleApp {
 public:
     using Callback = std::function<void()>;
+    using SimpleApp::obj_;  // to avoid to many this->
     KVWorker(husky::Info& info, husky::LocalMailbox& mailbox)
-        : SimpleApp(mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }),
-          info_(info),
-          mailbox_(mailbox),
+        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }, info.num_global_threads, info.task->get_id()),  // TODO the final parameter is channel_id
           task(husky::get_pstask(info_.task)){
-
+        obj_->Start();
     }
     int Push(const std::vector<int>& keys, const std::vector<Val>& vals, const Callback& cb = nullptr) {
         auto num_servers = task.get_num_ps_servers();
@@ -170,24 +178,13 @@ public:
         }
         mu_.unlock();
     }
-    void ShutDown() {
-        if (info_.cluster_id == task.get_num_ps_servers()) {
-            for (int i = 0; i < task.get_num_workers(); ++ i) {
-                int dst = info_.get_tid(i);
-                husky::base::BinStream bin;
-                this->obj_->send(dst, bin);
-            }
-        }
-    }
 private:
     std::unordered_map<int, std::vector<KVPairs<Val>>> recv_kvs_;
     // this may not be used now
     std::unordered_map<int, Callback> callbacks_;
     std::mutex mu_;
 
-    husky::Info& info_;
     husky::PSTask task;
-    husky::LocalMailbox& mailbox_;
 };
 
 
@@ -199,8 +196,10 @@ template<typename Val>
 class KVServer : public SimpleApp {
 public:
     KVServer(husky::Info& info, husky::LocalMailbox& mailbox)
-        : SimpleApp(mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }),
+        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }, info.num_global_threads, info.task->get_id()),
           request_handle_(KVServerDefaultHandle<Val>()) {
+        // Start the recv thread once everything is set up
+        this->obj_->Start();
     }
     ~KVServer() = default;
 
@@ -213,9 +212,6 @@ public:
         bin << isRequest << ts << push << src; 
 
         bin << res.keys << res.vals;
-        for (int i = 0; i < res.keys.size(); ++ i) {
-            husky::base::log_msg("[Debug][Response]: k:"+std::to_string(res.keys[i])+" v:"+std::to_string(res.vals[i]));
-        }
         this->obj_->send(src, bin);
     }
 private:
@@ -244,6 +240,7 @@ struct KVServerDefaultHandle {
             while (bin.size() > 0) {
                 int k;
                 bin >> k;
+                husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+" v:"+std::to_string(store[k]));
                 res.keys.push_back(k);
                 res.vals.push_back(store[k]);
             }

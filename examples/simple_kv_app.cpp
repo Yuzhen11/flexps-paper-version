@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
 
     Engine engine;
 
-    PSTask task(0, 1, 2, 1);
+    PSTask task(0, 1, 4, 2);
     engine.add_task(task, [](Info info){
         PSTask task = get_pstask(info.task);
         base::log_msg(std::to_string(info.cluster_id) + ": server num:" + std::to_string(task.get_num_ps_servers()));
@@ -36,12 +36,13 @@ int main(int argc, char** argv) {
             std::vector<float> rets;
             kvworker.Wait(kvworker.Pull(keys, &rets));
             for (int i = 0; i < num; ++ i) {
-                base::log_msg("pull result of key:"+std::to_string(keys[i])+" is: "+std::to_string(vals[i]));
+                base::log_msg("pull result of key:"+std::to_string(keys[i])+" is: "+std::to_string(rets[i]));
             }
             kvworker.ShutDown();
         } else if (task.is_server(info.cluster_id)) {
             base::log_msg(std::to_string(info.cluster_id) + ": I am a server");
             ml::ps::KVServer<float> kvserver(info, *Context::get_mailbox(info.local_id));
+            kvserver.ShutDown();
         }
     });
     engine.run();
