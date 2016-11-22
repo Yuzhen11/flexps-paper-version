@@ -42,8 +42,7 @@ private:
 };
 
 /*
- * TODO Need to figure out what info each KVWorker and KVServer
- * need to have
+ * A worker node that can Push/Pull key-value pairs to/from server nodes
  */
 template<typename Val>
 class KVWorker : public SimpleApp {
@@ -55,6 +54,11 @@ public:
           task(husky::get_pstask(info_.task)){
         obj_->Start();
     }
+    /*
+     * Pushes a list of kv pairs to all server nodes
+     * 
+     * it's a non-blocking call.
+     */
     int Push(const std::vector<int>& keys, const std::vector<Val>& vals, const Callback& cb = nullptr) {
         auto num_servers = task.get_num_ps_servers();
         int ts = obj_->NewRequest(num_servers);
@@ -80,6 +84,12 @@ public:
         }
         return ts;
     }
+
+    /*
+     * Pulls the values associated with the keys from the server nodes
+     *
+     * it's a non-blocking call, use wait to block on that
+     */
     int Pull(const std::vector<int>& keys, std::vector<Val>* vals, const Callback& cb = nullptr) {
         auto num_servers = task.get_num_ps_servers();
         int ts = obj_->NewRequest(num_servers);
@@ -100,7 +110,7 @@ public:
             this->obj_->send(info_.get_tid(i), bins[i]);  // send
         }
         // add callback
-        // TODO, since here we don't use sarry in ps-lite, deep copy of vector of keys are needed
+        // TODO, since here we don't use sarray in ps-lite, deep copy of vector of keys are needed
         AddCallback(ts, [this, ts, keys, vals, cb]() mutable {
             mu_.lock();
             auto& kvs = recv_kvs_[ts];
@@ -152,6 +162,7 @@ public:
             recv_kvs_[ts].push_back(kvs);
             mu_.unlock();
         }
+        // If all the servers response, run the callback
         if (this->obj_->NumResponse(ts) == task.get_num_ps_servers() - 1) {
             RunCallback(ts);
         }
@@ -165,6 +176,9 @@ public:
         std::lock_guard<std::mutex> lk(mu_);
         callbacks_[ts] = cb;
     }
+    /*
+     * Run the callback
+     */
     void RunCallback(int ts) {
         mu_.lock();
         auto it = callbacks_.find(ts);
@@ -179,8 +193,9 @@ public:
         mu_.unlock();
     }
 private:
+    // storage for the kvs
     std::unordered_map<int, std::vector<KVPairs<Val>>> recv_kvs_;
-    // this may not be used now
+    // callbacks
     std::unordered_map<int, Callback> callbacks_;
     std::mutex mu_;
 
@@ -192,6 +207,9 @@ private:
 template<typename Val>
 struct KVServerDefaultHandle;
 
+/*
+ * A server node for maintaining kv pairs
+ */
 template<typename Val>
 class KVServer : public SimpleApp {
 public:
@@ -203,8 +221,16 @@ public:
     }
     ~KVServer() = default;
 
+    /*
+     * the handle to process a push/pull request from a worker
+     */
     using ReqHandle = std::function<void(int, husky::base::BinStream&, KVServer<Val>*)>;
 
+    /*
+     * response to the push/pull request
+     * The whole callback process is:
+     * process -> request_handle_ -> Response
+     */
     void Response(int ts, bool push, int src, const KVPairs<Val>& res) {
         husky::base::BinStream bin;
         bool isRequest = false;
@@ -215,12 +241,18 @@ public:
         this->obj_->send(src, bin);
     }
 private:
+    // internal receive handle
     void Process(int ts, husky::base::BinStream& bin) {
         request_handle_(ts, bin, this);
     }
+    // request handle
     ReqHandle request_handle_;
 };
 
+/*
+ * The default KVServer handle
+ * An example handle adding pushed kv into store
+ */
 template<typename Val>
 struct KVServerDefaultHandle {
     void operator()(int ts, husky::base::BinStream& bin, KVServer<Val>* server) {
@@ -233,14 +265,14 @@ struct KVServerDefaultHandle {
                 int k; 
                 Val v;
                 bin >> k >> v;
-                husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
+                // husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
                 store[k] += v;
             }
         } else {  // if is pull
             while (bin.size() > 0) {
                 int k;
                 bin >> k;
-                husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+" v:"+std::to_string(store[k]));
+                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+" v:"+std::to_string(store[k]));
                 res.keys.push_back(k);
                 res.vals.push_back(store[k]);
             }

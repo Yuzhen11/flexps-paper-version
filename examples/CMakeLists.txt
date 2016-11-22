@@ -71,3 +71,9 @@ add_executable(SimpleKVApp simple_kv_app.cpp)
 target_link_libraries(SimpleKVApp ${proj})
 target_link_libraries(SimpleKVApp ${EXTERNAL_LIB})
 set_property(TARGET SimpleKVApp PROPERTY CXX_STANDARD 14)
+
+# TestKVApp
+add_executable(TestKVApp test_kv_app.cpp)
+target_link_libraries(TestKVApp ${proj})
+target_link_libraries(TestKVApp ${EXTERNAL_LIB})
+set_property(TARGET TestKVApp PROPERTY CXX_STANDARD 14)

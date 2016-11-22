@@ -14,13 +14,19 @@ namespace ps {
  * Use the same name with ps-lite
  *
  * It has its own receiving thread to poll messages from LocalMailbox
- * and invoke the callback
+ * and invoke the callback. 
+ *
+ * Users (KVWorker and KVServer) need to give
+ * a callback function
  * 
  */
 class Customer {
 public:
+    /*
+     * the handle for a received message
+     */
     using RecvHandle = std::function<void(int ts, husky::base::BinStream& bin)>;
-    // TODO What is the minimun struct the a Customer object needs
+
     Customer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int total_workers, int channel_id)
         : mailbox_(mailbox),
           recv_handle_(recv_handle),
@@ -33,7 +39,7 @@ public:
     void Start() {
         // spawn a new thread to recevive
         recv_thread_ = std::unique_ptr<std::thread>(new std::thread(&Customer::Receiving, this));
-        husky::base::log_msg("total_workers:"+std::to_string(total_workers_)+" channel_id:"+std::to_string(channel_id_));
+        // husky::base::log_msg("total_workers:"+std::to_string(total_workers_)+" channel_id:"+std::to_string(channel_id_));
     }
 
     int NewRequest(int num_responses) {
@@ -63,6 +69,7 @@ private:
             // empty message means exit
             if (bin.size() == 0) {
                 num_finished_workers += 1;
+                // if a get all the exit message, break the loop
                 if (num_finished_workers == total_workers_) {
                     break;
                 }
@@ -97,7 +104,7 @@ private:
     std::vector<std::pair<int,int>> tracker_;
 
     // some info
-    int channel_id_ = 0;
+    int channel_id_;
     int total_workers_;
 
 };
