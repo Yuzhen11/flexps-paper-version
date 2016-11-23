@@ -77,3 +77,10 @@ add_executable(TestKVApp test_kv_app.cpp)
 target_link_libraries(TestKVApp ${proj})
 target_link_libraries(TestKVApp ${EXTERNAL_LIB})
 set_property(TARGET TestKVApp PROPERTY CXX_STANDARD 14)
+
+# SimpleHogwild
+add_executable(SimpleHogwild simple_hogwild.cpp)
+target_link_libraries(SimpleHogwild ${proj})
+target_link_libraries(SimpleHogwild ${EXTERNAL_LIB})
+set_property(TARGET SimpleHogwild PROPERTY CXX_STANDARD 14)
+
