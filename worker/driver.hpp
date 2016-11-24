@@ -31,6 +31,11 @@ public:
         worker->send_tasks_to_master();
         worker->main_loop();
     }
+
+    template<typename Val>
+    int create_kvstore() {
+        return worker->create_kvstore<Val>();
+    }
 private:
     void start() {
         std::string bind_addr = "tcp://*:"+std::to_string(Context::get_config()->get_worker_port());
@@ -43,7 +48,7 @@ private:
         // master connector
         MasterConnector master_connector(Context::get_zmq_context(), bind_addr, master_addr, host_name);
 
-        // Create mailbox
+        // Create mailboxes
         el.reset(new MailboxEventLoop(&Context::get_zmq_context()));
         el->set_process_id(worker_info.get_proc_id());
         for (int i = 0; i < worker_info.get_num_processes(); i++)
@@ -61,6 +66,20 @@ private:
         }
         recver.reset(new CentralRecver(&Context::get_zmq_context(), Context::get_recver_bind_addr()));
         Context::set_mailboxes(mailboxes);
+
+        // Create mailbox for LocalKVStore
+        for (int i = 0; i < worker_info.get_num_processes(); ++ i) {
+            int tid = worker_info.get_num_workers() + i;
+            if (i != worker_info.get_proc_id()) {
+                el->register_peer_thread(worker_info.get_proc_id(tid), tid);
+            } else {
+                auto* mailbox = new LocalMailbox(&Context::get_zmq_context());
+                mailbox->set_thread_id(tid);
+                el->register_mailbox(*mailbox);
+                Context::set_kv_mailbox(mailbox);
+            }
+        }
+
         
         // create worker
         worker.reset(new Worker(std::move(worker_info),

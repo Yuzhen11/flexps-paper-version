@@ -127,16 +127,16 @@ public:
 
 // conversion functions to cast down along the task hierarchy
 namespace {
-Task get_task(std::shared_ptr<Task>& task) {
+Task get_task(const std::shared_ptr<Task>& task) {
     return *task.get();
 }
-PSTask get_pstask(std::shared_ptr<Task>& task) {
+PSTask get_pstask(const std::shared_ptr<Task>& task) {
     return *dynamic_cast<PSTask*>(task.get());
 }
-HuskyTask get_huskytask(std::shared_ptr<Task>& task) {
+HuskyTask get_huskytask(const std::shared_ptr<Task>& task) {
     return *dynamic_cast<HuskyTask*>(task.get());
 }
-HogwildTask get_hogwildtask(std::shared_ptr<Task>& task) {
+HogwildTask get_hogwildtask(const std::shared_ptr<Task>& task) {
     return *dynamic_cast<HogwildTask*>(task.get());
 }
 }  // namespace

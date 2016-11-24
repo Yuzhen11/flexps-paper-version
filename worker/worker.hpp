@@ -14,6 +14,7 @@
 #include "core/zmq_helpers.hpp"
 #include "worker/master_connector.hpp"
 #include "worker/task_store.hpp"
+#include "worker/kvstore_manager.hpp"
 
 namespace husky {
 
@@ -82,11 +83,17 @@ public:
         }
     }
 
+    template<typename Val>
+    int create_kvstore() {
+        return kvstore_manager.create_kvstore<Val>();
+    }
+
 private:
     MasterConnector master_connector;
     WorkerInfo worker_info;
     InstanceRunner instance_runner;
     TaskStore task_store;
+    KVStoreManager kvstore_manager;
 };
 
 }  // namespace husky

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <vector>
 #include <algorithm>
+#include <unordered_map>
 
 #include "customer.hpp"
 #include "core/info.hpp"
@@ -11,6 +12,28 @@
 
 namespace ml {
 namespace ps {
+
+struct PSInfo {
+    int channel_id;
+    int global_id;
+    int num_global_threads;
+    int num_ps_servers;
+    std::unordered_map<int,int> cluster_id_to_global_id;  // {cluster_id, global_id}
+
+    int get_tid(int cluster_id) {
+        return cluster_id_to_global_id[cluster_id];
+    }
+};
+
+PSInfo info2psinfo(const husky::Info& info) {
+    PSInfo psinfo;
+    psinfo.channel_id = info.task->get_id();
+    psinfo.global_id = info.global_id;
+    psinfo.num_global_threads = info.num_global_threads;
+    psinfo.num_ps_servers = husky::get_pstask(info.task).get_num_ps_servers();
+    psinfo.cluster_id_to_global_id = info.cluster_id_to_global_id;
+    return psinfo;
+}
 
 /* 
  * Use std::vector first, may replaced by SArray
@@ -33,11 +56,11 @@ public:
     }
 protected:
     using RecvHandle = std::function<void(int ts, husky::base::BinStream& bin)>;
-    SimpleApp(husky::Info& info, husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int total_workers, int channel_id)
-        : info_(info), obj_(new Customer(mailbox, recv_handle, total_workers, channel_id)) {
+    SimpleApp(const PSInfo& info, husky::LocalMailbox& mailbox, const RecvHandle& recv_handle)
+        : info_(info), obj_(new Customer(mailbox, recv_handle, info.num_global_threads, info.channel_id)) {
     }
     std::unique_ptr<Customer> obj_;
-    husky::Info& info_;
+    PSInfo info_;
 private:
 };
 
@@ -49,9 +72,8 @@ class KVWorker : public SimpleApp {
 public:
     using Callback = std::function<void()>;
     using SimpleApp::obj_;  // to avoid to many this->
-    KVWorker(husky::Info& info, husky::LocalMailbox& mailbox)
-        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }, info.num_global_threads, info.task->get_id()),  // TODO the final parameter is channel_id
-          task(husky::get_pstask(info_.task)){
+    KVWorker(const PSInfo& info, husky::LocalMailbox& mailbox)
+        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }) {
         obj_->Start();
     }
     /*
@@ -60,7 +82,7 @@ public:
      * it's a non-blocking call.
      */
     int Push(const std::vector<int>& keys, const std::vector<Val>& vals, const Callback& cb = nullptr) {
-        auto num_servers = task.get_num_ps_servers();
+        auto num_servers = info_.num_ps_servers;
         int ts = obj_->NewRequest(num_servers);
         AddCallback(ts, cb);
         // create the send buffer
@@ -91,7 +113,7 @@ public:
      * it's a non-blocking call, use wait to block on that
      */
     int Pull(const std::vector<int>& keys, std::vector<Val>* vals, const Callback& cb = nullptr) {
-        auto num_servers = task.get_num_ps_servers();
+        auto num_servers = info_.num_ps_servers;
         int ts = obj_->NewRequest(num_servers);
         AddCallback(ts, cb);
         
@@ -163,7 +185,7 @@ public:
             mu_.unlock();
         }
         // If all the servers response, run the callback
-        if (this->obj_->NumResponse(ts) == task.get_num_ps_servers() - 1) {
+        if (this->obj_->NumResponse(ts) == info_.num_ps_servers - 1) {
             RunCallback(ts);
         }
     }
@@ -198,8 +220,6 @@ private:
     // callbacks
     std::unordered_map<int, Callback> callbacks_;
     std::mutex mu_;
-
-    husky::PSTask task;
 };
 
 
@@ -213,8 +233,8 @@ struct KVServerDefaultHandle;
 template<typename Val>
 class KVServer : public SimpleApp {
 public:
-    KVServer(husky::Info& info, husky::LocalMailbox& mailbox)
-        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }, info.num_global_threads, info.task->get_id()),
+    KVServer(const PSInfo& info, husky::LocalMailbox& mailbox)
+        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }),
           request_handle_(KVServerDefaultHandle<Val>()) {
         // Start the recv thread once everything is set up
         this->obj_->Start();

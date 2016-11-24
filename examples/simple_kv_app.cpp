@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
         }
         if (task.is_worker(info.cluster_id)) {
             base::log_msg(std::to_string(info.cluster_id) + ": I am a worker");
-            ml::ps::KVWorker<float> kvworker(info, *Context::get_mailbox(info.local_id));
+            ml::ps::KVWorker<float> kvworker(ml::ps::info2psinfo(info), *Context::get_mailbox(info.local_id));
             int num = 10;
             std::vector<int> keys(num);
             std::vector<float> vals(num);
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
             kvworker.ShutDown();
         } else if (task.is_server(info.cluster_id)) {
             base::log_msg(std::to_string(info.cluster_id) + ": I am a server");
-            ml::ps::KVServer<float> kvserver(info, *Context::get_mailbox(info.local_id));
+            ml::ps::KVServer<float> kvserver(ml::ps::info2psinfo(info), *Context::get_mailbox(info.local_id));
             kvserver.ShutDown();
         }
     });
