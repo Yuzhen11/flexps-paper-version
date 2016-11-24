@@ -4,8 +4,8 @@
 #include <functional>
 #include <unordered_map>
 #include <type_traits>
-#include "core/common/task.hpp"
-#include "core/common/info.hpp"
+#include "core/task.hpp"
+#include "core/info.hpp"
 
 namespace husky {
 

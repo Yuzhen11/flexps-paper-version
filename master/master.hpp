@@ -5,11 +5,11 @@
 
 #include "base/exception.hpp"
 #include "base/serialization.hpp"
-#include "core/common/constants.hpp"
-#include "core/common/instance.hpp"
-#include "core/common/worker_info.hpp"
-#include "core/master/master_connection.hpp"
-#include "core/master/cluster_manager.hpp"
+#include "core/constants.hpp"
+#include "core/instance.hpp"
+#include "core/worker_info.hpp"
+#include "master/master_connection.hpp"
+#include "master/cluster_manager.hpp"
 
 namespace husky {
 

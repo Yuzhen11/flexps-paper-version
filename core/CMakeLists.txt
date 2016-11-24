@@ -15,8 +15,19 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
-add_subdirectory(common)
-add_subdirectory(worker)
-add_subdirectory(master)
+if(DEP_FOUND)
+    include_directories(${ZMQ_INCLUDE_DIR})
+endif(DEP_FOUND)
 
-add_library(core STATIC $<TARGET_OBJECTS:common-objs> $<TARGET_OBJECTS:worker-objs>)
+add_library(core-objs OBJECT
+    worker_info.cpp
+    network.cpp
+    config.cpp
+    context.cpp
+    mailbox.cpp
+    hash_ring.cpp
+    utility.cpp
+    )
+set_property(TARGET core-objs PROPERTY CXX_STANDARD 14)
+
+add_library(core STATIC $<TARGET_OBJECTS:core-objs>)

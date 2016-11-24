@@ -5,8 +5,8 @@
 #include <algorithm>
 
 #include "customer.hpp"
-#include "core/common/info.hpp"
-#include "core/common/mailbox.hpp"
+#include "core/info.hpp"
+#include "core/mailbox.hpp"
 #include "base/serialization.hpp"
 
 namespace ml {

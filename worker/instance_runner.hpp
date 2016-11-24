@@ -7,13 +7,13 @@
 #include "base/log.hpp"
 #include "base/serialization.hpp"
 
-#include "core/common/instance.hpp"
-#include "core/common/worker_info.hpp"
-#include "core/common/zmq_helpers.hpp"
-#include "core/common/info.hpp"
-#include "core/common/utility.hpp"
-#include "core/worker/master_connector.hpp"
-#include "core/worker/task_store.hpp"
+#include "core/instance.hpp"
+#include "core/worker_info.hpp"
+#include "core/zmq_helpers.hpp"
+#include "core/info.hpp"
+#include "core/utility.hpp"
+#include "worker/master_connector.hpp"
+#include "worker/task_store.hpp"
 
 namespace husky {
 

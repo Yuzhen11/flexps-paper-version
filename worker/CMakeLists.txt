@@ -15,19 +15,8 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
-if(DEP_FOUND)
-    include_directories(${ZMQ_INCLUDE_DIR})
-endif(DEP_FOUND)
-
-add_library(common-objs OBJECT
-    worker_info.cpp
-    network.cpp
-    config.cpp
-    context.cpp
-    mailbox.cpp
-    hash_ring.cpp
-    utility.cpp
+add_library(worker-objs OBJECT
     )
-set_property(TARGET common-objs PROPERTY CXX_STANDARD 14)
+set_property(TARGET worker-objs PROPERTY CXX_STANDARD 14)
 
-# add_library(husky-core STATIC $<TARGET_OBJECTS:core-objs>)
+add_library(worker STATIC $<TARGET_OBJECTS:worker-objs>)

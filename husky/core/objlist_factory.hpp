@@ -17,9 +17,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "core/common/context.hpp"
+#include "core/context.hpp"
 #include "husky/core/objlist.hpp"
-#include "core/common/utils.hpp"
+#include "core/utils.hpp"
 
 namespace husky {
 

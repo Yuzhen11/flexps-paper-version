@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/common/mailbox.hpp"
+#include "core/mailbox.hpp"
 
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/log.hpp"
-#include "core/common/constants.hpp"
-#include "core/common/network.hpp"
-#include "core/common/utils.hpp"
-#include "core/common/zmq_helpers.hpp"
+#include "core/constants.hpp"
+#include "core/network.hpp"
+#include "core/utils.hpp"
+#include "core/zmq_helpers.hpp"
 
 namespace husky {
 

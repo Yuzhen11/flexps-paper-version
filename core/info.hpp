@@ -3,8 +3,8 @@
 #include <memory>
 
 #include "base/log.hpp"
-#include "core/common/task.hpp"
-#include "core/common/hash_ring.hpp"
+#include "core/task.hpp"
+#include "core/hash_ring.hpp"
 
 namespace husky {
 

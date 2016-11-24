@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/common/config.hpp"
+#include "core/config.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -23,8 +23,8 @@
 #include "boost/program_options.hpp"
 
 #include "base/log.hpp"
-#include "core/common/context.hpp"
-#include "core/common/network.hpp"
+#include "core/context.hpp"
+#include "core/network.hpp"
 
 namespace husky {
 

@@ -2,8 +2,8 @@
 
 #include "base/serialization.hpp"
 #include "base/exception.hpp"
-#include "core/common/zmq_helpers.hpp"
-#include "core/common/info.hpp"
+#include "core/zmq_helpers.hpp"
+#include "core/info.hpp"
 
 namespace ml {
 namespace hogwild {

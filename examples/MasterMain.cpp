@@ -1,4 +1,4 @@
-#include "core/master/master.hpp"
+#include "master/master.hpp"
 
 using namespace husky;
 

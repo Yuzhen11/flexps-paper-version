@@ -21,7 +21,7 @@
 #include "base/exception.hpp"
 #include "base/serialization.hpp"
 #include "husky/core/objlist_data.hpp"
-#include "core/common/utils.hpp"
+#include "core/utils.hpp"
 
 namespace husky {
 

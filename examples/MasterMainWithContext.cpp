@@ -1,5 +1,5 @@
-#include "core/master/master.hpp"
-#include "core/common/context.hpp"
+#include "master/master.hpp"
+#include "core/context.hpp"
 
 using namespace husky;
 

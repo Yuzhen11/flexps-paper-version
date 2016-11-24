@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/common/network.hpp"
+#include "core/network.hpp"
 
 #ifdef _WIN32
 #error "The networking support for Windows is not ready yet."
@@ -35,7 +35,7 @@
 #include <Winsock2.h>
 #endif
 
-#include "core/common/utils.hpp"
+#include "core/utils.hpp"
 
 namespace husky {
 

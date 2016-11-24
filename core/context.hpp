@@ -2,9 +2,9 @@
 
 #include <string>
 #include "zmq.hpp"
-#include "core/common/config.hpp"
-#include "core/common/worker_info.hpp"
-#include "core/common/mailbox.hpp"
+#include "core/config.hpp"
+#include "core/worker_info.hpp"
+#include "core/mailbox.hpp"
 
 namespace husky {
 

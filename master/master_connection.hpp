@@ -3,7 +3,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "core/common/zmq_helpers.hpp"
+#include "core/zmq_helpers.hpp"
 #include "base/debug.hpp"
 #include "base/log.hpp"
 

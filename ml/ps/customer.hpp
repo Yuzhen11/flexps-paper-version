@@ -5,7 +5,7 @@
 #include <condition_variable>
 #include <thread>
 #include "base/serialization.hpp"
-#include "core/common/mailbox.hpp"
+#include "core/mailbox.hpp"
 
 namespace ml {
 namespace ps {

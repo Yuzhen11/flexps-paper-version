@@ -1,6 +1,6 @@
 #include <chrono>
 
-#include "core/worker/worker.hpp"
+#include "worker/worker.hpp"
 
 using namespace husky;
 

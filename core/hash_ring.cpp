@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/common/hash_ring.hpp"
+#include "core/hash_ring.hpp"
 
 #include <algorithm>
 #include <random>

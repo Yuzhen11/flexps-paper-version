@@ -19,7 +19,7 @@
 #include "zmq.hpp"
 
 #include "base/serialization.hpp"
-#include "core/common/utils.hpp"
+#include "core/utils.hpp"
 
 namespace husky {
 

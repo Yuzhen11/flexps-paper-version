@@ -4,8 +4,8 @@
 #include <cstdlib>
 #include <unordered_map>
 #include <queue>
-#include "core/common/task.hpp"
-#include "core/common/instance.hpp"
+#include "core/task.hpp"
+#include "core/instance.hpp"
 
 namespace husky {
 class TaskScheduler {

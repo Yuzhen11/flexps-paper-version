@@ -27,7 +27,7 @@
 #include "base/concurrent_queue.hpp"
 #include "base/hash.hpp"
 #include "base/serialization.hpp"
-#include "core/common/hash_ring.hpp"
+#include "core/hash_ring.hpp"
 
 namespace husky {
 

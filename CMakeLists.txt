@@ -47,13 +47,10 @@ endif(THRIFT_FOUND)
 
 add_subdirectory(base)
 add_subdirectory(core)
-# add_subdirectory(io)
-# add_subdirectory(lib)
+# add_subdirectory(worker)
+# add_subdirectory(master)
 add_subdirectory(husky)
 add_subdirectory(examples)
-# add_subdirectory(master)
-# add_subdirectory(test)
-# add_subdirectory(benchmarks)
 
 # libhusky.a
 # set(husky-objs $<TARGET_OBJECTS:channel-objs> $<TARGET_OBJECTS:base-objs> $<TARGET_OBJECTS:core-objs> ${io-objs} ${lib-objs})

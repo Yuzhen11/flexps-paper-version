@@ -3,9 +3,9 @@
 #include <unordered_map>
 #include "base/log.hpp"
 #include "base/serialization.hpp"
-#include "core/common/task.hpp"
-#include "core/common/instance.hpp"
-#include "core/master/task_scheduler.hpp"
+#include "core/task.hpp"
+#include "core/instance.hpp"
+#include "master/task_scheduler.hpp"
 
 namespace husky {
 

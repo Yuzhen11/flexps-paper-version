@@ -19,10 +19,10 @@
 
 #include "base/serialization.hpp"
 #include "husky/core/channel/channel_impl.hpp"
-#include "core/common/hash_ring.hpp"
-#include "core/common/mailbox.hpp"
+#include "core/hash_ring.hpp"
+#include "core/mailbox.hpp"
 #include "husky/core/objlist.hpp"
-#include "core/common/worker_info.hpp"
+#include "core/worker_info.hpp"
 
 namespace husky {
 

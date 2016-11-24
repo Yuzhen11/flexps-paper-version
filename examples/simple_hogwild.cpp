@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "core/worker/driver.hpp"
+#include "worker/driver.hpp"
 #include "ml/hogwild/hogwild.hpp"
 
 using namespace husky;
