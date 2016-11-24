@@ -13,6 +13,7 @@ public:
     enum class Type {
         BasicTaskType,
         PSTaskType,
+        HogwildTaskType,
         HuskyTaskType
     };
 
@@ -95,6 +96,21 @@ public:
 private:
     int num_servers_;
 };
+
+class HogwildTask : public Task {
+public:
+    HogwildTask() = default;
+    HogwildTask(int id, int total_epoch, int num_workers)
+        : Task(id, total_epoch, num_workers, Type::HogwildTaskType) 
+    {}
+    friend BinStream& operator<<(BinStream& bin, const HogwildTask& task) {
+        return task.serialize(bin);
+    }
+    friend BinStream& operator>>(BinStream& bin, HogwildTask& task) {
+        return task.deserialize(bin);
+    }
+};
+
 class HuskyTask : public Task {
 public:
     HuskyTask() = default;
@@ -119,6 +135,9 @@ PSTask get_pstask(std::shared_ptr<Task>& task) {
 }
 HuskyTask get_huskytask(std::shared_ptr<Task>& task) {
     return *dynamic_cast<HuskyTask*>(task.get());
+}
+HogwildTask get_hogwildtask(std::shared_ptr<Task>& task) {
+    return *dynamic_cast<HogwildTask*>(task.get());
 }
 }  // namespace
 

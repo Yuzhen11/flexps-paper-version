@@ -50,22 +50,28 @@ public:
             Task::Type type;
             bin >> type;
             switch (type) {
-                case Task::Type::BasicTaskType: {
+                case Task::Type::BasicTaskType: {   // Basic Task
                     Task task;
                     bin >> task;
                     tasks.emplace_back(new Task(task));
                     break;
                 }
-                case Task::Type::HuskyTaskType: {
+                case Task::Type::HuskyTaskType: {  // Husky Task
                     HuskyTask task;
                     bin >> task;
                     tasks.emplace_back(new HuskyTask(task));
                     break;
                 }
-                case Task::Type::PSTaskType: {
+                case Task::Type::PSTaskType: {  // PS Task
                     PSTask task;
                     bin >> task;
                     tasks.emplace_back(new PSTask(task));
+                    break;
+                }
+                case Task::Type::HogwildTaskType: {  // Hogwild Task
+                    HogwildTask task;
+                    bin >> task;
+                    tasks.emplace_back(new HogwildTask(task));
                     break;
                 }
                 default:
