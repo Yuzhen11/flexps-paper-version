@@ -84,3 +84,8 @@ target_link_libraries(SimpleHogwild ${proj})
 target_link_libraries(SimpleHogwild ${EXTERNAL_LIB})
 set_property(TARGET SimpleHogwild PROPERTY CXX_STANDARD 14)
 
+# SimpleKVStore
+add_executable(SimpleKVStore simple_kvstore.cpp)
+target_link_libraries(SimpleKVStore ${proj})
+target_link_libraries(SimpleKVStore ${EXTERNAL_LIB})
+set_property(TARGET SimpleKVStore PROPERTY CXX_STANDARD 14)
