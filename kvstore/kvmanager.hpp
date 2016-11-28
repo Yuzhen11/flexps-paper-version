@@ -86,21 +86,6 @@ public:
     ~KVServer() = default;
 
     /*
-     * response to the push/pull request
-     * The whole callback process is:
-     * process -> HandleAndReply -> Response
-     */
-    void Response(int kv_id, int ts, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer) {
-        husky::base::BinStream bin;
-        bool isRequest = false;
-        // isRequest, kv_id, ts, isPush, src
-        bin << isRequest << kv_id << ts << push << src; 
-
-        bin << res.keys << res.vals;
-        customer->send(src, bin);
-    }
-
-    /*
      * Handle the BinStream and then reply
      */
     virtual void HandleAndReply(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
@@ -128,6 +113,21 @@ public:
         Response(kv_id, ts, push, src, res, customer);
     }
 private:
+    /*
+     * response to the push/pull request
+     * The whole callback process is:
+     * process -> HandleAndReply -> Response
+     */
+    void Response(int kv_id, int ts, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer) {
+        husky::base::BinStream bin;
+        bool isRequest = false;
+        // isRequest, kv_id, ts, isPush, src
+        bin << isRequest << kv_id << ts << push << src; 
+
+        bin << res.keys << res.vals;
+        customer->send(src, bin);
+    }
+
     // The real storeage
     std::unordered_map<int, Val> store;
 };

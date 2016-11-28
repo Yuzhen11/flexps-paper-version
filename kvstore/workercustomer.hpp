@@ -24,7 +24,7 @@ public:
     /*
      * the handle for a received message
      */
-    using RecvHandle = std::function<void(int,int, husky::base::BinStream&)>;
+    using RecvHandle = std::function<void(int,int,husky::base::BinStream&,bool)>;
 
     WorkerCustomer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int channel_id)
         : mailbox_(mailbox),
@@ -79,12 +79,16 @@ private:
             int kv_id;
             int ts;
             bin >> isRequest >> kv_id >> ts;
+            tracker_mu_.lock();
+            bool runCallback = tracker_[kv_id][ts].second == tracker_[kv_id][ts].first - 1?true:false;
+            tracker_mu_.unlock();
             // invoke the callback
-            recv_handle_(kv_id, ts, bin);
-            if (isRequest == false) {
+            recv_handle_(kv_id, ts, bin, runCallback);
+            {
                 std::lock_guard<std::mutex> lk(tracker_mu_);
                 tracker_[kv_id][ts].second += 1;
-                tracker_cond_.notify_all();
+                if (tracker_[kv_id][ts].second == tracker_[kv_id][ts].first)
+                    tracker_cond_.notify_all();
             }
         }
     }

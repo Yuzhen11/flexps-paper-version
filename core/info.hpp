@@ -12,6 +12,7 @@ struct Info {
     int local_id;
     int global_id;
     int cluster_id;  // The id within this cluster
+    int proc_id;
     int num_local_threads;  // cluster num locally
     int num_global_threads;  // cluster num in total
     HashRing hash_ring;

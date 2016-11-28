@@ -47,7 +47,7 @@ public:
         for (int i = 0; i < num_processes; ++ i) {
             int tid = 2*num_workers + i;
             if (i != worker_info.get_proc_id()) {
-                el->register_peer_thread(worker_info.get_proc_id(tid), tid);
+                el->register_peer_thread(i, tid);
             } else {
                 auto* mailbox = new husky::LocalMailbox(zmq_context);
                 mailbox->set_thread_id(tid);
@@ -74,7 +74,7 @@ public:
                 info.channel_id = husky::constants::kv_channel_id;
                 info.global_id = num_workers + i; 
                 info.num_global_threads = num_workers + num_processes;  // workers + servers
-                info.num_ps_servers = 1;  // TODO: local_kvstore only need one server
+                info.num_ps_servers = num_processes;  // TODO: local_kvstore only need one server
                 info.cluster_id_to_global_id = cluster2global;
                 kvworkers.push_back(new kvstore::KVWorker(info, *kvworker_mailboxes[k]));
                 k += 1;

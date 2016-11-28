@@ -54,6 +54,7 @@ public:
                 info.local_id = tid_cid.first;
                 info.global_id = worker_info_.local_to_global_id(tid_cid.first);
                 info.cluster_id = tid_cid.second;
+                info.proc_id = worker_info_.get_proc_id();
                 info.num_local_threads = instance.get_threads(worker_info_.get_proc_id()).size();
                 info.num_global_threads = instance.get_num_threads();
                 info.task = task_store_.get_task(instance.get_id());
