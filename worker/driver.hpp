@@ -3,28 +3,21 @@
 
 #include "worker/worker.hpp"
 #include "core/context.hpp"
-#include "kvstore/kvworker.hpp"
-#include "kvstore/kvstore_manager.hpp"
+#include "kvstore/kvstore.hpp"
 
 namespace husky {
 
 class Engine {
 public:
     Engine() {
+        use_kvstore = true;
         start();
     }
     ~Engine() {
-        // delete the kvworkers
-        for (auto* p : kvworkers) {
-            delete p;
+        if (use_kvstore) {
+            // if use_kvstore stop the kvstore
+            kvstore::KVStore::Get().Stop();
         }
-        for (auto* p : Context::get_kvworker_mailboxes()) {
-            delete p;
-        }
-        // delete the kvstore_manager 
-        kvstore_manager.reset();
-        delete Context::get_kvserver_mailbox();
-
         recver.reset();
         el.reset();
         for (int i = 0; i < Context::get_worker_info()->get_num_local_workers(); i++)
@@ -47,12 +40,8 @@ public:
 
     template<typename Val>
     int create_kvstore() {
-        int kv_id = kvstore_manager->create_kvstore<Val>();  // TODO: Ungly
-        auto& kvworkers = Context::get_kvworkers();
-        for (auto* kvworker : kvworkers) {
-            kvworker->AddProcessFunc<Val>(kv_id);
-        }
-        return kv_id;
+        assert(use_kvstore);
+        return kvstore::KVStore::Get().CreateKVStore<Val>();
     }
 private:
     void start() {
@@ -88,67 +77,17 @@ private:
         recver.reset(new CentralRecver(&Context::get_zmq_context(), Context::get_recver_bind_addr()));
         Context::set_mailboxes(mailboxes);
 
-        // The following mailboxes [num_workers - 2*num_workers) are for kvworkers
-        std::vector<LocalMailbox*> kv_worker_mailboxes;
-        for (int i = 0; i < num_workers; i++) {
-            if (worker_info.get_proc_id(i) != worker_info.get_proc_id()) {
-                el->register_peer_thread(worker_info.get_proc_id(i), num_workers+i);  // {proc(i), num_workers+i}
-            } else {
-                auto* mailbox = new LocalMailbox(&Context::get_zmq_context());
-                mailbox->set_thread_id(num_workers+i);
-                el->register_mailbox(*mailbox);
-                kv_worker_mailboxes.push_back(mailbox);
-            }
+        if (use_kvstore) {
+            // if use_kvstore, start the kvstore
+            kvstore::KVStore::Get().Start(worker_info, el, &Context::get_zmq_context());
         }
-        Context::set_kvworker_mailboxes(kv_worker_mailboxes);
-
-        // The following mailboxes [2*num_workers - 2*num_workers+num_processes) are for kvservers
-        for (int i = 0; i < num_processes; ++ i) {
-            int tid = 2*num_workers + i;
-            if (i != worker_info.get_proc_id()) {
-                el->register_peer_thread(worker_info.get_proc_id(tid), tid);
-            } else {
-                auto* mailbox = new LocalMailbox(&Context::get_zmq_context());
-                mailbox->set_thread_id(tid);
-                el->register_mailbox(*mailbox);
-                Context::set_kvserver_mailbox(mailbox);
-            }
-        }
-
-        // TODO create kvstore_manager
-        kvstore_manager.reset(new kvstore::KVStoreManager(*Context::get_kvserver_mailbox(), constants::kv_channel_id));
-
-        // TODO create kvworkers
-        std::unordered_map<int, int> cluster2global;
-        for (int i = 0; i < num_processes; ++ i) {
-            cluster2global.insert({i, i+2*num_workers});
-        }
-        for (int i = 0; i < num_workers; ++ i) {
-            cluster2global.insert({i+num_processes, i+num_workers});
-        }
-        int k = 0;
-        for (int i = 0; i < num_workers; ++ i) {
-            if (worker_info.get_proc_id(i) == worker_info.get_proc_id()) {
-                kvstore::PSInfo info;
-                info.channel_id = constants::kv_channel_id;
-                info.global_id = num_workers + i; 
-                info.num_global_threads = num_workers + num_processes;  // workers + servers
-                info.num_ps_servers = 1;  // TODO: local_kvstore only need one server
-                info.cluster_id_to_global_id = cluster2global;
-                kvworkers.push_back(new kvstore::KVWorker(info, *Context::get_kvworker_mailbox(k)));
-                k += 1;
-            }
-        }
-        // TODO need to store to Context
-        Context::set_kvworkers(kvworkers);
 
         // create worker
         worker.reset(new Worker(std::move(worker_info),
                 std::move(master_connector)));
     }
 
-    std::vector<kvstore::KVWorker*> kvworkers;
-    std::unique_ptr<kvstore::KVStoreManager> kvstore_manager;
+    bool use_kvstore = false;  // whether we need to use kv_store
     std::vector<LocalMailbox*> mailboxes;
     std::unique_ptr<Worker> worker;
     std::unique_ptr<CentralRecver> recver;

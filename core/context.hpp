@@ -6,10 +6,6 @@
 #include "core/worker_info.hpp"
 #include "core/mailbox.hpp"
 
-namespace kvstore {
-class KVWorker;
-}
-
 namespace husky {
 
 struct Global {
@@ -17,11 +13,6 @@ struct Global {
     zmq::context_t* zmq_context_ptr = nullptr;
     WorkerInfo worker_info;
     std::vector<LocalMailbox*> mailboxes;
-    // mailboxes for kvworker
-    std::vector<LocalMailbox*> kvworker_mailboxes;
-    // mailbox for kvserver
-    LocalMailbox* kvserver_mailbox;
-    std::vector<kvstore::KVWorker*> kvworkers;
 };
 
 class Context {
@@ -46,32 +37,8 @@ public:
     static void set_mailboxes(const std::vector<LocalMailbox*>& mailboxes_) {
         global->mailboxes = mailboxes_;
     }
-    static void set_kvworker_mailboxes(const std::vector<LocalMailbox*>& mailboxes_) {
-        global->kvworker_mailboxes = mailboxes_;
-    }
-    static void set_kvserver_mailbox(LocalMailbox* mailbox) {
-        global->kvserver_mailbox = mailbox;
-    }
-    static void set_kvworkers(const std::vector<kvstore::KVWorker*>& kvworkers) {
-        global->kvworkers = kvworkers;
-    }
     static LocalMailbox* get_mailbox(int id) {
         return global->mailboxes[id];
-    }
-    static LocalMailbox* get_kvworker_mailbox(int id) {
-        return global->kvworker_mailboxes[id];
-    }
-    static std::vector<LocalMailbox*> get_kvworker_mailboxes() {
-        return global->kvworker_mailboxes;
-    }
-    static kvstore::KVWorker* get_kvworker(int id) {
-        return global->kvworkers[id];
-    }
-    static std::vector<kvstore::KVWorker*>& get_kvworkers() {
-        return global->kvworkers;
-    }
-    static LocalMailbox* get_kvserver_mailbox() {
-        return global->kvserver_mailbox;
     }
     static std::string get_recver_bind_addr() { return "tcp://*:" + std::to_string(global->config.get_comm_port()); }
 

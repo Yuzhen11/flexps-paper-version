@@ -12,7 +12,7 @@
 namespace kvstore {
 
 /*
- * ServerCustomer is only for KVStoreManager!!!
+ * ServerCustomer is only for KVManager!!!
  */
 class ServerCustomer {
 public:
@@ -80,10 +80,10 @@ public:
     virtual void HandleAndReply(int, int, husky::base::BinStream&, ServerCustomer* customer) = 0;
 };
 template<typename Val>
-class KVStoreServer : public KVServerBase {
+class KVServer : public KVServerBase {
 public:
-    KVStoreServer() = default;
-    ~KVStoreServer() = default;
+    KVServer() = default;
+    ~KVServer() = default;
 
     /*
      * response to the push/pull request
@@ -133,15 +133,15 @@ private:
 };
 
 /*
- * KVStoreManager manages many KVStoreServer, so different types of data can be stored
+ * KVManager manages many KVServer, so different types of data can be stored
  */
-class KVStoreManager {
+class KVManager {
 public:
-    KVStoreManager(husky::LocalMailbox& mailbox, int channel_id)
+    KVManager(husky::LocalMailbox& mailbox, int channel_id)
         : customer_(new ServerCustomer(mailbox, [this](int kv_id, int ts, husky::base::BinStream& bin){ Process(kv_id, ts, bin); }, channel_id)) {
         customer_->Start();
     }
-    ~KVStoreManager() {
+    ~KVManager() {
         // stop the customer
         customer_->Stop();
         // kv_store_ will be automatically deleted
@@ -152,9 +152,8 @@ public:
      * make sure all the kvstore is set up before the actuall workload
      */
     template<typename Val>
-    int create_kvstore() {
-        kv_store_.insert(std::make_pair(kv_id_, std::unique_ptr<KVStoreServer<Val>>(new KVStoreServer<Val>())));
-        return kv_id_++;
+    void CreateKVManager(int kv_id) {
+        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>())));
     }
 private:
     /*
@@ -169,7 +168,6 @@ private:
     // customer for communication
     std::unique_ptr<ServerCustomer> customer_;
     std::unordered_map<int, std::unique_ptr<KVServerBase>> kv_store_;
-    int kv_id_ = 0;
 };
 
 }  // namespace kvstore

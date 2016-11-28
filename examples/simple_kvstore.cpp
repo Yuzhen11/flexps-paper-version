@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
     int kv1 = engine.create_kvstore<float>();
     engine.add_task(task, [kv0, kv1](Info info) {
         Task task = get_task(info.task);
-        auto* kvworker = Context::get_kvworker(info.local_id);
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.local_id);
         std::vector<int> keys{0};
         std::vector<float> vals{2.0};
         int ts = kvworker->Push(kv1, keys, vals);

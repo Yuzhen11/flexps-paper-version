@@ -1,0 +1,133 @@
+#pragma once
+#include <vector>
+
+#include "core/constants.hpp"
+#include "core/mailbox.hpp"
+#include "core/worker_info.hpp"
+#include "kvworker.hpp"
+#include "kvmanager.hpp"
+
+namespace kvstore {
+
+/* 
+ * KVStore: a singleton to manage the kvmanager and kvworker
+ */
+class KVStore {
+public:
+    /*
+     * \brief return the singleton object
+     */
+    static KVStore& Get() {
+        static KVStore kvstore; 
+        return kvstore;
+    }
+
+    /*
+     * \brief kvstore start function
+     *
+     * Create new mailboxes and add them to el
+     */
+    void Start(const husky::WorkerInfo& worker_info, const std::unique_ptr<husky::MailboxEventLoop>& el, zmq::context_t* zmq_context) {
+        int num_workers = worker_info.get_num_workers();
+        int num_processes = worker_info.get_num_processes();
+        // The following mailboxes [num_workers - 2*num_workers) are for kvworkers
+        for (int i = 0; i < num_workers; i++) {
+            if (worker_info.get_proc_id(i) != worker_info.get_proc_id()) {
+                el->register_peer_thread(worker_info.get_proc_id(i), num_workers+i);  // {proc(i), num_workers+i}
+            } else {
+                auto* mailbox = new husky::LocalMailbox(zmq_context);
+                mailbox->set_thread_id(num_workers+i);
+                el->register_mailbox(*mailbox);
+                kvworker_mailboxes.push_back(mailbox);
+            }
+        }
+
+        // The following mailboxes [2*num_workers - 2*num_workers+num_processes) are for kvservers
+        // Each process has one kvmanager by default
+        for (int i = 0; i < num_processes; ++ i) {
+            int tid = 2*num_workers + i;
+            if (i != worker_info.get_proc_id()) {
+                el->register_peer_thread(worker_info.get_proc_id(tid), tid);
+            } else {
+                auto* mailbox = new husky::LocalMailbox(zmq_context);
+                mailbox->set_thread_id(tid);
+                el->register_mailbox(*mailbox);
+                kvserver_mailbox = mailbox;
+            }
+        }
+
+        // Create kvmanager
+        kvmanager.reset(new kvstore::KVManager(*kvserver_mailbox, husky::constants::kv_channel_id));
+
+        // Create kvworkers
+        std::unordered_map<int, int> cluster2global;
+        for (int i = 0; i < num_processes; ++ i) {
+            cluster2global.insert({i, i+2*num_workers});
+        }
+        for (int i = 0; i < num_workers; ++ i) {
+            cluster2global.insert({i+num_processes, i+num_workers});
+        }
+        int k = 0;
+        for (int i = 0; i < num_workers; ++ i) {
+            if (worker_info.get_proc_id(i) == worker_info.get_proc_id()) {
+                kvstore::PSInfo info;
+                info.channel_id = husky::constants::kv_channel_id;
+                info.global_id = num_workers + i; 
+                info.num_global_threads = num_workers + num_processes;  // workers + servers
+                info.num_ps_servers = 1;  // TODO: local_kvstore only need one server
+                info.cluster_id_to_global_id = cluster2global;
+                kvworkers.push_back(new kvstore::KVWorker(info, *kvworker_mailboxes[k]));
+                k += 1;
+            }
+        }
+    }
+    /*
+     * \brief kvstore stop function
+     */
+    void Stop() {
+        // 1. delete the kvworkers
+        for (auto* p : kvworkers) {
+            delete p;
+        }
+        // destroy the mailboxes
+        for (auto* p : kvworker_mailboxes) {
+            delete p;
+        }
+        // 2. delete the kvmanager 
+        kvmanager.reset();
+        // destroy the mailbox
+        delete kvserver_mailbox;
+    }
+
+    /*
+     * \brief function to create a new kvstore
+     */
+    template<typename Val>
+    int CreateKVStore() {
+        kvmanager->CreateKVManager<Val>(kv_id);
+        for (auto* kvworker : kvworkers) {
+            kvworker->AddProcessFunc<Val>(kv_id);
+        }
+        return kv_id++;
+    }
+
+    /*
+     * \brief function to return kvworker
+     */
+    KVWorker* get_kvworker(int i) {
+        return kvworkers[i];
+    }
+private:
+    KVStore() = default;
+
+    // kv_id counter
+    int kv_id = 0;
+    // mailboxes for kvworker
+    std::vector<husky::LocalMailbox*> kvworker_mailboxes;
+    std::vector<KVWorker*> kvworkers;
+    // mailbox for kvserver
+    husky::LocalMailbox* kvserver_mailbox;
+    std::unique_ptr<KVManager> kvmanager;
+};
+   
+}  // namespace kvstore
