@@ -38,15 +38,19 @@ public:
         if (worker_info.get_proc_id() == 0) {
             base::BinStream bin;
             auto& task_map = task_store.get_task_map();
-            bin << task_map.size();
-            for (auto& kv : task_map) {
-                auto& task = kv.second.first;
+            auto& buffered_tasks = task_store.get_buffered_tasks();
+            // send out buffered_tasks
+            bin << buffered_tasks.size();
+            for (auto id : buffered_tasks) {
+                auto& task = task_map[id].first;
                 bin << task->get_type();  // push the task type first
                 task->serialize(bin);  // push the task
             }
             auto& socket = master_connector.get_send_socket();
             zmq_send_binstream(&socket, bin);
-            base::log_msg("[Worker]: Totally "+std::to_string(task_map.size())+" tasks sent");
+            base::log_msg("[Worker]: Totally "+std::to_string(buffered_tasks.size())+" tasks sent");
+            // clear buffered tasks
+            task_store.clear_buffered_tasks();
         }
     }
 

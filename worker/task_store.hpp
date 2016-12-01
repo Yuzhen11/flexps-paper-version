@@ -20,7 +20,15 @@ public:
         static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
         assert(task_map.find(task.get_id()) == task_map.end());
         task_map.insert({task.get_id(), {std::shared_ptr<Task>(new TaskType(task)), func}});
+        buffered_tasks.push_back(task.get_id());
     }
+    void clear_buffered_tasks() {
+        buffered_tasks.clear();
+    }
+    std::vector<int>& get_buffered_tasks() {
+        return buffered_tasks;
+    }
+
     auto& get_task_map() {
         return task_map;
     }
@@ -33,6 +41,7 @@ public:
 
 private:
     std::unordered_map<int, std::pair<std::shared_ptr<Task>, std::function<void(Info)>>> task_map;
+    std::vector<int> buffered_tasks;
 };
 
 }  // namespace husky
