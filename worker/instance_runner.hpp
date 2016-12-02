@@ -92,6 +92,7 @@ public:
         bin << instance_id;
         bin << proc_id;
         auto& socket = master_connector_.get_send_socket();
+        zmq_sendmore_int32(&socket, constants::MASTER_INSTANCE_FINISHED);
         zmq_send_binstream(&socket, bin);  // {instance_id, proc_id}
     }
 

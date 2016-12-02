@@ -63,5 +63,6 @@ int main(int argc, char** argv) {
             kvserver.ShutDown();
         }
     });
-    engine.run();
+    engine.submit();
+    engine.exit();
 }

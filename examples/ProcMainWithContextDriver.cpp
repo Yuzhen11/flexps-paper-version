@@ -58,7 +58,8 @@ int main(int argc, char** argv) {
         base::log_msg("task2 is running");
     });
 
-    engine.run();
+    engine.submit();
+    engine.exit();
 
     return 0;
 }

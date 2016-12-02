@@ -27,5 +27,6 @@ int main(int argc, char** argv) {
         // kvworker->Wait(kv1, kvworker->Pull(kv1, keys, &rets));
         base::log_msg(std::to_string(rets[0]));
     });
-    engine.run();
+    engine.submit();
+    engine.exit();
 }

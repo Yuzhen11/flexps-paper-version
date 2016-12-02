@@ -35,5 +35,6 @@ int main(int argc, char** argv) {
         }
 
     });
-    engine.run();
+    engine.submit();
+    engine.exit();
 }

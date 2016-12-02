@@ -55,6 +55,13 @@ int main(int argc, char** argv) {
             base::log_msg("Estimated PI :"+std::to_string(4.0*sum/total_pts));
         }
     });
+    engine.submit();
+    
+    HuskyTask task2(1, 1, 4);
+    engine.add_task(task2, [](Info info) {
+        base::log_msg("task2 running");
+    });
 
-    engine.run();
+    engine.submit();
+    engine.exit();
 }

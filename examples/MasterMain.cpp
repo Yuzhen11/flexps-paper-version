@@ -25,8 +25,8 @@ int main() {
 
     Master master(std::move(worker_info),
             std::move(master_connection));
-    master.recv_tasks_from_worker();
+    // master.recv_tasks_from_worker();
     // master.test_connection();
-    master.assign_initial_tasks();
+    // master.assign_initial_tasks();
     master.master_loop();
 }

@@ -2,6 +2,7 @@
 
 #include "base/debug.hpp"
 #include "base/log.hpp"
+#include "base/exception.hpp"
 
 #include "base/exception.hpp"
 #include "base/serialization.hpp"
@@ -22,6 +23,9 @@ public:
         cluster_manager(worker_info, master_connection)
     {}
 
+    /*
+     * Only for testing the connection
+     */
     void test_connection() {
         Instance instance(0);
         std::unordered_map<int, std::vector<std::pair<int,int>>> cluster;
@@ -39,6 +43,9 @@ public:
         }
     }
 
+    /*
+     * recv_tasks_from_worker and pass the tasks to cluster_manager
+     */
     void recv_tasks_from_worker() {
         // recv tasks from proc 0 
         auto& socket = master_connection.get_recv_socket();
@@ -77,15 +84,14 @@ public:
                 default:
                     throw base::HuskyException("Deserializing task error");
             }
-
-            // Task task;
-            // bin >> task;
-            // tasks.push_back(std::move(task));
         }
         cluster_manager.init_tasks(tasks);
         base::log_msg("[Master]: Totally "+std::to_string(num_tasks)+" tasks received");
     }
 
+    /*
+     * assign_initial_tasks to workers
+     */
     void assign_initial_tasks() {
         cluster_manager.assign_next_tasks();
     }
@@ -93,14 +99,27 @@ public:
     void master_loop() {
         auto& recv_socket = master_connection.get_recv_socket();
         while (true) {
-            auto bin = zmq_recv_binstream(&recv_socket);
-            cluster_manager.finish_local_instance(bin);
-            cluster_manager.assign_next_tasks();
+            int type = zmq_recv_int32(&recv_socket);
+            base::log_msg("[Master]: Type: "+std::to_string(type));
+            if (type == constants::MASTER_INIT) {
+                recv_tasks_from_worker();
+                assign_initial_tasks();
+            }
+            else if (type == constants::MASTER_INSTANCE_FINISHED) {
+                auto bin = zmq_recv_binstream(&recv_socket);
+                cluster_manager.finish_local_instance(bin);
+                cluster_manager.assign_next_tasks();
 
-            bool is_finished = cluster_manager.is_finished();
-            if (is_finished) {
-                cluster_manager.send_exit_signal();
+                bool is_finished = cluster_manager.is_finished();
+                if (is_finished) {
+                    cluster_manager.send_exit_signal();
+                }
+            }
+            else if (type == constants::MASTER_EXIT) {
                 break;
+            }
+            else {
+                throw base::HuskyException("[Master] Master Loop recv type error, type is: "+std::to_string(type));
             }
         }
     }

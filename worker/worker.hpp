@@ -4,6 +4,7 @@
 
 #include "base/debug.hpp"
 #include "base/log.hpp"
+#include "base/exception.hpp"
 
 #include "zmq.hpp" 
 #include "base/serialization.hpp"
@@ -47,10 +48,22 @@ public:
                 task->serialize(bin);  // push the task
             }
             auto& socket = master_connector.get_send_socket();
+            zmq_sendmore_int32(&socket, constants::MASTER_INIT);
             zmq_send_binstream(&socket, bin);
             base::log_msg("[Worker]: Totally "+std::to_string(buffered_tasks.size())+" tasks sent");
             // clear buffered tasks
             task_store.clear_buffered_tasks();
+        }
+    }
+
+    /*
+     * send exit signal to master, stop the master
+     * normally it's the last statement in worker
+     */
+    void send_exit() {
+        if (worker_info.get_proc_id() == 0) {
+            auto& socket = master_connector.get_send_socket();
+            zmq_send_int32(&socket, constants::MASTER_EXIT);
         }
     }
 
@@ -82,6 +95,9 @@ public:
             else if (type == constants::MASTER_FINISHED) {
                 base::log_msg("[Worker]: worker exit");
                 break;
+            }
+            else {
+                throw base::HuskyException("[Worker] Worker Loop recv type error, type is: "+std::to_string(type));
             }
         }
     }

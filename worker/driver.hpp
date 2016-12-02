@@ -33,9 +33,12 @@ public:
         worker->add_task(task, func);
     }
 
-    void run() {
+    void submit() {
         worker->send_tasks_to_master();
         worker->main_loop();
+    }
+    void exit() {
+        worker->send_exit();
     }
 
     template<typename Val>
