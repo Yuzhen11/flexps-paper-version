@@ -7,6 +7,9 @@
 
 namespace husky {
 
+/*
+ * Engine manages the process
+ */
 class Engine {
 public:
     Engine() {
@@ -27,26 +30,47 @@ public:
         // Context::finalize_global();
     }
 
+    /*
+     * Add a new task to the buffer
+     */
     template<typename TaskType>
     void add_task(const TaskType& task, const std::function<void(Info)>& func) {
         static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
         worker->add_task(task, func);
     }
 
+    /*
+     * Submit the buffered tasks to master
+     *
+     * It's a blocking method, return when all the buffered tasks are finished
+     */
     void submit() {
         worker->send_tasks_to_master();
         worker->main_loop();
     }
+    /*
+     * Ask the Master to exit
+     *
+     * It means that no more tasks will submit. Basically the end of the process
+     */
     void exit() {
         worker->send_exit();
     }
 
+    /*
+     * Create a new kvstore
+     *
+     * @return: kvstore id created
+     */
     template<typename Val>
     int create_kvstore() {
         assert(use_kvstore);
         return kvstore::KVStore::Get().CreateKVStore<Val>();
     }
 private:
+    /*
+     * Start function to initialize the environment
+     */
     void start() {
         std::string bind_addr = "tcp://*:"+std::to_string(Context::get_config()->get_worker_port());
         std::string master_addr = "tcp://"+Context::get_config()->get_master_host()+":"+std::to_string(Context::get_config()->get_master_port());

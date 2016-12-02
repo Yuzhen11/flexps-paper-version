@@ -81,19 +81,17 @@ public:
     bool is_instance_done(int instance_id) {
         return instance_keeper_[instance_id].empty();
     }
-    void remove_instance(int instance_id) {
+    base::BinStream remove_instance(int instance_id) {
         assert(instance_keeper_[instance_id].empty());
         instances_.erase(instance_id);
         instance_keeper_.erase(instance_id);
 
-        // tell master
+        // generate the bin to master
         auto proc_id = worker_info_.get_proc_id();
         base::BinStream bin;
         bin << instance_id;
         bin << proc_id;
-        auto& socket = master_connector_.get_send_socket();
-        zmq_sendmore_int32(&socket, constants::MASTER_INSTANCE_FINISHED);
-        zmq_send_binstream(&socket, bin);  // {instance_id, proc_id}
+        return bin;
     }
 
 private:

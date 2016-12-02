@@ -5,19 +5,22 @@
 #include "base/debug.hpp"
 #include "base/log.hpp"
 #include "base/exception.hpp"
-
-#include "zmq.hpp" 
 #include "base/serialization.hpp"
 #include "core/constants.hpp"
 #include "core/instance.hpp"
-#include "worker/instance_runner.hpp"
 #include "core/worker_info.hpp"
 #include "core/zmq_helpers.hpp"
 #include "worker/master_connector.hpp"
+#include "worker/instance_runner.hpp"
 #include "worker/task_store.hpp"
 
 namespace husky {
 
+/*
+ * Worker contains the event-loop to receive tasks from Master,
+ * and also has function to communicate with Master, 
+ * like send_tasks_to_master(), send_exit()
+ */
 class Worker {
 public:
     Worker() = delete;
@@ -67,6 +70,12 @@ public:
         }
     }
 
+    void send_instance_finished(base::BinStream& bin) {
+        auto& socket = master_connector.get_send_socket();
+        zmq_sendmore_int32(&socket, constants::MASTER_INSTANCE_FINISHED);
+        zmq_send_binstream(&socket, bin);  // {instance_id, proc_id}
+    }
+
     void main_loop() {
         auto& socket = master_connector.get_recv_socket();
         auto& send_socket = master_connector.get_send_socket();
@@ -89,7 +98,8 @@ public:
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
                     base::log_msg("[Worker]: task id:"+std::to_string(instance_id)+" finished on Proc:"+std::to_string(worker_info.get_proc_id()));
-                    instance_runner.remove_instance(instance_id);
+                    auto bin = instance_runner.remove_instance(instance_id);
+                    send_instance_finished(bin);
                 }
             }
             else if (type == constants::MASTER_FINISHED) {
