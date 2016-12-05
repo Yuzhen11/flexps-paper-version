@@ -80,6 +80,16 @@ public:
     }
 
     /*
+     * Put/Get APIs
+     */
+    virtual void Put(int key, float val) {
+        (*model)[key] = val;
+    }
+    virtual float Get(int key) {
+        return (*model)[key];
+    }
+
+    /*
      * Get the model
      */
     std::vector<float>* get() {

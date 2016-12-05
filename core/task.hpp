@@ -22,10 +22,14 @@ public:
         HogwildTaskType,
         SingleTaskType,
         GenericMLTaskType,
-        HuskyTaskType
+        HuskyTaskType,
+        DummyType
     };
 
     Task() = default;
+    Task(Type type)
+        : type_(type)
+    {}
     Task(int id, int total_epoch, int num_workers, Type type = Type::BasicTaskType)
         : id_(id), 
         total_epoch_(total_epoch),
@@ -61,6 +65,12 @@ public:
     inline int get_num_workers() const { return num_workers_; }
     inline Type get_type() const {return type_; }
 
+    // setter
+    inline void set_id(int id) { id_ = id; }
+    inline void set_total_epoch(int total_epoch) { total_epoch_ = total_epoch; }
+    inline void set_current_epoch(int current_epoch) { current_epoch_ = current_epoch; }
+    inline void set_num_workers(int num_workers) { num_workers_ = num_workers; }
+
     inline void inc_epoch() { current_epoch_ += 1; }
 protected:
     int id_;
@@ -78,7 +88,9 @@ protected:
  */
 class PSTask : public Task {
 public:
-    PSTask() = default;
+    PSTask(int num_servers = 1)
+        : Task(Type::PSTaskType)
+    {}
     PSTask(int id, int total_epoch, int num_workers, int num_servers = 1)
         : num_servers_(num_servers),
           Task(id, total_epoch, num_workers, Type::PSTaskType)
@@ -113,7 +125,9 @@ private:
  */
 class SingleTask : public Task {
 public:
-    SingleTask() = default;
+    SingleTask()
+        : Task(Type::SingleTaskType)
+    {}
     SingleTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::SingleTaskType) 
     {}
@@ -130,7 +144,9 @@ public:
  */
 class HogwildTask : public Task {
 public:
-    HogwildTask() = default;
+    HogwildTask()
+        : Task(Type::HogwildTaskType)
+    {}
     HogwildTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::HogwildTaskType) 
     {}
@@ -149,7 +165,9 @@ public:
  */
 class GenericMLTask : public Task {
 public:
-    GenericMLTask() = default;
+    GenericMLTask() 
+        : Task(Type::GenericMLTaskType)
+    {}
     GenericMLTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::GenericMLTaskType) 
     {}
@@ -179,7 +197,9 @@ private:
  */
 class HuskyTask : public Task {
 public:
-    HuskyTask() = default;
+    HuskyTask()
+        : Task(Type::HuskyTaskType)
+    {}
     HuskyTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::HuskyTaskType) 
     {}
@@ -210,6 +230,53 @@ GenericMLTask& get_genericmltask(const std::shared_ptr<Task>& task) {
     return *dynamic_cast<GenericMLTask*>(task.get());
 }
 
+
+std::unique_ptr<Task> deserialize(BinStream& bin) {
+    Task::Type type;
+    bin >> type;
+    std::unique_ptr<Task> ret;
+    switch (type) {
+        case Task::Type::BasicTaskType: {   // Basic Task
+            Task* task = new Task();
+            bin >> *task;
+            ret.reset(task);
+            break;
+        }
+        case Task::Type::HuskyTaskType: {  // Husky Task
+            HuskyTask* task = new HuskyTask();
+            bin >> *task;
+            ret.reset(task);
+            break;
+        }
+        case Task::Type::PSTaskType: {  // PS Task
+            PSTask* task = new PSTask();
+            bin >> *task;
+            ret.reset(task);
+            break;
+        }
+        case Task::Type::HogwildTaskType: {  // Hogwild Task
+            HogwildTask* task = new HogwildTask();
+            bin >> *task;
+            ret.reset(task);
+            break;
+        }
+        case Task::Type::SingleTaskType: {  // Single Task
+            SingleTask* task = new SingleTask();
+            bin >> *task;
+            ret.reset(task);
+            break;
+        }
+        case Task::Type::GenericMLTaskType: {  // GenericML Task
+            GenericMLTask* task = new GenericMLTask();
+            bin >> *task;
+            ret.reset(task);
+            break;
+        }
+        default:
+            throw base::HuskyException("Deserializing task error");
+    }
+    return ret;
+}
 /*
  * Serialize task bin to std::vector<std::shared_ptr<tasks>>
  *
@@ -220,42 +287,7 @@ std::vector<std::shared_ptr<Task>> extract_tasks(BinStream& bin) {
     size_t num_tasks;
     bin >> num_tasks;
     for (int i = 0; i < num_tasks; ++ i) {
-        Task::Type type;
-        bin >> type;
-        switch (type) {
-            case Task::Type::BasicTaskType: {   // Basic Task
-                Task* task = new Task();
-                bin >> *task;
-                tasks.emplace_back(task);
-                break;
-            }
-            case Task::Type::HuskyTaskType: {  // Husky Task
-                HuskyTask* task = new HuskyTask();
-                bin >> *task;
-                tasks.emplace_back(task);
-                break;
-            }
-            case Task::Type::PSTaskType: {  // PS Task
-                PSTask* task = new PSTask();
-                bin >> *task;
-                tasks.emplace_back(task);
-                break;
-            }
-            case Task::Type::HogwildTaskType: {  // Hogwild Task
-                HogwildTask* task = new HogwildTask();
-                bin >> *task;
-                tasks.emplace_back(task);
-                break;
-            }
-            case Task::Type::GenericMLTaskType: {  // GenericML Task
-                GenericMLTask* task = new GenericMLTask();
-                bin >> *task;
-                tasks.emplace_back(task);
-                break;
-            }
-            default:
-                throw base::HuskyException("Deserializing task error");
-        }
+        tasks.push_back(deserialize(bin));
     }
     return tasks;
 }

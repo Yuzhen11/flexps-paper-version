@@ -15,7 +15,7 @@ public:
     }
     virtual void init_tasks(const std::vector<std::shared_ptr<Task>>&) = 0;
     virtual void finish_local_instance(int instance_id, int proc_id) = 0;
-    virtual std::vector<Instance> extract_instances() = 0;
+    virtual std::vector<std::shared_ptr<Instance>> extract_instances() = 0;
     virtual bool is_finished() = 0;
 
     virtual ~TaskScheduler() {};
@@ -46,7 +46,7 @@ public:
             }
         }
     }
-    virtual std::vector<Instance> extract_instances() override {
+    virtual std::vector<std::shared_ptr<Instance>> extract_instances() override {
         // Assign no instance if 1. task_queue is empty or 2. current instance is still running 
         if (tasks_queue.empty() || !tracker.empty())   
             return {};
@@ -63,13 +63,13 @@ protected:
     std::queue<std::shared_ptr<Task>> tasks_queue;
     std::unordered_set<int> tracker;
 private:
-    void init_tracker(const Instance& instance) {
-        auto& cluster = instance.get_cluster();
+    void init_tracker(const std::shared_ptr<Instance>& instance) {
+        auto& cluster = instance->get_cluster();
         for (auto kv : cluster) {
             tracker.insert(kv.first);
         }
     }
-    Instance task_to_instance(const Task& task) {
+    std::shared_ptr<Instance> task_to_instance(Task& task) {
         auto num_workers = worker_info.get_num_workers();
         assert(num_workers >= task.get_num_workers());
         // randomly select threads 
@@ -82,17 +82,17 @@ private:
             selected_workers.push_back(tid);
         }
         // create the instance
-        Instance instance(task.get_id(), task.get_current_epoch());
+        std::shared_ptr<Instance> instance(new Instance);
         // TODO If the task type is GenericMLTaskType, need to decide it's real running type now
         if (task.get_type() == Task::Type::GenericMLTaskType) {
             // TODO now set to SingleTaskType for testing...
-            instance.set_type(Task::Type::SingleTaskType);
+            instance->set_type(task, Task::Type::SingleTaskType);
         } else {
-            instance.set_type(task.get_type());
+            instance->set_type(task);
         }
         for (int i = 0; i < selected_workers.size(); ++i) {
             int proc_id = worker_info.get_proc_id(selected_workers[i]);
-            instance.add_thread(proc_id, selected_workers[i], i);
+            instance->add_thread(proc_id, selected_workers[i], i);
         }
         return instance;
     }

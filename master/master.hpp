@@ -33,22 +33,22 @@ public:
     /*
      * Only for testing the connection
      */
-    void test_connection() {
-        Instance instance(0);
-        std::unordered_map<int, std::vector<std::pair<int,int>>> cluster;
-        cluster.insert({0, {{0,0},{1,1}}}); // {0, {<0,0>,<1,1>}}
-        instance.set_cluster(cluster);  
-        base::BinStream bin;
-        bin << instance;
-        
-        for (auto& socket : master_connection.get_send_sockets()) {
-            base::log_msg("[Master]: Trying to send to process "+std::to_string(socket.first));
-            zmq_sendmore_int32(&socket.second, constants::TASK_TYPE);
-            zmq_sendmore_string(&socket.second, "hello");
-            base::log_msg("[Master]: Send done");
-            zmq_send_binstream(&socket.second, bin);
-        }
-    }
+    // void test_connection() {
+    //     Instance instance(0);
+    //     std::unordered_map<int, std::vector<std::pair<int,int>>> cluster;
+    //     cluster.insert({0, {{0,0},{1,1}}}); // {0, {<0,0>,<1,1>}}
+    //     instance.set_cluster(cluster);  
+    //     base::BinStream bin;
+    //     bin << instance;
+    //     
+    //     for (auto& socket : master_connection.get_send_sockets()) {
+    //         base::log_msg("[Master]: Trying to send to process "+std::to_string(socket.first));
+    //         zmq_sendmore_int32(&socket.second, constants::TASK_TYPE);
+    //         zmq_sendmore_string(&socket.second, "hello");
+    //         base::log_msg("[Master]: Send done");
+    //         zmq_send_binstream(&socket.second, bin);
+    //     }
+    // }
 
     /* 
      * The main loop for master logic
@@ -121,14 +121,15 @@ private:
     /*
      * Send instances to Workers
      */
-    void send_instances(const std::vector<Instance>& instances) {
+    void send_instances(const std::vector<std::shared_ptr<Instance>>& instances) {
         base::log_msg("[Master]: Assigning next instances");
         auto& sockets = master_connection.get_send_sockets();
         for (auto& instance : instances) {
-            instance.show_instance();
+            instance->show_instance();
             base::BinStream bin;
-            bin << instance;
-            auto& cluster = instance.get_cluster();
+            // TODO Support different types of instance in hierarchy
+            instance->serialize(bin);
+            auto& cluster = instance->get_cluster();
             for (auto& kv : cluster) {
                 auto it = sockets.find(kv.first);
                 zmq_sendmore_int32(&it->second, constants::TASK_TYPE);

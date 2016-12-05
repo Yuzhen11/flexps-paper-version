@@ -84,12 +84,12 @@ public:
             // base::log_msg("[Worker]: Msg Type: " + std::to_string(type));
             if (type == constants::TASK_TYPE) {
                 auto bin = zmq_recv_binstream(&socket);
-                Instance instance;
-                bin >> instance;
-                // instance.show_instance();
+                // TODO Support different types of instance in hierarchy
+                std::shared_ptr<Instance> instance(new Instance);
+                instance->deserialize(bin);
                 instance_runner.run_instance(instance);
                 // Print debug info
-                instance.show_instance(worker_info.get_proc_id());
+                instance->show_instance(worker_info.get_proc_id());
             }
             else if (type == constants::THREAD_FINISHED) {
                 int instance_id = zmq_recv_int32(&socket);
