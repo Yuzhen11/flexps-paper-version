@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 
     HogwildTask task(0, 1, 4);
     engine.add_task(task, [](Info info){
-        HogwildTask task = get_hogwildtask(info.task);
+        HogwildTask& task = task::get_hogwildtask(info.task);
 
         int dim = 100;
         // create a hogwild model, which means it's shared

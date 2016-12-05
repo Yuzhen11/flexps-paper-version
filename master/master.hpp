@@ -94,46 +94,12 @@ private:
         // recv tasks from proc 0 
         auto& socket = master_connection.get_recv_socket();
         auto bin = zmq_recv_binstream(&socket);
-        std::vector<std::shared_ptr<Task>> tasks;
-        size_t num_tasks;
-        bin >> num_tasks;
-        for (int i = 0; i < num_tasks; ++ i) {
-            Task::Type type;
-            bin >> type;
-            switch (type) {
-                case Task::Type::BasicTaskType: {   // Basic Task
-                    Task task;
-                    bin >> task;
-                    tasks.emplace_back(new Task(task));
-                    break;
-                }
-                case Task::Type::HuskyTaskType: {  // Husky Task
-                    HuskyTask task;
-                    bin >> task;
-                    tasks.emplace_back(new HuskyTask(task));
-                    break;
-                }
-                case Task::Type::PSTaskType: {  // PS Task
-                    PSTask task;
-                    bin >> task;
-                    tasks.emplace_back(new PSTask(task));
-                    break;
-                }
-                case Task::Type::HogwildTaskType: {  // Hogwild Task
-                    HogwildTask task;
-                    bin >> task;
-                    tasks.emplace_back(new HogwildTask(task));
-                    break;
-                }
-                default:
-                    throw base::HuskyException("Deserializing task error");
-            }
-        }
+        auto tasks = task::extract_tasks(bin);
         task_scheduler->init_tasks(tasks);
         for (auto& task : tasks) {
             base::log_msg("[Master]: Task: "+std::to_string(task->get_id())+" added");
         }
-        base::log_msg("[Master]: Totally "+std::to_string(num_tasks)+" tasks received");
+        base::log_msg("[Master]: Totally "+std::to_string(tasks.size())+" tasks received");
     }
 
     /*

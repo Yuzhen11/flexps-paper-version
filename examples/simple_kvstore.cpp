@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     int kv0 = engine.create_kvstore<int>();
     int kv1 = engine.create_kvstore<float>();
     engine.add_task(task, [kv0, kv1](Info info) {
-        Task task = get_task(info.task);
+        Task& task = task::get_task(info.task);
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.local_id);
         std::vector<int> keys{0};
         std::vector<float> vals{2.0};

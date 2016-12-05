@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 
     PSTask task(0, 1, 4, 2);
     engine.add_task(task, [](Info info){
-        PSTask task = get_pstask(info.task);
+        PSTask& task = task::get_pstask(info.task);
         if (info.cluster_id == 0) {
             base::log_msg("server num:" + std::to_string(task.get_num_ps_servers()));
             base::log_msg("worker num:" + std::to_string(task.get_num_ps_workers()));

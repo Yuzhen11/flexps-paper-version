@@ -89,3 +89,10 @@ add_executable(SimpleKVStore simple_kvstore.cpp)
 target_link_libraries(SimpleKVStore ${proj})
 target_link_libraries(SimpleKVStore ${EXTERNAL_LIB})
 set_property(TARGET SimpleKVStore PROPERTY CXX_STANDARD 14)
+
+# GenericML
+add_executable(GenericML generic_ml.cpp)
+target_link_libraries(GenericML ${proj})
+target_link_libraries(GenericML ${EXTERNAL_LIB})
+set_property(TARGET GenericML PROPERTY CXX_STANDARD 14)
+

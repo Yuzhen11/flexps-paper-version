@@ -15,6 +15,8 @@
 #include "worker/task_store.hpp"
 #include "worker/unit.hpp"
 
+#include "ml/ml.hpp"
+
 namespace husky {
 
 /*
@@ -45,6 +47,28 @@ public:
         auto local_threads = extract_local_instance(instance);
         instances_.insert({instance.get_id(), instance});  // store the instance
 
+        // reset the worker for GenericMLTask
+        auto ptask = task_store_.get_task(instance.get_id());
+        if (ptask->get_type() == Task::Type::GenericMLTaskType) {
+            auto& pworker = static_cast<GenericMLTask*>(ptask.get())->get_worker();
+            switch(instance.get_type()) {
+                case Task::Type::PSTaskType: {
+                    throw base::HuskyException("GenericMLTaskType error");
+                    break;
+                }
+                case Task::Type::SingleTaskType: {
+                    pworker.reset(new ml::single::SingleGenericModel());
+                    base::log_msg("[Debug][run_instance] setting to single generic");
+                    break;
+                }
+                case Task::Type::HogwildTaskType: {
+                    throw base::HuskyException("GenericMLTaskType error");
+                    break;
+                }
+                default:
+                    throw base::HuskyException("GenericMLTaskType error");
+            }
+        }
         for (auto tid_cid : local_threads) {
             // worker threads
             units_[tid_cid.first] = std::move(Unit([this, instance, tid_cid]{

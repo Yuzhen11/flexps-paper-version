@@ -83,6 +83,13 @@ private:
         }
         // create the instance
         Instance instance(task.get_id(), task.get_current_epoch());
+        // TODO If the task type is GenericMLTaskType, need to decide it's real running type now
+        if (task.get_type() == Task::Type::GenericMLTaskType) {
+            // TODO now set to SingleTaskType for testing...
+            instance.set_type(Task::Type::SingleTaskType);
+        } else {
+            instance.set_type(task.get_type());
+        }
         for (int i = 0; i < selected_workers.size(); ++i) {
             int proc_id = worker_info.get_proc_id(selected_workers[i]);
             instance.add_thread(proc_id, selected_workers[i], i);
