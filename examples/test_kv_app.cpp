@@ -13,14 +13,15 @@ int main(int argc, char** argv) {
 
     Engine engine;
 
-    PSTask task(0, 1, 4, 2);
-    engine.add_task(task, [](const Info& info){
-        PSTask& task = task::get_pstask(info.task);
+    auto task = TaskFactory::Get().create_task(Task::Type::PSTaskType, 1, 4);
+    static_cast<PSTask*>(task.get())->set_num_ps_servers(2);
+    engine.add_task(std::move(task), [](const Info& info){
+        PSTask* ptask = static_cast<PSTask*>(info.task);
         if (info.cluster_id == 0) {
-            base::log_msg("server num:" + std::to_string(task.get_num_ps_servers()));
-            base::log_msg("worker num:" + std::to_string(task.get_num_ps_workers()));
+            base::log_msg("server num:" + std::to_string(ptask->get_num_ps_servers()));
+            base::log_msg("worker num:" + std::to_string(ptask->get_num_ps_workers()));
         }
-        if (task.is_worker(info.cluster_id)) {
+        if (ptask->is_worker(info.cluster_id)) {
             base::log_msg(std::to_string(info.cluster_id) + ": I am a worker");
             ml::ps::KVWorker<float> kv(ml::ps::info2psinfo(info), *Context::get_mailbox(info.local_id));
             int num = 10000;
@@ -57,7 +58,7 @@ int main(int argc, char** argv) {
             base::log_msg("error: "+std::to_string(res));
 
             kv.ShutDown();
-        } else if (task.is_server(info.cluster_id)) {
+        } else if (ptask->is_server(info.cluster_id)) {
             base::log_msg(std::to_string(info.cluster_id) + ": I am a server");
             ml::ps::KVServer<float> kvserver(ml::ps::info2psinfo(info), *Context::get_mailbox(info.local_id));
             kvserver.ShutDown();

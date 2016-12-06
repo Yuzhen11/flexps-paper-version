@@ -5,6 +5,7 @@
 #include "core/context.hpp"
 #include "kvstore/kvstore.hpp"
 #include "worker/basic.hpp"
+#include "worker/task_factory.hpp"
 
 namespace husky {
 
@@ -34,10 +35,8 @@ public:
     /*
      * Add a new task to the buffer
      */
-    template<typename TaskType>
-    void add_task(const TaskType& task, const FuncT& func) {
-        static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
-        worker->add_task(task, func);
+    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) {
+        worker->add_task(std::move(task), func);
     }
 
     /*

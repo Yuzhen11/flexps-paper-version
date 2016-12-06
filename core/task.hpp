@@ -30,6 +30,9 @@ public:
     Task(Type type)
         : type_(type)
     {}
+    Task(int id, Type type)
+        : id_(id), type_(type)
+    {}
     Task(int id, int total_epoch, int num_workers, Type type = Type::BasicTaskType)
         : id_(id), 
         total_epoch_(total_epoch),
@@ -91,6 +94,9 @@ public:
     PSTask(int num_servers = 1)
         : Task(Type::PSTaskType)
     {}
+    PSTask(int id, int num_servers = 1)
+        : Task(id, Type::PSTaskType)
+    {}
     PSTask(int id, int total_epoch, int num_workers, int num_servers = 1)
         : num_servers_(num_servers),
           Task(id, total_epoch, num_workers, Type::PSTaskType)
@@ -104,6 +110,7 @@ public:
         return task.deserialize(bin);
     }
 
+    // getter
     inline int get_num_ps_servers() const {
         return num_servers_;
     }
@@ -116,6 +123,11 @@ public:
     inline bool is_server(int id) const {
         return id < num_servers_;
     }
+
+    // setter
+    inline void set_num_ps_servers(int num_servers) {
+        num_servers_ = num_servers;
+    }
 private:
     int num_servers_;
 };
@@ -127,6 +139,9 @@ class SingleTask : public Task {
 public:
     SingleTask()
         : Task(Type::SingleTaskType)
+    {}
+    SingleTask(int id)
+        : Task(id, Type::SingleTaskType)
     {}
     SingleTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::SingleTaskType) 
@@ -146,6 +161,9 @@ class HogwildTask : public Task {
 public:
     HogwildTask()
         : Task(Type::HogwildTaskType)
+    {}
+    HogwildTask(int id)
+        : Task(id, Type::HogwildTaskType)
     {}
     HogwildTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::HogwildTaskType) 
@@ -168,6 +186,9 @@ public:
     GenericMLTask() 
         : Task(Type::GenericMLTaskType)
     {}
+    GenericMLTask(int id) 
+        : Task(id, Type::GenericMLTaskType)
+    {}
     GenericMLTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::GenericMLTaskType) 
     {}
@@ -187,6 +208,9 @@ class HuskyTask : public Task {
 public:
     HuskyTask()
         : Task(Type::HuskyTaskType)
+    {}
+    HuskyTask(int id)
+        : Task(id, Type::HuskyTaskType)
     {}
     HuskyTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::HuskyTaskType) 

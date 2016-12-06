@@ -9,11 +9,10 @@ int main(int argc, char** argv) {
 
     Engine engine;
 
-    Task task(0, 1, 1);
+    auto task = TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 1);
     int kv0 = engine.create_kvstore<int>();
     int kv1 = engine.create_kvstore<float>();
-    engine.add_task(task, [kv0, kv1](const Info& info) {
-        Task& task = task::get_task(info.task);
+    engine.add_task(std::move(task), [kv0, kv1](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.local_id);
         std::vector<int> keys{0};
         std::vector<float> vals{2.0};

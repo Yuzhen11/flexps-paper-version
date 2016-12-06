@@ -17,7 +17,7 @@ struct Info {
     int num_local_threads;  // cluster num locally
     int num_global_threads;  // cluster num in total
     HashRing hash_ring;
-    std::shared_ptr<Task> task;
+    Task* task;
     std::unique_ptr<ml::common::GenericMLWorker> mlworker;
 
     std::unordered_map<int,int> cluster_id_to_global_id;  // {cluster_id, global_id}

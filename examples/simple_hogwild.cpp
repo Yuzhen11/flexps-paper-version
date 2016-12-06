@@ -12,10 +12,8 @@ int main(int argc, char** argv) {
 
     Engine engine;
 
-    HogwildTask task(0, 1, 4);
-    engine.add_task(task, [](const Info& info){
-        HogwildTask& task = task::get_hogwildtask(info.task);
-
+    auto task = TaskFactory::Get().create_task(Task::Type::HogwildTaskType, 1, 4);
+    engine.add_task(std::move(task), [](const Info& info){
         int dim = 100;
         // create a hogwild model, which means it's shared
         ml::hogwild::HogwildModel<std::vector<float>> model(Context::get_zmq_context(), info, dim);

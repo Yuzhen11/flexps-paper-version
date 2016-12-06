@@ -11,11 +11,8 @@ int main(int argc, char** argv) {
     if (!rt) return 1;
 
     Engine engine;
-
-    GenericMLTask task(0, 1, 4);
-    engine.add_task(task, [](const Info& info){
-        GenericMLTask& task = task::get_genericmltask(info.task);
-
+    auto task1 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType, 1, 4);
+    engine.add_task(std::move(task1), [](const Info& info){
         auto& worker = info.mlworker;
         int k = 23;
         worker->Put(k, 0.456);

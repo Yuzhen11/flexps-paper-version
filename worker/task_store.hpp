@@ -17,12 +17,11 @@ public:
     /*
      * Add a task into the task_map, the task added should be derived from Task
      */
-    template<typename TaskType>
-    void add_task(const TaskType& task, const FuncT& func) {
-        static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
-        assert(task_map.find(task.get_id()) == task_map.end());
-        task_map.insert({task.get_id(), {std::shared_ptr<Task>(new TaskType(task)), func}});
-        buffered_tasks.push_back(task.get_id());
+    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) {
+        int tid = task->get_id();
+        assert(task_map.find(tid) == task_map.end());
+        task_map.insert(std::make_pair(tid, std::make_pair(std::move(task), func)));
+        buffered_tasks.push_back(tid);
     }
     void clear_buffered_tasks() {
         buffered_tasks.clear();
@@ -37,12 +36,12 @@ public:
     auto get_func(int id) {
         return task_map[id].second;
     }
-    auto get_task(int id) {
+    std::unique_ptr<Task>& get_task(int id) {
         return task_map[id].first;
     }
 
 private:
-    std::unordered_map<int, std::pair<std::shared_ptr<Task>, FuncT>> task_map;
+    std::unordered_map<int, std::pair<std::unique_ptr<Task>, FuncT>> task_map;
     std::vector<int> buffered_tasks;
 };
 

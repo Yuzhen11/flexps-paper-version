@@ -30,7 +30,7 @@ PSInfo info2psinfo(const husky::Info& info) {
     psinfo.channel_id = info.task->get_id();
     psinfo.global_id = info.global_id;
     psinfo.num_global_threads = info.num_global_threads;
-    psinfo.num_ps_servers = husky::task::get_pstask(info.task).get_num_ps_servers();
+    psinfo.num_ps_servers = static_cast<husky::PSTask*>(info.task)->get_num_ps_servers();
     psinfo.cluster_id_to_global_id = info.cluster_id_to_global_id;
     return psinfo;
 }

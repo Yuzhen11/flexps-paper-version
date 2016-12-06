@@ -32,10 +32,8 @@ public:
     }
 
     // User need to add task to taskstore
-    template<typename TaskType>
-    void add_task(const TaskType& task, const FuncT& func) {
-        static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
-        task_store.add_task(task, func);
+    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) {
+        task_store.add_task(std::move(task), func);
     }
 
     void send_tasks_to_master() {

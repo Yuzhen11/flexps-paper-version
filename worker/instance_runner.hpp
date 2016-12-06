@@ -55,11 +55,10 @@ public:
         info.proc_id = worker_info_.get_proc_id();
         info.num_local_threads = instance->get_threads(worker_info_.get_proc_id()).size();
         info.num_global_threads = instance->get_num_threads();
-        info.task = task_store_.get_task(instance->get_id());
+        info.task = task_store_.get_task(instance->get_id()).get();
 
         // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by master
-        auto ptask = task_store_.get_task(instance->get_id());
-        if (ptask->get_type() == Task::Type::GenericMLTaskType) {
+        if (info.task->get_type() == Task::Type::GenericMLTaskType) {
             switch(instance->get_type()) {
                 case Task::Type::PSTaskType: {
                     throw base::HuskyException("GenericMLTaskType error");
