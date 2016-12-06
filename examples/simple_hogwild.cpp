@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     Engine engine;
 
     HogwildTask task(0, 1, 4);
-    engine.add_task(task, [](Info info){
+    engine.add_task(task, [](const Info& info){
         HogwildTask& task = task::get_hogwildtask(info.task);
 
         int dim = 100;

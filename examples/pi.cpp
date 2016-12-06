@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     Engine engine;
 
     HuskyTask task(0, 1, 4);
-    engine.add_task(task, [](Info info) {
+    engine.add_task(task, [](const Info& info) {
         int num_pts_per_thread = 1000;
         std::random_device rd;
         std::mt19937 generator(rd());
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     engine.submit();
     
     HuskyTask task2(1, 1, 4);
-    engine.add_task(task2, [](Info info) {
+    engine.add_task(task2, [](const Info& info) {
         base::log_msg("task2 running");
     });
 

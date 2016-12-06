@@ -19,7 +19,7 @@ public:
      * \param args variable args to initialize the variables
      */
     template<typename... Args>
-    HogwildModel(zmq::context_t& context, husky::Info& info, Args&&... args)
+    HogwildModel(zmq::context_t& context, const husky::Info& info, Args&&... args)
         : info_(info), 
           context_(context),
           socket_(context, info.cluster_id == 0 ? ZMQ_ROUTER:ZMQ_REQ) {
@@ -114,7 +114,7 @@ private:
         return info_.num_local_threads == info_.num_global_threads;
     }
 
-    husky::Info& info_;
+    const husky::Info& info_;
     zmq::context_t& context_;
     zmq::socket_t socket_;
 

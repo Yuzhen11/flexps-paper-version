@@ -171,12 +171,6 @@ public:
     GenericMLTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::GenericMLTaskType) 
     {}
-    GenericMLTask(const GenericMLTask& rhs)
-        : Task(rhs),
-          worker(new ml::common::GenericMLWorker(*rhs.worker)) {
-    }
-
-    // TODO May need to override the serialize function later
     
     friend BinStream& operator<<(BinStream& bin, const GenericMLTask& task) {
         return task.serialize(bin);
@@ -184,12 +178,6 @@ public:
     friend BinStream& operator>>(BinStream& bin, GenericMLTask& task) {
         return task.deserialize(bin);
     }
-
-    std::unique_ptr<ml::common::GenericMLWorker>& get_worker() {
-        return worker;
-    }
-private:
-    std::unique_ptr<ml::common::GenericMLWorker> worker;
 };
 
 /*

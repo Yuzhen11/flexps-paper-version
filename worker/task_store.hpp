@@ -7,6 +7,8 @@
 #include "core/task.hpp"
 #include "core/info.hpp"
 
+#include "basic.hpp"
+
 namespace husky {
 
 class TaskStore {
@@ -16,7 +18,7 @@ public:
      * Add a task into the task_map, the task added should be derived from Task
      */
     template<typename TaskType>
-    void add_task(const TaskType& task, const std::function<void(Info)>& func) {
+    void add_task(const TaskType& task, const FuncT& func) {
         static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
         assert(task_map.find(task.get_id()) == task_map.end());
         task_map.insert({task.get_id(), {std::shared_ptr<Task>(new TaskType(task)), func}});
@@ -40,7 +42,7 @@ public:
     }
 
 private:
-    std::unordered_map<int, std::pair<std::shared_ptr<Task>, std::function<void(Info)>>> task_map;
+    std::unordered_map<int, std::pair<std::shared_ptr<Task>, FuncT>> task_map;
     std::vector<int> buffered_tasks;
 };
 

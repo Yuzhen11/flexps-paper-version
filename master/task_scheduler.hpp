@@ -86,7 +86,8 @@ private:
         // TODO If the task type is GenericMLTaskType, need to decide it's real running type now
         if (task.get_type() == Task::Type::GenericMLTaskType) {
             // TODO now set to SingleTaskType for testing...
-            instance->set_type(task, Task::Type::SingleTaskType);
+            // instance->set_type(task, Task::Type::SingleTaskType);
+            instance->set_type(task, Task::Type::HogwildTaskType);
         } else {
             instance->set_type(task);
         }

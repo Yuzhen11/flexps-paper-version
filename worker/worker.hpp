@@ -13,6 +13,7 @@
 #include "worker/master_connector.hpp"
 #include "worker/instance_runner.hpp"
 #include "worker/task_store.hpp"
+#include "worker/basic.hpp"
 
 namespace husky {
 
@@ -32,7 +33,7 @@ public:
 
     // User need to add task to taskstore
     template<typename TaskType>
-    void add_task(const TaskType& task, const std::function<void(Info)>& func) {
+    void add_task(const TaskType& task, const FuncT& func) {
         static_assert(std::is_base_of<Task, TaskType>::value, "TaskType should derived from Task");
         task_store.add_task(task, func);
     }

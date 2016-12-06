@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     Engine engine;
 
     PSTask task(0, 1, 4, 2);
-    engine.add_task(task, [](Info info){
+    engine.add_task(task, [](const Info& info){
         PSTask& task = task::get_pstask(info.task);
         if (info.cluster_id == 0) {
             base::log_msg("server num:" + std::to_string(task.get_num_ps_servers()));

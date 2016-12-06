@@ -31,6 +31,9 @@ public:
     auto& get_send_socket() {
         return send_socket;
     }
+    zmq::context_t& get_context() {
+        return context;
+    }
     // Newly spawned threads need to get a socket to connect to the main loop
     zmq::socket_t get_socket_to_recv() {
         zmq::socket_t socket(context, ZMQ_PUSH);

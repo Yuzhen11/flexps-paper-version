@@ -13,10 +13,10 @@ int main(int argc, char** argv) {
     Engine engine;
 
     GenericMLTask task(0, 1, 4);
-    engine.add_task(task, [](Info info){
+    engine.add_task(task, [](const Info& info){
         GenericMLTask& task = task::get_genericmltask(info.task);
 
-        auto& worker = task.get_worker();
+        auto& worker = info.mlworker;
         int k = 23;
         worker->Put(k, 0.456);
         float v = worker->Get(k);
