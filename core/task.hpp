@@ -26,11 +26,9 @@ public:
         DummyType
     };
 
+    // For serialization usage only
     Task() = default;
-    Task(Type type)
-        : type_(type)
-    {}
-    Task(int id, Type type)
+    Task(int id, Type type = Type::DummyType)
         : id_(id), type_(type)
     {}
     Task(int id, int total_epoch, int num_workers, Type type = Type::BasicTaskType)
@@ -78,7 +76,7 @@ public:
 protected:
     int id_;
 
-    int total_epoch_;  // total epoch numbers
+    int total_epoch_ = 1;  // total epoch numbers
     int current_epoch_ = 0;
 
     int num_workers_;  // num of workers needed to run the job
@@ -91,15 +89,13 @@ protected:
  */
 class PSTask : public Task {
 public:
-    PSTask(int num_servers = 1)
-        : Task(Type::PSTaskType)
-    {}
-    PSTask(int id, int num_servers = 1)
+    // For serialization usage only
+    PSTask() = default;
+    PSTask(int id)
         : Task(id, Type::PSTaskType)
     {}
-    PSTask(int id, int total_epoch, int num_workers, int num_servers = 1)
-        : num_servers_(num_servers),
-          Task(id, total_epoch, num_workers, Type::PSTaskType)
+    PSTask(int id, int total_epoch, int num_workers)
+        : Task(id, total_epoch, num_workers, Type::PSTaskType)
     {}
     // TODO When we add new class member here, we need to override the serialize and
     // deserialize functions!!!
@@ -129,7 +125,7 @@ public:
         num_servers_ = num_servers;
     }
 private:
-    int num_servers_;
+    int num_servers_ = 1;
 };
 
 /*
@@ -137,9 +133,8 @@ private:
  */
 class SingleTask : public Task {
 public:
-    SingleTask()
-        : Task(Type::SingleTaskType)
-    {}
+    // For serialization usage only
+    SingleTask() = default;
     SingleTask(int id)
         : Task(id, Type::SingleTaskType)
     {}
@@ -159,9 +154,8 @@ public:
  */
 class HogwildTask : public Task {
 public:
-    HogwildTask()
-        : Task(Type::HogwildTaskType)
-    {}
+    // For serialization usage only
+    HogwildTask() = default;
     HogwildTask(int id)
         : Task(id, Type::HogwildTaskType)
     {}
@@ -183,9 +177,8 @@ public:
  */
 class GenericMLTask : public Task {
 public:
-    GenericMLTask() 
-        : Task(Type::GenericMLTaskType)
-    {}
+    // For serialization usage only
+    GenericMLTask() = default;
     GenericMLTask(int id) 
         : Task(id, Type::GenericMLTaskType)
     {}
@@ -206,9 +199,8 @@ public:
  */
 class HuskyTask : public Task {
 public:
-    HuskyTask()
-        : Task(Type::HuskyTaskType)
-    {}
+    // For serialization usage only
+    HuskyTask() = default;
     HuskyTask(int id)
         : Task(id, Type::HuskyTaskType)
     {}

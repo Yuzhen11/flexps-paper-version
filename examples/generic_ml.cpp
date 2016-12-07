@@ -11,7 +11,8 @@ int main(int argc, char** argv) {
     if (!rt) return 1;
 
     Engine engine;
-    auto task1 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType, 1, 4);
+    // Didn't specify the epoch num and thread num, leave master to decide them
+    auto task1 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);  
     engine.add_task(std::move(task1), [](const Info& info){
         auto& worker = info.mlworker;
         int k = 23;

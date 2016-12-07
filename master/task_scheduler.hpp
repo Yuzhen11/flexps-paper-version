@@ -72,6 +72,9 @@ private:
     std::shared_ptr<Instance> task_to_instance(Task& task) {
         auto num_workers = worker_info.get_num_workers();
         assert(num_workers >= task.get_num_workers());
+        // TODO: For debug and testing only. Master needs to design workers number for GenericMLTaskType
+        if (task.get_type() == Task::Type::GenericMLTaskType)
+            task.set_num_workers(4);
         // randomly select threads 
         std::vector<int> selected_workers;
         while (selected_workers.size() < task.get_num_workers()) {
@@ -86,10 +89,10 @@ private:
         // TODO If the task type is GenericMLTaskType, need to decide it's real running type now
         if (task.get_type() == Task::Type::GenericMLTaskType) {
             // TODO now set to SingleTaskType for testing...
-            // instance->set_type(task, Task::Type::SingleTaskType);
-            instance->set_type(task, Task::Type::HogwildTaskType);
+            // instance->set_task(task, Task::Type::SingleTaskType);
+            instance->set_task(task, Task::Type::HogwildTaskType);
         } else {
-            instance->set_type(task);
+            instance->set_task(task);
         }
         for (int i = 0; i < selected_workers.size(); ++i) {
             int proc_id = worker_info.get_proc_id(selected_workers[i]);

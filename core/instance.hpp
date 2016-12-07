@@ -16,10 +16,10 @@ public:
     Instance() = default;
 
     Instance(Task& task, Task::Type newtype = Task::Type::DummyType) {
-        set_type(task, newtype);
+        set_task(task, newtype);
     }
 
-    void set_type(Task& task, Task::Type newtype = Task::Type::DummyType) {
+    void set_task(Task& task, Task::Type newtype = Task::Type::DummyType) {
         switch(task.get_type()) {
             case Task::Type::BasicTaskType: {   // Basic Task
                 task_.reset(new Task(task));
