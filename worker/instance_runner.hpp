@@ -66,15 +66,15 @@ public:
                     break;
                 }
                 case Task::Type::SingleTaskType: {
-                    info.mlworker.reset(new ml::single::SingleGenericModel(info.task->get_id(), info.local_id, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
-                    info.mlworker->load();
                     base::log_msg("[Debug][run_instance] setting to single generic");
+                    info.mlworker.reset(new ml::single::SingleGenericModel(info.task->get_id(), info.local_id, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
+                    info.mlworker->Load();
                     break;
                 }
                 case Task::Type::HogwildTaskType: {
-                    info.mlworker.reset(new ml::hogwild::HogwildGenericModel(master_connector_.get_context(), info, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
-                    info.mlworker->load();
                     base::log_msg("[Debug][run_instance] setting to hogwild! generic");
+                    info.mlworker.reset(new ml::hogwild::HogwildGenericModel(info.task->get_id(), master_connector_.get_context(), info, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
+                    info.mlworker->Load();
                     break;
                 }
                 default:
@@ -95,12 +95,13 @@ public:
                     break;
                 }
                 case Task::Type::SingleTaskType: {
-                    info.mlworker->dump();
-                    base::log_msg("[Debug][run_instance] setting to single generic");
+                    info.mlworker->Dump();
+                    base::log_msg("[Debug][run_instance] Single generic done");
                     break;
                 }
                 case Task::Type::HogwildTaskType: {
-                    assert(false);
+                    info.mlworker->Dump();
+                    base::log_msg("[Debug][run_instance] Hogwild generic done");
                     break;
                 }
                 default:

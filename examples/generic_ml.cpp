@@ -15,6 +15,7 @@ int main(int argc, char** argv) {
     int kv0 = engine.create_kvstore<float>();
     auto task1 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);  
     static_cast<GenericMLTask*>(task1.get())->set_dimensions(10);
+    static_cast<GenericMLTask*>(task1.get())->set_running_type(Task::Type::HogwildTaskType);
     task1->set_total_epoch(2);
     engine.add_task(std::move(task1), [](const Info& info){
         auto& worker = info.mlworker;

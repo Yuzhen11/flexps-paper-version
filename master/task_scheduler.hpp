@@ -86,8 +86,8 @@ private:
         }
         // create the instance
         std::shared_ptr<Instance> instance(new Instance);
-        // TODO If the task type is GenericMLTaskType, need to decide it's real running type now
-        if (task.get_type() == Task::Type::GenericMLTaskType) {
+        // TODO If the task type is GenericMLTaskType and the running type is unset, need to decide it's real running type now
+        if (task.get_type() == Task::Type::GenericMLTaskType && static_cast<GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
             // TODO now set to SingleTaskType for testing...
             instance->set_task(task, Task::Type::SingleTaskType);
             // instance->set_task(task, Task::Type::HogwildTaskType);

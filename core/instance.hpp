@@ -42,6 +42,12 @@ public:
                 break;
             }
             case Task::Type::GenericMLTaskType: {  // GenericML Task
+                if (static_cast<GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
+                    // if there's a running task, set it
+                    newtype = static_cast<GenericMLTask&>(task).get_running_type();
+                } else {
+                    // if still generic, set it according to newtype
+                }
                 assert(newtype != Task::Type::DummyType);
                 switch(newtype) {
                     case Task::Type::PSTaskType: {

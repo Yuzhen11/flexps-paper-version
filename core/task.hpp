@@ -198,11 +198,26 @@ public:
     void set_dimensions(int dim) {
         dim_ = dim;
     }
+    void set_running_type(Type type) {
+        running_type_ = type;
+    }
 
     int get_dimensions() {
         return dim_;
     }
+
+    Type get_running_type() {
+        return running_type_;
+    }
     
+    virtual BinStream& serialize(BinStream& bin) const {
+        Task::serialize(bin);
+        bin << running_type_;
+    }
+    virtual BinStream& deserialize(BinStream& bin) {
+        Task::deserialize(bin);
+        bin >> running_type_;
+    }
     friend BinStream& operator<<(BinStream& bin, const GenericMLTask& task) {
         return task.serialize(bin);
     }
@@ -211,6 +226,7 @@ public:
     }
 private:
     int dim_;
+    Type running_type_ = Type::DummyType;
 };
 
 /*

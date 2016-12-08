@@ -30,7 +30,7 @@ public:
     /*
      * Get parameters from global kvstore
      */
-    virtual void load() override {
+    virtual void Load() override {
         husky::base::log_msg("[Single] loading");
         husky::base::log_msg("[Single] model_id:"+std::to_string(model_id_)+" local_id:"+std::to_string(local_id_));
 
@@ -46,7 +46,7 @@ public:
     /*
      * Put the parameters to global kvstore
      */
-    virtual void dump() override {
+    virtual void Dump() override {
         husky::base::log_msg("[Single] dumping");
 
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
@@ -61,13 +61,11 @@ public:
      * Put/Get APIs
      */
     virtual void Put(int key, float val) override {
-        if (key >= model_.size())
-            model_.resize(key+1);
+        assert(key < model_.size());
         model_[key] = val;
     }
     virtual float Get(int key) override {
-        if (key >= model_.size())
-            model_.resize(key+1);
+        assert(key < model_.size());
         return model_[key];
     }
 private:
