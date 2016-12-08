@@ -2,14 +2,14 @@
 
 #include <type_traits>
 
+#include "husky/base/log.hpp"
+#include "husky/base/exception.hpp"
+#include "husky/base/serialization.hpp"
+#include "husky/core/zmq_helpers.hpp"
 #include "base/debug.hpp"
-#include "base/log.hpp"
-#include "base/exception.hpp"
-#include "base/serialization.hpp"
 #include "core/constants.hpp"
 #include "core/instance.hpp"
 #include "core/worker_info.hpp"
-#include "core/zmq_helpers.hpp"
 #include "worker/master_connector.hpp"
 #include "worker/instance_runner.hpp"
 #include "worker/task_store.hpp"
@@ -38,7 +38,7 @@ public:
 
     void send_tasks_to_master() {
         // Only Proc 0 need to send tasks to master
-        if (worker_info.get_proc_id() == 0) {
+        if (worker_info.get_process_id() == 0) {
             base::BinStream bin;
             auto& task_map = task_store.get_task_map();
             auto& buffered_tasks = task_store.get_buffered_tasks();
@@ -63,7 +63,7 @@ public:
      * normally it's the last statement in worker
      */
     void send_exit() {
-        if (worker_info.get_proc_id() == 0) {
+        if (worker_info.get_process_id() == 0) {
             auto& socket = master_connector.get_send_socket();
             zmq_send_int32(&socket, constants::MASTER_EXIT);
         }
@@ -87,7 +87,7 @@ public:
                 std::shared_ptr<Instance> instance(new Instance);
                 instance->deserialize(bin);
                 // Print debug info
-                instance->show_instance(worker_info.get_proc_id());
+                instance->show_instance(worker_info.get_process_id());
                 instance_runner.run_instance(instance);
             }
             else if (type == constants::THREAD_FINISHED) {
@@ -96,7 +96,7 @@ public:
                 instance_runner.finish_thread(instance_id, thread_id);
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
-                    base::log_msg("[Worker]: task id:"+std::to_string(instance_id)+" finished on Proc:"+std::to_string(worker_info.get_proc_id()));
+                    base::log_msg("[Worker]: task id:"+std::to_string(instance_id)+" finished on Proc:"+std::to_string(worker_info.get_process_id()));
                     auto bin = instance_runner.remove_instance(instance_id);
                     send_instance_finished(bin);
                 }

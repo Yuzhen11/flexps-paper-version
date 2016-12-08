@@ -95,7 +95,7 @@ private:
             instance->set_task(task);
         }
         for (int i = 0; i < selected_workers.size(); ++i) {
-            int proc_id = worker_info.get_proc_id(selected_workers[i]);
+            int proc_id = worker_info.get_process_id(selected_workers[i]);
             instance->add_thread(proc_id, selected_workers[i], i);
         }
         return instance;

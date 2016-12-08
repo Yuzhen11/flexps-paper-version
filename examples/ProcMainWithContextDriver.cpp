@@ -1,10 +1,10 @@
 #include "worker/engine.hpp"
+#include "husky/core/job_runner.hpp"
 
 using namespace husky;
 
 int main(int argc, char** argv) {
-    Context::init_global();
-    bool rt = Context::get_config()->init_with_args(argc, argv, {});
+    bool rt = init_with_args(argc, argv, {"worker_port"});
     if (!rt) return 1;
 
     Engine engine;
@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
             BinStream bin;
             bin << str;
             mailbox->send(info.get_tid(1), 0, 0, bin);
-            mailbox->send_complete(0,0,&info.hash_ring);
+            mailbox->send_complete(0,0,info.local_tids, info.global_pids);
 
             // recv
             while(mailbox->poll(0,0)) {
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
             BinStream bin;
             bin << str;
             mailbox->send(info.get_tid(0), 0, 0, bin);
-            mailbox->send_complete(0,0,&info.hash_ring);
+            mailbox->send_complete(0,0,info.local_tids, info.global_pids);
 
             // recv
             while(mailbox->poll(0,0)) {

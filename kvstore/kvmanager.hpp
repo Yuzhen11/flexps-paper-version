@@ -6,8 +6,8 @@
 
 #include "kvpairs.hpp"
 
-#include "core/mailbox.hpp"
-#include "base/serialization.hpp"
+#include "husky/core/mailbox.hpp"
+#include "husky/base/serialization.hpp"
 
 namespace kvstore {
 

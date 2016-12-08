@@ -6,8 +6,7 @@
 using namespace husky;
 
 int main(int argc, char** argv) {
-    Context::init_global();
-    bool rt = Context::get_config()->init_with_args(argc, argv, {});
+    bool rt = init_with_args(argc, argv, {"worker_port"});
     if (!rt) return 1;
 
     Engine engine;
@@ -16,7 +15,7 @@ int main(int argc, char** argv) {
     engine.add_task(std::move(task), [](const Info& info){
         int dim = 100;
         // create a hogwild model, which means it's shared
-        ml::hogwild::HogwildModel<std::vector<float>> model(Context::get_zmq_context(), info, dim);
+        ml::hogwild::HogwildModel<std::vector<float>> model(*Context::get_zmq_context(), info, dim);
         std::vector<float>* p_model = model.get();
         // update p according to your data
         int j = info.cluster_id;

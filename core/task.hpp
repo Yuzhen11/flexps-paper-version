@@ -4,8 +4,8 @@
 #include <sstream>
 #include <memory>
 
-#include "base/serialization.hpp"
-#include "base/exception.hpp"
+#include "husky/base/serialization.hpp"
+#include "husky/base/exception.hpp"
 
 #include "ml/common/mlworker.hpp"
 

@@ -4,8 +4,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
-#include "base/serialization.hpp"
-#include "core/mailbox.hpp"
+#include "husky/base/serialization.hpp"
+#include "husky/core/mailbox.hpp"
 
 namespace ml {
 namespace ps {

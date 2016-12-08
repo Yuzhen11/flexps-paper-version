@@ -7,8 +7,7 @@
 using namespace husky;
 
 int main(int argc, char** argv) {
-    Context::init_global();
-    bool rt = Context::get_config()->init_with_args(argc, argv, {});
+    bool rt = init_with_args(argc, argv, {"worker_port"});
     if (!rt) return 1;
 
     Engine engine;

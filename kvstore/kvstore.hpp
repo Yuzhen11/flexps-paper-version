@@ -2,8 +2,8 @@
 #include <vector>
 
 #include "core/constants.hpp"
-#include "core/mailbox.hpp"
-#include "core/worker_info.hpp"
+#include "husky/core/mailbox.hpp"
+#include "husky/core/worker_info.hpp"
 #include "kvworker.hpp"
 #include "kvmanager.hpp"
 
@@ -27,13 +27,13 @@ public:
      *
      * Create new mailboxes and add them to el
      */
-    void Start(const husky::WorkerInfo& worker_info, const std::unique_ptr<husky::MailboxEventLoop>& el, zmq::context_t* zmq_context) {
+    void Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoop* const el, zmq::context_t* zmq_context) {
         int num_workers = worker_info.get_num_workers();
         int num_processes = worker_info.get_num_processes();
         // The following mailboxes [num_workers - 2*num_workers) are for kvworkers
         for (int i = 0; i < num_workers; i++) {
-            if (worker_info.get_proc_id(i) != worker_info.get_proc_id()) {
-                el->register_peer_thread(worker_info.get_proc_id(i), num_workers+i);  // {proc(i), num_workers+i}
+            if (worker_info.get_process_id(i) != worker_info.get_process_id()) {
+                el->register_peer_thread(worker_info.get_process_id(i), num_workers+i);  // {proc(i), num_workers+i}
             } else {
                 auto* mailbox = new husky::LocalMailbox(zmq_context);
                 mailbox->set_thread_id(num_workers+i);
@@ -46,7 +46,7 @@ public:
         // Each process has one kvmanager by default
         for (int i = 0; i < num_processes; ++ i) {
             int tid = 2*num_workers + i;
-            if (i != worker_info.get_proc_id()) {
+            if (i != worker_info.get_process_id()) {
                 el->register_peer_thread(i, tid);
             } else {
                 auto* mailbox = new husky::LocalMailbox(zmq_context);
@@ -69,7 +69,7 @@ public:
         }
         int k = 0;
         for (int i = 0; i < num_workers; ++ i) {
-            if (worker_info.get_proc_id(i) == worker_info.get_proc_id()) {
+            if (worker_info.get_process_id(i) == worker_info.get_process_id()) {
                 kvstore::PSInfo info;
                 info.channel_id = husky::constants::kv_channel_id;
                 info.global_id = num_workers + i; 

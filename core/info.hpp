@@ -2,9 +2,9 @@
 #include <unordered_map>
 #include <memory>
 
-#include "base/log.hpp"
+#include "husky/base/log.hpp"
+#include "husky/core/hash_ring.hpp"
 #include "core/task.hpp"
-#include "core/hash_ring.hpp"
 #include "ml/common/mlworker.hpp"
 
 namespace husky {
@@ -17,6 +17,8 @@ struct Info {
     int num_local_threads;  // cluster num locally
     int num_global_threads;  // cluster num in total
     HashRing hash_ring;
+    std::vector<int> local_tids;
+    std::vector<int> global_pids;
     Task* task;
     std::unique_ptr<ml::common::GenericMLWorker> mlworker;
 

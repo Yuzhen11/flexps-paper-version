@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "base/exception.hpp"
+#include "husky/base/exception.hpp"
 
 namespace ml {
 namespace common {

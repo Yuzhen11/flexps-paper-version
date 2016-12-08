@@ -1,8 +1,8 @@
 #pragma once
 
-#include "base/serialization.hpp"
-#include "base/exception.hpp"
-#include "core/zmq_helpers.hpp"
+#include "husky/base/serialization.hpp"
+#include "husky/base/exception.hpp"
+#include "husky/core/zmq_helpers.hpp"
 #include "core/info.hpp"
 
 namespace ml {

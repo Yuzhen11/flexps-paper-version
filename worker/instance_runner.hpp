@@ -3,12 +3,12 @@
 #include <thread>
 
 #include "base/debug.hpp"
-#include "base/log.hpp"
-#include "base/serialization.hpp"
+#include "husky/base/log.hpp"
+#include "husky/base/serialization.hpp"
+#include "husky/core/zmq_helpers.hpp"
+#include "husky/core/worker_info.hpp"
 
 #include "core/instance.hpp"
-#include "core/worker_info.hpp"
-#include "core/zmq_helpers.hpp"
 #include "core/info.hpp"
 #include "core/utility.hpp"
 #include "worker/master_connector.hpp"
@@ -37,7 +37,7 @@ public:
      * Method to extract local instance
      */
     std::vector<std::pair<int,int>> extract_local_instance(const std::shared_ptr<Instance>& instance) const {
-        auto local_threads = instance->get_threads(worker_info_.get_proc_id());
+        auto local_threads = instance->get_threads(worker_info_.get_process_id());
         for (auto& th : local_threads) {
             th.first = worker_info_.global_to_local_id(th.first);
         }
@@ -48,12 +48,12 @@ public:
      * Factory method to generate Info for each running Unit
      */
     Info info_factory(const std::shared_ptr<Instance>& instance, std::pair<int,int> tid_cid) {
-        Info info = utility::instance_to_info(*instance);
+        Info info = utility::instance_to_info(*instance, worker_info_.get_process_id());
         info.local_id = tid_cid.first;
         info.global_id = worker_info_.local_to_global_id(tid_cid.first);
         info.cluster_id = tid_cid.second;
-        info.proc_id = worker_info_.get_proc_id();
-        info.num_local_threads = instance->get_threads(worker_info_.get_proc_id()).size();
+        info.proc_id = worker_info_.get_process_id();
+        info.num_local_threads = instance->get_threads(worker_info_.get_process_id()).size();
         info.num_global_threads = instance->get_num_threads();
         info.task = task_store_.get_task(instance->get_id()).get();
 
@@ -160,7 +160,7 @@ public:
         instance_keeper_.erase(instance_id);
 
         // generate the bin to master
-        auto proc_id = worker_info_.get_proc_id();
+        auto proc_id = worker_info_.get_process_id();
         base::BinStream bin;
         bin << instance_id;
         bin << proc_id;

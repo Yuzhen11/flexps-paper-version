@@ -7,8 +7,8 @@
 
 #include "customer.hpp"
 #include "core/info.hpp"
-#include "core/mailbox.hpp"
-#include "base/serialization.hpp"
+#include "husky/core/mailbox.hpp"
+#include "husky/base/serialization.hpp"
 
 namespace ml {
 namespace ps {

@@ -1,43 +1,26 @@
 #include "worker/worker.hpp"
 #include "core/context.hpp"
 #include "worker/task_factory.hpp"
+#include "husky/core/job_runner.hpp"
 
 using namespace husky;
 
 int main(int argc, char** argv) {
-    Context::init_global();
-    bool rt = Context::get_config()->init_with_args(argc, argv, {});
+    bool rt = init_with_args(argc, argv, {"worker_port"});
     if (!rt) return 1;
 
-    std::string bind_addr = "tcp://*:"+std::to_string(Context::get_config()->get_worker_port());
-    std::string master_addr = "tcp://"+Context::get_config()->get_master_host()+":"+std::to_string(Context::get_config()->get_master_port());
+    std::string bind_addr = "tcp://*:"+Context::get_param("worker_port");
+    std::string master_addr = "tcp://"+Context::get_config().get_master_host()+":"+std::to_string(Context::get_config().get_master_port());
     std::string host_name = Context::get_param("hostname");
 
     // worker info
-    WorkerInfo worker_info = *Context::get_worker_info();
+    WorkerInfo worker_info = Context::get_worker_info();
 
     // master connector
-    MasterConnector master_connector(Context::get_zmq_context(), bind_addr, master_addr, host_name);
+    MasterConnector master_connector(*Context::get_zmq_context(), bind_addr, master_addr, host_name);
 
     // Create mailbox
-    auto* el = new MailboxEventLoop(&Context::get_zmq_context());
-    el->set_process_id(worker_info.get_proc_id());
-    std::vector<LocalMailbox*> mailboxes;
-    for (int i = 0; i < worker_info.get_num_processes(); i++)
-        el->register_peer_recver(
-            i, "tcp://" + worker_info.get_host(i) + ":" + std::to_string(Context::get_config()->get_comm_port()));
-    for (int i = 0; i < worker_info.get_num_workers(); i++) {
-        if (worker_info.get_proc_id(i) != worker_info.get_proc_id()) {
-            el->register_peer_thread(worker_info.get_proc_id(i), i);
-        } else {
-            auto* mailbox = new LocalMailbox(&Context::get_zmq_context());
-            mailbox->set_thread_id(i);
-            el->register_mailbox(*mailbox);
-            mailboxes.push_back(mailbox);
-        }
-    }
-    auto* recver = new CentralRecver(&Context::get_zmq_context(), Context::get_recver_bind_addr());
-    Context::set_mailboxes(mailboxes);
+    Context::create_mailbox_env();
     
     // create worker
     husky::Worker worker(std::move(worker_info),
@@ -58,7 +41,7 @@ int main(int argc, char** argv) {
             BinStream bin;
             bin << str;
             mailbox->send(info.get_tid(1), 0, 0, bin);
-            mailbox->send_complete(0,0,&info.hash_ring);
+            mailbox->send_complete(0,0,info.local_tids, info.global_pids);
 
             // recv
             while(mailbox->poll(0,0)) {
@@ -73,7 +56,7 @@ int main(int argc, char** argv) {
             BinStream bin;
             bin << str;
             mailbox->send(info.get_tid(0), 0, 0, bin);
-            mailbox->send_complete(0,0,&info.hash_ring);
+            mailbox->send_complete(0,0,info.local_tids, info.global_pids);
 
             // recv
             while(mailbox->poll(0,0)) {
@@ -96,10 +79,10 @@ int main(int argc, char** argv) {
     worker.main_loop();
 
     // clean up
-    delete recver;
-    delete el;
-    for (int i = 0; i < Context::get_worker_info()->get_num_local_workers(); i++)
-        delete mailboxes[i];
+    // delete recver;
+    // delete el;
+    // for (int i = 0; i < Context::get_worker_info()->get_num_local_workers(); i++)
+    //     delete mailboxes[i];
     // TODO Now cannot finalize global, the reason maybe is becuase master_connector still contain
     // the sockets so we cannot delete zmq_context now
     // Context::finalize_global();
