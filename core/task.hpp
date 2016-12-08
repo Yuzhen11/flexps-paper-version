@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <sstream>
 #include <memory>
 
 #include "base/serialization.hpp"
@@ -71,8 +72,16 @@ public:
     inline void set_total_epoch(int total_epoch) { total_epoch_ = total_epoch; }
     inline void set_current_epoch(int current_epoch) { current_epoch_ = current_epoch; }
     inline void set_num_workers(int num_workers) { num_workers_ = num_workers; }
+    inline void set_type(Type type) { type_ = type; }
 
     inline void inc_epoch() { current_epoch_ += 1; }
+
+    void show() const {
+        std::stringstream ss;
+        ss << "Task:" << id_ << " total_epoch:" << total_epoch_ << " current_epoch:" \
+            << current_epoch_ << " num_workers:" << num_workers_ << " type:" << static_cast<int>(type_);
+        base::log_msg("[Task]: "+ss.str());
+    }
 protected:
     int id_;
 
@@ -185,6 +194,14 @@ public:
     GenericMLTask(int id, int total_epoch, int num_workers)
         : Task(id, total_epoch, num_workers, Type::GenericMLTaskType) 
     {}
+
+    void set_dimensions(int dim) {
+        dim_ = dim;
+    }
+
+    int get_dimensions() {
+        return dim_;
+    }
     
     friend BinStream& operator<<(BinStream& bin, const GenericMLTask& task) {
         return task.serialize(bin);
@@ -192,6 +209,8 @@ public:
     friend BinStream& operator>>(BinStream& bin, GenericMLTask& task) {
         return task.deserialize(bin);
     }
+private:
+    int dim_;
 };
 
 /*

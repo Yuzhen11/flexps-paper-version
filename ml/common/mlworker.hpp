@@ -17,7 +17,12 @@ public:
     /*
      * Probably we need an initialize function ?
      */
-    // virtual void init();
+    virtual void load() {
+        throw husky::base::HuskyException("Not implemented");
+    }
+    virtual void dump() {
+        throw husky::base::HuskyException("Not implemented");
+    }
     /*
      * Push/Pull APIs are very suitable for PS, but may not be suitable for 
      * Hogwild! and Single

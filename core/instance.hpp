@@ -45,21 +45,20 @@ public:
                 assert(newtype != Task::Type::DummyType);
                 switch(newtype) {
                     case Task::Type::PSTaskType: {
-                        task_.reset(new PSTask());
+                        task_.reset(new PSTask(task.get_id()));
                         break;
                     }
                     case Task::Type::HogwildTaskType: {
-                        task_.reset(new HogwildTask());
+                        task_.reset(new HogwildTask(task.get_id()));
                         break;
                     }
                     case Task::Type::SingleTaskType: {
-                        task_.reset(new SingleTask());
+                        task_.reset(new SingleTask(task.get_id()));
                         break;
                     }
                     default:
                         throw base::HuskyException("Constructing instance error");
                 }
-                task_->set_id(task.get_id());
                 task_->set_total_epoch(task.get_total_epoch());
                 task_->set_current_epoch(task.get_current_epoch());
                 task_->set_num_workers(task.get_num_workers());
@@ -71,6 +70,7 @@ public:
     }
 
     void show_instance() const {
+        task_->show();
         int num_threads = 0;
         for (auto& kv : cluster_)
             num_threads += kv.second.size();
@@ -89,6 +89,7 @@ public:
     void show_instance(int proc_id) const {
         auto iter = cluster_.find(proc_id);
         std::stringstream ss;
+        task_->show();
         ss << "Task id:" << task_->get_id() <<  " Proc id:" << iter->first << ": { ";
         for (auto tid : iter->second) {
             ss << "<" << tid.first << "," << tid.second  << "> ";

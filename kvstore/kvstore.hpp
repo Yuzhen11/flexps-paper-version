@@ -115,6 +115,7 @@ public:
      * \brief function to return kvworker
      */
     KVWorker* get_kvworker(int i) {
+        assert(i>=0 && i<kvworkers.size());
         return kvworkers[i];
     }
 private:

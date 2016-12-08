@@ -86,9 +86,9 @@ public:
                 // TODO Support different types of instance in hierarchy
                 std::shared_ptr<Instance> instance(new Instance);
                 instance->deserialize(bin);
-                instance_runner.run_instance(instance);
                 // Print debug info
                 instance->show_instance(worker_info.get_proc_id());
+                instance_runner.run_instance(instance);
             }
             else if (type == constants::THREAD_FINISHED) {
                 int instance_id = zmq_recv_int32(&socket);

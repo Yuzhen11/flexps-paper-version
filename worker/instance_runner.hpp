@@ -59,18 +59,21 @@ public:
 
         // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by master
         if (info.task->get_type() == Task::Type::GenericMLTaskType) {
+            base::log_msg("type: "+std::to_string(static_cast<int>(instance->get_type())));
             switch(instance->get_type()) {
                 case Task::Type::PSTaskType: {
                     throw base::HuskyException("GenericMLTaskType error");
                     break;
                 }
                 case Task::Type::SingleTaskType: {
-                    info.mlworker.reset(new ml::single::SingleGenericModel());
+                    info.mlworker.reset(new ml::single::SingleGenericModel(info.task->get_id(), info.local_id, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
+                    info.mlworker->load();
                     base::log_msg("[Debug][run_instance] setting to single generic");
                     break;
                 }
                 case Task::Type::HogwildTaskType: {
-                    info.mlworker.reset(new ml::hogwild::HogwildGenericModel(master_connector_.get_context(), info, 1000));
+                    info.mlworker.reset(new ml::hogwild::HogwildGenericModel(master_connector_.get_context(), info, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
+                    info.mlworker->load();
                     base::log_msg("[Debug][run_instance] setting to hogwild! generic");
                     break;
                 }
@@ -79,6 +82,31 @@ public:
             }
         }
         return info;
+    }
+
+    /*
+     * postprocess function
+     */
+    void postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
+        if (info.task->get_type() == Task::Type::GenericMLTaskType) {
+            switch(instance->get_type()) {
+                case Task::Type::PSTaskType: {
+                    throw base::HuskyException("GenericMLTaskType error");
+                    break;
+                }
+                case Task::Type::SingleTaskType: {
+                    info.mlworker->dump();
+                    base::log_msg("[Debug][run_instance] setting to single generic");
+                    break;
+                }
+                case Task::Type::HogwildTaskType: {
+                    assert(false);
+                    break;
+                }
+                default:
+                    throw base::HuskyException("GenericMLTaskType error");
+            }
+        }
     }
 
     /*
@@ -99,6 +127,7 @@ public:
                 Info info = info_factory(instance, tid_cid);
                 // run the UDF!!!
                 task_store_.get_func(instance->get_id())(info);
+                postprocess(instance, info);
                 info.mlworker.reset();
                 // tell worker when I finished
                 zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
