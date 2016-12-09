@@ -1,3 +1,4 @@
 [submodule "husky"]
 	path = husky
 	url = https://github.com/Yuzhen11/husky
+	branch = dev

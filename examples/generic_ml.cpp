@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     static_cast<GenericMLTask*>(task1.get())->set_running_type(Task::Type::HogwildTaskType);
     task1->set_total_epoch(2);
     engine.add_task(std::move(task1), [](const Info& info){
-        auto& worker = info.mlworker;
+        auto& worker = info.get_mlworker();
         int k = 3;
         worker->Put(k, 0.456);
         float v = worker->Get(k);

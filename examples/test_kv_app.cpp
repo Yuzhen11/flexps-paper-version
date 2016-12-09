@@ -15,19 +15,19 @@ int main(int argc, char** argv) {
     auto task = TaskFactory::Get().create_task(Task::Type::PSTaskType, 1, 4);
     static_cast<PSTask*>(task.get())->set_num_ps_servers(2);
     engine.add_task(std::move(task), [](const Info& info){
-        PSTask* ptask = static_cast<PSTask*>(info.task);
-        if (info.cluster_id == 0) {
+        PSTask* ptask = static_cast<PSTask*>(info.get_task());
+        if (info.get_cluster_id() == 0) {
             base::log_msg("server num:" + std::to_string(ptask->get_num_ps_servers()));
             base::log_msg("worker num:" + std::to_string(ptask->get_num_ps_workers()));
         }
-        if (ptask->is_worker(info.cluster_id)) {
-            base::log_msg(std::to_string(info.cluster_id) + ": I am a worker");
-            ml::ps::KVWorker<float> kv(ml::ps::info2psinfo(info), *Context::get_mailbox(info.local_id));
+        if (ptask->is_worker(info.get_cluster_id())) {
+            base::log_msg(std::to_string(info.get_cluster_id()) + ": I am a worker");
+            ml::ps::KVWorker<float> kv(ml::ps::info2psinfo(info), *Context::get_mailbox(info.get_local_id()));
             int num = 10000;
             std::vector<int> keys(num);
             std::vector<float> vals(num);
 
-            int rank = info.global_id;
+            int rank = info.get_global_id();
             srand(rank + 7);
             int kMaxKey = std::numeric_limits<int>::max();
             for (int i = 0; i < num; ++ i) {
@@ -57,9 +57,9 @@ int main(int argc, char** argv) {
             base::log_msg("error: "+std::to_string(res));
 
             kv.ShutDown();
-        } else if (ptask->is_server(info.cluster_id)) {
-            base::log_msg(std::to_string(info.cluster_id) + ": I am a server");
-            ml::ps::KVServer<float> kvserver(ml::ps::info2psinfo(info), *Context::get_mailbox(info.local_id));
+        } else if (ptask->is_server(info.get_cluster_id())) {
+            base::log_msg(std::to_string(info.get_cluster_id()) + ": I am a server");
+            ml::ps::KVServer<float> kvserver(ml::ps::info2psinfo(info), *Context::get_mailbox(info.get_local_id()));
             kvserver.ShutDown();
         }
     });

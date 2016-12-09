@@ -27,29 +27,29 @@ public:
         : info_(info),
           model_id_(model_id),
           context_(context),
-          socket_(context, info.cluster_id == 0 ? ZMQ_ROUTER:ZMQ_REQ) {
-        int task_id = info_.task->get_id();
+          socket_(context, info.get_cluster_id() == 0 ? ZMQ_ROUTER:ZMQ_REQ) {
+        int task_id = info_.get_task()->get_id();
         // check valid
         if (!isValid()) {
             throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:"+std::to_string(task_id));
         }
         // bind and connect
-        if (info_.cluster_id == 0) {  // leader
+        if (info_.get_cluster_id() == 0) {  // leader
             socket_.bind("inproc://tmp-"+std::to_string(task_id));
         } else {
             socket_.connect("inproc://tmp-"+std::to_string(task_id));
         }
 
-        if (info_.cluster_id == 0) {
+        if (info_.get_cluster_id() == 0) {
             // use args to initialize the variable
             model_ = new std::vector<float>(std::forward<Args>(args)...);
         }
 
         // TODO may not be portable, pointer size problem
-        if (info_.cluster_id == 0) {  // leader
+        if (info_.get_cluster_id() == 0) {  // leader
             std::vector<std::string> identity_store;
             auto ptr = reinterpret_cast<std::uintptr_t>(model_);
-            for (int i = 0; i < info_.num_local_threads-1; ++ i) {
+            for (int i = 0; i < info_.get_num_local_workers()-1; ++ i) {
                 std::string s = husky::zmq_recv_string(&socket_);
                 identity_store.push_back(std::move(s));
                 husky::zmq_recv_dummy(&socket_);  // delimiter
@@ -76,7 +76,7 @@ public:
     ~HogwildGenericModel() {
         husky::base::log_msg("[Debug] Hogwild destructor invokded");
         Sync();
-        if (info_.cluster_id == 0) {
+        if (info_.get_cluster_id() == 0) {
             delete model_;
         }
     }
@@ -91,11 +91,11 @@ public:
      * Get parameters from global kvstore
      */
     virtual void Load() override {
-        if (info_.cluster_id == 0) {
+        if (info_.get_cluster_id() == 0) {
             husky::base::log_msg("[Hogwild] loading");
-            husky::base::log_msg("[Hogwild] model_id:"+std::to_string(model_id_)+" local_id:"+std::to_string(info_.local_id));
+            husky::base::log_msg("[Hogwild] model_id:"+std::to_string(model_id_)+" local_id:"+std::to_string(info_.get_local_id()));
 
-            auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.local_id);
+            auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
 
             std::vector<int> keys(model_->size());
             for (int i = 0; i < keys.size(); ++ i)
@@ -111,10 +111,10 @@ public:
      */
     virtual void Dump() override {
         Sync();
-        if (info_.cluster_id == 0) {
+        if (info_.get_cluster_id() == 0) {
             husky::base::log_msg("[Hogwild] dumping");
 
-            auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.local_id);
+            auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
 
             std::vector<int> keys(model_->size());
             for (int i = 0; i < keys.size(); ++ i)
@@ -148,9 +148,9 @@ public:
      * Serve as a barrier
      */
     virtual void Sync() override {
-        if (info_.cluster_id == 0) {  // leader
+        if (info_.get_cluster_id() == 0) {  // leader
             std::vector<std::string> identity_store;
-            for (int i = 0; i < info_.num_local_threads-1; ++ i) {
+            for (int i = 0; i < info_.get_num_local_workers()-1; ++ i) {
                 std::string s = husky::zmq_recv_string(&socket_);
                 identity_store.push_back(std::move(s));
                 husky::zmq_recv_dummy(&socket_);  // delimiter
@@ -173,7 +173,8 @@ private:
      * check whether all the threads are in the same machine
      */
     bool isValid() {
-        return info_.num_local_threads == info_.num_global_threads;
+        husky::base::log_msg("locals: "+std::to_string(info_.get_num_local_workers())+" globals:"+std::to_string(info_.get_num_workers()));
+        return info_.get_num_local_workers() == info_.get_num_workers();
     }
 
     const husky::Info& info_;

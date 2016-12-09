@@ -27,11 +27,11 @@ struct PSInfo {
 
 PSInfo info2psinfo(const husky::Info& info) {
     PSInfo psinfo;
-    psinfo.channel_id = info.task->get_id();
-    psinfo.global_id = info.global_id;
-    psinfo.num_global_threads = info.num_global_threads;
-    psinfo.num_ps_servers = static_cast<husky::PSTask*>(info.task)->get_num_ps_servers();
-    psinfo.cluster_id_to_global_id = info.cluster_id_to_global_id;
+    psinfo.channel_id = info.get_task()->get_id();
+    psinfo.global_id = info.get_global_id();
+    psinfo.num_global_threads = info.get_num_workers();
+    psinfo.num_ps_servers = static_cast<husky::PSTask*>(info.get_task())->get_num_ps_servers();
+    psinfo.cluster_id_to_global_id = info.get_cluster_global();
     return psinfo;
 }
 

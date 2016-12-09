@@ -36,11 +36,11 @@ int main(int argc, char** argv) {
         PushChannel<int, PIObject> ch(&pi_list, &pi_list);
 
         // mailbox
-        auto* mailbox = Context::get_mailbox(info.local_id);
+        auto* mailbox = Context::get_mailbox(info.get_local_id());
         // worker_info
         auto* worker_info = &Context::get_worker_info();
         // TODO, Channel depends on too many things, bad! At least worker_info can be deleted
-        ch.setup(info.local_id, info.global_id, *worker_info, mailbox);
+        ch.setup(info.get_local_id(), info.get_global_id(), *worker_info, mailbox);
 
         ch.push(cnt, 0);
         ch.flush();
@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
             int sum = 0;
             for (auto i : ch.get(pi_object))
                 sum += i;
-            int total_pts = num_pts_per_thread * info.num_global_threads;
+            int total_pts = num_pts_per_thread * info.get_num_workers();
             base::log_msg("Estimated PI :"+std::to_string(4.0*sum/total_pts));
         }
     });

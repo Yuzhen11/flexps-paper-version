@@ -48,17 +48,11 @@ public:
      * Factory method to generate Info for each running Unit
      */
     Info info_factory(const std::shared_ptr<Instance>& instance, std::pair<int,int> tid_cid) {
-        Info info = utility::instance_to_info(*instance, worker_info_.get_process_id());
-        info.local_id = tid_cid.first;
-        info.global_id = worker_info_.local_to_global_id(tid_cid.first);
-        info.cluster_id = tid_cid.second;
-        info.proc_id = worker_info_.get_process_id();
-        info.num_local_threads = instance->get_threads(worker_info_.get_process_id()).size();
-        info.num_global_threads = instance->get_num_threads();
-        info.task = task_store_.get_task(instance->get_id()).get();
+        Info info = utility::instance_to_info(*instance, worker_info_, tid_cid);
+        info.set_task(task_store_.get_task(instance->get_id()).get());
 
         // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by master
-        if (info.task->get_type() == Task::Type::GenericMLTaskType) {
+        if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
             base::log_msg("type: "+std::to_string(static_cast<int>(instance->get_type())));
             switch(instance->get_type()) {
                 case Task::Type::PSTaskType: {
@@ -67,14 +61,14 @@ public:
                 }
                 case Task::Type::SingleTaskType: {
                     base::log_msg("[Debug][run_instance] setting to single generic");
-                    info.mlworker.reset(new ml::single::SingleGenericModel(info.task->get_id(), info.local_id, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
-                    info.mlworker->Load();
+                    info.set_mlworker(new ml::single::SingleGenericModel(info.get_task()->get_id(), info.get_local_id(), static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
+                    info.get_mlworker()->Load();
                     break;
                 }
                 case Task::Type::HogwildTaskType: {
                     base::log_msg("[Debug][run_instance] setting to hogwild! generic");
-                    info.mlworker.reset(new ml::hogwild::HogwildGenericModel(info.task->get_id(), master_connector_.get_context(), info, static_cast<GenericMLTask*>(info.task)->get_dimensions()));
-                    info.mlworker->Load();
+                    info.set_mlworker(new ml::hogwild::HogwildGenericModel(info.get_task()->get_id(), master_connector_.get_context(), info, static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
+                    info.get_mlworker()->Load();
                     break;
                 }
                 default:
@@ -88,19 +82,19 @@ public:
      * postprocess function
      */
     void postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
-        if (info.task->get_type() == Task::Type::GenericMLTaskType) {
+        if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
             switch(instance->get_type()) {
                 case Task::Type::PSTaskType: {
                     throw base::HuskyException("GenericMLTaskType error");
                     break;
                 }
                 case Task::Type::SingleTaskType: {
-                    info.mlworker->Dump();
+                    info.get_mlworker()->Dump();
                     base::log_msg("[Debug][run_instance] Single generic done");
                     break;
                 }
                 case Task::Type::HogwildTaskType: {
-                    info.mlworker->Dump();
+                    info.get_mlworker()->Dump();
                     base::log_msg("[Debug][run_instance] Hogwild generic done");
                     break;
                 }
@@ -129,7 +123,7 @@ public:
                 // run the UDF!!!
                 task_store_.get_func(instance->get_id())(info);
                 postprocess(instance, info);
-                info.mlworker.reset();
+                info.get_mlworker().reset();
                 // tell worker when I finished
                 zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
                 zmq_sendmore_int32(&socket, instance->get_id());
