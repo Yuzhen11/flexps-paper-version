@@ -1,8 +1,8 @@
 #pragma once
 
+#include <condition_variable>
 #include <functional>
 #include <mutex>
-#include <condition_variable>
 #include <thread>
 #include "husky/base/serialization.hpp"
 #include "husky/core/mailbox.hpp"
@@ -14,53 +14,45 @@ namespace ps {
  * Use the same name with ps-lite
  *
  * It has its own receiving thread to poll messages from LocalMailbox
- * and invoke the callback. 
+ * and invoke the callback.
  *
  * Users (KVWorker and KVServer) need to give
  * a callback function
- * 
+ *
  */
 class Customer {
-public:
+   public:
     /*
      * the handle for a received message
      */
     using RecvHandle = std::function<void(int ts, husky::base::BinStream& bin)>;
 
     Customer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int total_workers, int channel_id)
-        : mailbox_(mailbox),
-          recv_handle_(recv_handle),
-          total_workers_(total_workers),
-          channel_id_(channel_id){
-    }
-    ~Customer() {
-        recv_thread_->join();
-    }
+        : mailbox_(mailbox), recv_handle_(recv_handle), total_workers_(total_workers), channel_id_(channel_id) {}
+    ~Customer() { recv_thread_->join(); }
     void Start() {
         // spawn a new thread to recevive
         recv_thread_ = std::unique_ptr<std::thread>(new std::thread(&Customer::Receiving, this));
-        // husky::base::log_msg("total_workers:"+std::to_string(total_workers_)+" channel_id:"+std::to_string(channel_id_));
+        // husky::base::log_msg("total_workers:"+std::to_string(total_workers_)+"
+        // channel_id:"+std::to_string(channel_id_));
     }
 
     int NewRequest(int num_responses) {
         std::lock_guard<std::mutex> lk(tracker_mu_);
         tracker_.push_back({num_responses, 0});
-        return tracker_.size()-1;
+        return tracker_.size() - 1;
     }
     void WaitRequest(int timestamp) {
         std::unique_lock<std::mutex> lk(tracker_mu_);
-        tracker_cond_.wait(lk, [this, timestamp] {
-            return tracker_[timestamp].first == tracker_[timestamp].second;
-        });
+        tracker_cond_.wait(lk, [this, timestamp] { return tracker_[timestamp].first == tracker_[timestamp].second; });
     }
     int NumResponse(int timestamp) {
         std::lock_guard<std::mutex> lk(tracker_mu_);
         return tracker_[timestamp].second;
     }
-    void send(int dst, husky::base::BinStream& bin) {
-        mailbox_.send(dst, channel_id_, 0, bin);
-    }
-private:
+    void send(int dst, husky::base::BinStream& bin) { mailbox_.send(dst, channel_id_, 0, bin); }
+
+   private:
     void Receiving() {
         // poll and recv from mailbox
         int num_finished_workers = 0;
@@ -101,12 +93,11 @@ private:
     // tracker
     std::mutex tracker_mu_;
     std::condition_variable tracker_cond_;
-    std::vector<std::pair<int,int>> tracker_;
+    std::vector<std::pair<int, int>> tracker_;
 
     // some info
     int channel_id_;
     int total_workers_;
-
 };
 
 }  // namespace ps

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <functional>
 #include <vector>
+
 #include "husky/base/exception.hpp"
 
 namespace ml {
@@ -12,24 +14,18 @@ namespace common {
  * TODO: Now we assume the parameters are float
  */
 class GenericMLWorker {
-public:
+   public:
     using Callback = std::function<void()>;
 
     virtual ~GenericMLWorker() {}
     /*
      * Probably we need an initialize function ?
      */
-    virtual void Load() {
-        throw husky::base::HuskyException("Load Not implemented");
-    }
-    virtual void Dump() {
-        throw husky::base::HuskyException("Dump Not implemented");
-    }
-    virtual void Sync() {
-        throw husky::base::HuskyException("Sync Not implemented");
-    }
+    virtual void Load() { throw husky::base::HuskyException("Load Not implemented"); }
+    virtual void Dump() { throw husky::base::HuskyException("Dump Not implemented"); }
+    virtual void Sync() { throw husky::base::HuskyException("Sync Not implemented"); }
     /*
-     * Push/Pull APIs are very suitable for PS, but may not be suitable for 
+     * Push/Pull APIs are very suitable for PS, but may not be suitable for
      * Hogwild! and Single
      */
     virtual int Push(const std::vector<int>& keys, const std::vector<float>& vals, const Callback& cb = nullptr) {
@@ -42,12 +38,8 @@ public:
     /*
      * Put/Get APIs
      */
-    virtual void Put(int key, float val) {
-        throw husky::base::HuskyException("Put Not implemented");
-    }
-    virtual float Get(int key) {
-        throw husky::base::HuskyException("Get Not implemented");
-    }
+    virtual void Put(int key, float val) { throw husky::base::HuskyException("Put Not implemented"); }
+    virtual float Get(int key) { throw husky::base::HuskyException("Get Not implemented"); }
 };
 
 }  // namespace common

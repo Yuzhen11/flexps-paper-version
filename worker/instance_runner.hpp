@@ -4,11 +4,11 @@
 
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
-#include "husky/core/zmq_helpers.hpp"
 #include "husky/core/worker_info.hpp"
+#include "husky/core/zmq_helpers.hpp"
 
-#include "core/instance.hpp"
 #include "core/info.hpp"
+#include "core/instance.hpp"
 #include "core/utility.hpp"
 #include "worker/master_connector.hpp"
 #include "worker/task_store.hpp"
@@ -19,23 +19,22 @@
 namespace husky {
 
 /*
- * Instances run on threads, InstanceRunner keep track of the 
+ * Instances run on threads, InstanceRunner keep track of the
  * instances and threads
  */
 class InstanceRunner {
-public:
+   public:
     InstanceRunner() = delete;
     InstanceRunner(WorkerInfo& worker_info, MasterConnector& master_connector, TaskStore& task_store)
         : worker_info_(worker_info),
-        master_connector_(master_connector),
-        task_store_(task_store),
-        units_(worker_info.get_num_local_workers())
-    {}
+          master_connector_(master_connector),
+          task_store_(task_store),
+          units_(worker_info.get_num_local_workers()) {}
 
     /*
      * Method to extract local instance
      */
-    std::vector<std::pair<int,int>> extract_local_instance(const std::shared_ptr<Instance>& instance) const {
+    std::vector<std::pair<int, int>> extract_local_instance(const std::shared_ptr<Instance>& instance) const {
         auto local_threads = instance->get_threads(worker_info_.get_process_id());
         for (auto& th : local_threads) {
             th.first = worker_info_.global_to_local_id(th.first);
@@ -46,32 +45,36 @@ public:
     /*
      * Factory method to generate Info for each running Unit
      */
-    Info info_factory(const std::shared_ptr<Instance>& instance, std::pair<int,int> tid_cid) {
+    Info info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid) {
         Info info = utility::instance_to_info(*instance, worker_info_, tid_cid);
         info.set_task(task_store_.get_task(instance->get_id()).get());
 
         // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by master
         if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
-            base::log_msg("type: "+std::to_string(static_cast<int>(instance->get_type())));
-            switch(instance->get_type()) {
-                case Task::Type::PSTaskType: {
-                    throw base::HuskyException("GenericMLTaskType error");
-                    break;
-                }
-                case Task::Type::SingleTaskType: {
-                    base::log_msg("[Debug][run_instance] setting to single generic");
-                    info.set_mlworker(new ml::single::SingleGenericModel(info.get_task()->get_id(), info.get_local_id(), static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
-                    info.get_mlworker()->Load();
-                    break;
-                }
-                case Task::Type::HogwildTaskType: {
-                    base::log_msg("[Debug][run_instance] setting to hogwild! generic");
-                    info.set_mlworker(new ml::hogwild::HogwildGenericModel(info.get_task()->get_id(), master_connector_.get_context(), info, static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
-                    info.get_mlworker()->Load();
-                    break;
-                }
-                default:
-                    throw base::HuskyException("GenericMLTaskType error");
+            base::log_msg("type: " + std::to_string(static_cast<int>(instance->get_type())));
+            switch (instance->get_type()) {
+            case Task::Type::PSTaskType: {
+                throw base::HuskyException("GenericMLTaskType error");
+                break;
+            }
+            case Task::Type::SingleTaskType: {
+                base::log_msg("[Debug][run_instance] setting to single generic");
+                info.set_mlworker(
+                    new ml::single::SingleGenericModel(info.get_task()->get_id(), info.get_local_id(),
+                                                       static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
+                info.get_mlworker()->Load();
+                break;
+            }
+            case Task::Type::HogwildTaskType: {
+                base::log_msg("[Debug][run_instance] setting to hogwild! generic");
+                info.set_mlworker(new ml::hogwild::HogwildGenericModel(
+                    info.get_task()->get_id(), master_connector_.get_context(), info,
+                    static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
+                info.get_mlworker()->Load();
+                break;
+            }
+            default:
+                throw base::HuskyException("GenericMLTaskType error");
             }
         }
         return info;
@@ -82,23 +85,23 @@ public:
      */
     void postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
         if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
-            switch(instance->get_type()) {
-                case Task::Type::PSTaskType: {
-                    throw base::HuskyException("GenericMLTaskType error");
-                    break;
-                }
-                case Task::Type::SingleTaskType: {
-                    info.get_mlworker()->Dump();
-                    base::log_msg("[Debug][run_instance] Single generic done");
-                    break;
-                }
-                case Task::Type::HogwildTaskType: {
-                    info.get_mlworker()->Dump();
-                    base::log_msg("[Debug][run_instance] Hogwild generic done");
-                    break;
-                }
-                default:
-                    throw base::HuskyException("GenericMLTaskType error");
+            switch (instance->get_type()) {
+            case Task::Type::PSTaskType: {
+                throw base::HuskyException("GenericMLTaskType error");
+                break;
+            }
+            case Task::Type::SingleTaskType: {
+                info.get_mlworker()->Dump();
+                base::log_msg("[Debug][run_instance] Single generic done");
+                break;
+            }
+            case Task::Type::HogwildTaskType: {
+                info.get_mlworker()->Dump();
+                base::log_msg("[Debug][run_instance] Hogwild generic done");
+                break;
+            }
+            default:
+                throw base::HuskyException("GenericMLTaskType error");
             }
         }
     }
@@ -115,7 +118,7 @@ public:
         // reset the worker for GenericMLTask
         for (auto tid_cid : local_threads) {
             // worker threads
-            units_[tid_cid.first] = std::move(Unit([this, instance, tid_cid]{
+            units_[tid_cid.first] = std::move(Unit([this, instance, tid_cid] {
                 zmq::socket_t socket = master_connector_.get_socket_to_recv();
                 // set the info
                 Info info = info_factory(instance, tid_cid);
@@ -141,12 +144,11 @@ public:
      */
     void finish_thread(int instance_id, int tid) {
         instance_keeper_[instance_id].erase(tid);
-        // base::log_msg("[InstanceRunner]: instance_id: " + std::to_string(instance_id) + " tid: " + std::to_string(tid) + " finished");
+        // base::log_msg("[InstanceRunner]: instance_id: " + std::to_string(instance_id) + " tid: " +
+        // std::to_string(tid) + " finished");
         units_[tid] = std::move(Unit());  // join the unit
     }
-    bool is_instance_done(int instance_id) {
-        return instance_keeper_[instance_id].empty();
-    }
+    bool is_instance_done(int instance_id) { return instance_keeper_[instance_id].empty(); }
     base::BinStream remove_instance(int instance_id) {
         assert(instance_keeper_[instance_id].empty());
         instances_.erase(instance_id);
@@ -160,7 +162,7 @@ public:
         return bin;
     }
 
-private:
+   private:
     WorkerInfo& worker_info_;
     MasterConnector& master_connector_;
     TaskStore& task_store_;

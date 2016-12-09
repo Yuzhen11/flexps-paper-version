@@ -2,11 +2,11 @@
 
 #include <memory>
 
-#include "worker/worker.hpp"
 #include "husky/core/context.hpp"
 #include "kvstore/kvstore.hpp"
 #include "worker/basic.hpp"
 #include "worker/task_factory.hpp"
+#include "worker/worker.hpp"
 
 #include "husky/core/job_runner.hpp"
 
@@ -16,7 +16,7 @@ namespace husky {
  * Engine manages the process
  */
 class Engine {
-public:
+   public:
     Engine() {
         use_kvstore = true;
         start();
@@ -35,9 +35,7 @@ public:
     /*
      * Add a new task to the buffer
      */
-    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) {
-        worker->add_task(std::move(task), func);
-    }
+    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) { worker->add_task(std::move(task), func); }
 
     /*
      * Submit the buffered tasks to master
@@ -53,27 +51,27 @@ public:
      *
      * It means that no more tasks will submit. Basically the end of the process
      */
-    void exit() {
-        worker->send_exit();
-    }
+    void exit() { worker->send_exit(); }
 
     /*
      * Create a new kvstore
      *
      * @return: kvstore id created
      */
-    template<typename Val>
+    template <typename Val>
     int create_kvstore() {
         assert(use_kvstore);
         return kvstore::KVStore::Get().CreateKVStore<Val>();
     }
-private:
+
+   private:
     /*
      * Start function to initialize the environment
      */
     void start() {
-        std::string bind_addr = "tcp://*:"+Context::get_param("worker_port");
-        std::string master_addr = "tcp://"+Context::get_config().get_master_host()+":"+std::to_string(Context::get_config().get_master_port());
+        std::string bind_addr = "tcp://*:" + Context::get_param("worker_port");
+        std::string master_addr = "tcp://" + Context::get_config().get_master_host() + ":" +
+                                  std::to_string(Context::get_config().get_master_port());
         std::string host_name = Context::get_param("hostname");
 
         // worker info
@@ -91,7 +89,8 @@ private:
         // el->set_process_id(worker_info.get_proc_id());
         // for (int i = 0; i < num_processes; i++)
         //     el->register_peer_recver(
-        //         i, "tcp://" + worker_info.get_host(i) + ":" + std::to_string(Context::get_config()->get_comm_port()));
+        //         i, "tcp://" + worker_info.get_host(i) + ":" +
+        //         std::to_string(Context::get_config()->get_comm_port()));
         // for (int i = 0; i < num_workers; i++) {
         //     if (worker_info.get_proc_id(i) != worker_info.get_proc_id()) {
         //         el->register_peer_thread(worker_info.get_proc_id(i), i);
@@ -111,8 +110,7 @@ private:
         }
 
         // create worker
-        worker.reset(new Worker(std::move(worker_info),
-                std::move(master_connector)));
+        worker.reset(new Worker(std::move(worker_info), std::move(master_connector)));
     }
 
     bool use_kvstore = false;  // whether we need to use kv_store

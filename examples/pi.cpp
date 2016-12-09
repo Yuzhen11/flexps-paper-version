@@ -1,12 +1,12 @@
-#include "worker/engine.hpp"
-#include "husky/core/objlist.hpp"
 #include "husky/core/channel/push_channel.hpp"
+#include "husky/core/objlist.hpp"
+#include "worker/engine.hpp"
 
 using namespace husky;
 
 class PIObject {
    public:
-    using KeyT=int;
+    using KeyT = int;
     int key;
     explicit PIObject(KeyT key) { this->key = key; }
     const int& id() const { return key; }
@@ -14,7 +14,8 @@ class PIObject {
 
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port"});
-    if (!rt) return 1;
+    if (!rt)
+        return 1;
 
     Engine engine;
 
@@ -51,15 +52,13 @@ int main(int argc, char** argv) {
             for (auto i : ch.get(pi_object))
                 sum += i;
             int total_pts = num_pts_per_thread * info.get_num_workers();
-            base::log_msg("Estimated PI :"+std::to_string(4.0*sum/total_pts));
+            base::log_msg("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
         }
     });
     engine.submit();
-    
+
     auto task2 = TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 4);
-    engine.add_task(std::move(task2), [](const Info& info) {
-        base::log_msg("task2 running");
-    });
+    engine.add_task(std::move(task2), [](const Info& info) { base::log_msg("task2 running"); });
 
     engine.submit();
     engine.exit();

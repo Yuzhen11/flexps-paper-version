@@ -1,13 +1,13 @@
 #pragma once
 
 #include <thread>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "kvpairs.hpp"
 
-#include "husky/core/mailbox.hpp"
 #include "husky/base/serialization.hpp"
+#include "husky/core/mailbox.hpp"
 
 namespace kvstore {
 
@@ -15,20 +15,15 @@ namespace kvstore {
  * ServerCustomer is only for KVManager!!!
  */
 class ServerCustomer {
-public:
+   public:
     /*
      * the handle for a received message
      */
-    using RecvHandle = std::function<void(int,int,husky::base::BinStream&)>;
+    using RecvHandle = std::function<void(int, int, husky::base::BinStream&)>;
 
     ServerCustomer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int channel_id)
-        : mailbox_(mailbox),
-          recv_handle_(recv_handle),
-          channel_id_(channel_id){
-    }
-    ~ServerCustomer() {
-        recv_thread_->join();
-    }
+        : mailbox_(mailbox), recv_handle_(recv_handle), channel_id_(channel_id) {}
+    ~ServerCustomer() { recv_thread_->join(); }
     void Start() {
         // spawn a new thread to recevive
         recv_thread_ = std::unique_ptr<std::thread>(new std::thread(&ServerCustomer::Receiving, this));
@@ -37,10 +32,9 @@ public:
         husky::base::BinStream bin;  // send an empty BinStream
         mailbox_.send(mailbox_.get_thread_id(), channel_id_, 0, bin);
     }
-    void send(int dst, husky::base::BinStream& bin) {
-        mailbox_.send(dst, channel_id_, 0, bin);
-    }
-private:
+    void send(int dst, husky::base::BinStream& bin) { mailbox_.send(dst, channel_id_, 0, bin); }
+
+   private:
     void Receiving() {
         // poll and recv from mailbox
         int num_finished_workers = 0;
@@ -76,12 +70,12 @@ private:
  * KVServerBase: Base class for different kvserver
  */
 class KVServerBase {
-public:
+   public:
     virtual void HandleAndReply(int, int, husky::base::BinStream&, ServerCustomer* customer) = 0;
 };
-template<typename Val>
+template <typename Val>
 class KVServer : public KVServerBase {
-public:
+   public:
     KVServer() = default;
     ~KVServer() = default;
 
@@ -95,7 +89,7 @@ public:
         KVPairs<Val> res;
         if (push == true) {  // if is push
             while (bin.size() > 0) {
-                int k; 
+                int k;
                 Val v;
                 bin >> k >> v;
                 // husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
@@ -105,14 +99,16 @@ public:
             while (bin.size() > 0) {
                 int k;
                 bin >> k;
-                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+" v:"+std::to_string(store[k]));
+                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
+                // v:"+std::to_string(store[k]));
                 res.keys.push_back(k);
                 res.vals.push_back(store[k]);
             }
         }
         Response(kv_id, ts, push, src, res, customer);
     }
-private:
+
+   private:
     /*
      * response to the push/pull request
      * The whole callback process is:
@@ -122,7 +118,7 @@ private:
         husky::base::BinStream bin;
         bool isRequest = false;
         // isRequest, kv_id, ts, isPush, src
-        bin << isRequest << kv_id << ts << push << src; 
+        bin << isRequest << kv_id << ts << push << src;
 
         bin << res.keys << res.vals;
         customer->send(src, bin);
@@ -136,9 +132,11 @@ private:
  * KVManager manages many KVServer, so different types of data can be stored
  */
 class KVManager {
-public:
+   public:
     KVManager(husky::LocalMailbox& mailbox, int channel_id)
-        : customer_(new ServerCustomer(mailbox, [this](int kv_id, int ts, husky::base::BinStream& bin){ Process(kv_id, ts, bin); }, channel_id)) {
+        : customer_(new ServerCustomer(
+              mailbox, [this](int kv_id, int ts, husky::base::BinStream& bin) { Process(kv_id, ts, bin); },
+              channel_id)) {
         customer_->Start();
     }
     ~KVManager() {
@@ -151,11 +149,12 @@ public:
      * create different kv_store
      * make sure all the kvstore is set up before the actuall workload
      */
-    template<typename Val>
+    template <typename Val>
     void CreateKVManager(int kv_id) {
         kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>())));
     }
-private:
+
+   private:
     /*
      * Internal receive handle to dispatch the request
      *

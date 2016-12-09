@@ -2,38 +2,35 @@
 
 #include <type_traits>
 
-#include "husky/base/log.hpp"
-#include "husky/base/exception.hpp"
-#include "husky/base/serialization.hpp"
-#include "husky/core/zmq_helpers.hpp"
 #include "core/constants.hpp"
 #include "core/instance.hpp"
 #include "core/worker_info.hpp"
-#include "worker/master_connector.hpp"
-#include "worker/instance_runner.hpp"
-#include "worker/task_store.hpp"
+#include "husky/base/exception.hpp"
+#include "husky/base/log.hpp"
+#include "husky/base/serialization.hpp"
+#include "husky/core/zmq_helpers.hpp"
 #include "worker/basic.hpp"
+#include "worker/instance_runner.hpp"
+#include "worker/master_connector.hpp"
+#include "worker/task_store.hpp"
 
 namespace husky {
 
 /*
  * Worker contains the event-loop to receive tasks from Master,
- * and also has function to communicate with Master, 
+ * and also has function to communicate with Master,
  * like send_tasks_to_master(), send_exit()
  */
 class Worker {
-public:
+   public:
     Worker() = delete;
     Worker(WorkerInfo&& worker_info_, MasterConnector&& master_connector_)
         : worker_info(std::move(worker_info_)),
-        master_connector(std::move(master_connector_)),
-        instance_runner(worker_info, master_connector, task_store){
-    }
+          master_connector(std::move(master_connector_)),
+          instance_runner(worker_info, master_connector, task_store) {}
 
     // User need to add task to taskstore
-    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) {
-        task_store.add_task(std::move(task), func);
-    }
+    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) { task_store.add_task(std::move(task), func); }
 
     void send_tasks_to_master() {
         // Only Proc 0 need to send tasks to master
@@ -46,12 +43,12 @@ public:
             for (auto id : buffered_tasks) {
                 auto& task = task_map[id].first;
                 bin << task->get_type();  // push the task type first
-                task->serialize(bin);  // push the task
+                task->serialize(bin);     // push the task
             }
             auto& socket = master_connector.get_send_socket();
             zmq_sendmore_int32(&socket, constants::kMasterInit);
             zmq_send_binstream(&socket, bin);
-            base::log_msg("[Worker]: Totally "+std::to_string(buffered_tasks.size())+" tasks sent");
+            base::log_msg("[Worker]: Totally " + std::to_string(buffered_tasks.size()) + " tasks sent");
             // clear buffered tasks
             task_store.clear_buffered_tasks();
         }
@@ -88,29 +85,27 @@ public:
                 // Print debug info
                 instance->show_instance(worker_info.get_process_id());
                 instance_runner.run_instance(instance);
-            }
-            else if (type == constants::kThreadFinished) {
+            } else if (type == constants::kThreadFinished) {
                 int instance_id = zmq_recv_int32(&socket);
                 int thread_id = zmq_recv_int32(&socket);
                 instance_runner.finish_thread(instance_id, thread_id);
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
-                    base::log_msg("[Worker]: task id:"+std::to_string(instance_id)+" finished on Proc:"+std::to_string(worker_info.get_process_id()));
+                    base::log_msg("[Worker]: task id:" + std::to_string(instance_id) + " finished on Proc:" +
+                                  std::to_string(worker_info.get_process_id()));
                     auto bin = instance_runner.remove_instance(instance_id);
                     send_instance_finished(bin);
                 }
-            }
-            else if (type == constants::kMasterFinished) {
+            } else if (type == constants::kMasterFinished) {
                 base::log_msg("[Worker]: worker exit");
                 break;
-            }
-            else {
-                throw base::HuskyException("[Worker] Worker Loop recv type error, type is: "+std::to_string(type));
+            } else {
+                throw base::HuskyException("[Worker] Worker Loop recv type error, type is: " + std::to_string(type));
             }
         }
     }
 
-private:
+   private:
     MasterConnector master_connector;
     WorkerInfo worker_info;
     InstanceRunner instance_runner;

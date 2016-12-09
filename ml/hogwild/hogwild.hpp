@@ -1,16 +1,16 @@
 #pragma once
 
-#include "husky/base/serialization.hpp"
-#include "husky/base/exception.hpp"
-#include "husky/core/zmq_helpers.hpp"
 #include "core/info.hpp"
+#include "husky/base/exception.hpp"
+#include "husky/base/serialization.hpp"
+#include "husky/core/zmq_helpers.hpp"
 
 namespace ml {
 namespace hogwild {
 
-template<typename ModelType>
+template <typename ModelType>
 class HogwildModel {
-public:
+   public:
     HogwildModel() = delete;
     /*
      * constructor to construct a hogwild model
@@ -18,21 +18,20 @@ public:
      * \param info info in this instance
      * \param args variable args to initialize the variables
      */
-    template<typename... Args>
+    template <typename... Args>
     HogwildModel(zmq::context_t& context, const husky::Info& info, Args&&... args)
-        : info_(info), 
-          context_(context),
-          socket_(context, info.get_cluster_id() == 0 ? ZMQ_ROUTER:ZMQ_REQ) {
+        : info_(info), context_(context), socket_(context, info.get_cluster_id() == 0 ? ZMQ_ROUTER : ZMQ_REQ) {
         int task_id = info_.get_task()->get_id();
         // check valid
         if (!isValid()) {
-            throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:"+std::to_string(task_id));
+            throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
+                                              std::to_string(task_id));
         }
         // bind and connect
         if (info_.get_cluster_id() == 0) {  // leader
-            socket_.bind("inproc://tmp-"+std::to_string(task_id));
+            socket_.bind("inproc://tmp-" + std::to_string(task_id));
         } else {
-            socket_.connect("inproc://tmp-"+std::to_string(task_id));
+            socket_.connect("inproc://tmp-" + std::to_string(task_id));
         }
 
         if (info_.get_cluster_id() == 0) {
@@ -44,7 +43,7 @@ public:
         if (info_.get_cluster_id() == 0) {  // leader
             std::vector<std::string> identity_store;
             auto ptr = reinterpret_cast<std::uintptr_t>(model);
-            for (int i = 0; i < info_.get_num_local_workers()-1; ++ i) {
+            for (int i = 0; i < info_.get_num_local_workers() - 1; ++i) {
                 std::string s = husky::zmq_recv_string(&socket_);
                 identity_store.push_back(std::move(s));
                 husky::zmq_recv_dummy(&socket_);  // delimiter
@@ -78,9 +77,7 @@ public:
     /*
      * Get the model
      */
-    ModelType* get() {
-        return model;
-    }
+    ModelType* get() { return model; }
 
     /*
      * Serve as a barrier
@@ -88,7 +85,7 @@ public:
     void sync() {
         if (info_.get_cluster_id() == 0) {  // leader
             std::vector<std::string> identity_store;
-            for (int i = 0; i < info_.get_num_local_workers()-1; ++ i) {
+            for (int i = 0; i < info_.get_num_local_workers() - 1; ++i) {
                 std::string s = husky::zmq_recv_string(&socket_);
                 identity_store.push_back(std::move(s));
                 husky::zmq_recv_dummy(&socket_);  // delimiter
@@ -98,7 +95,7 @@ public:
             for (auto& identity : identity_store) {
                 husky::zmq_sendmore_string(&socket_, identity);
                 husky::zmq_sendmore_dummy(&socket_);  // delimiter
-                husky::zmq_send_dummy(&socket_);  // dummy msg
+                husky::zmq_send_dummy(&socket_);      // dummy msg
             }
         } else {
             husky::zmq_send_dummy(&socket_);
@@ -106,13 +103,11 @@ public:
         }
     }
 
-private:
+   private:
     /*
      * check whether all the threads are in the same machine
      */
-    bool isValid() {
-        return info_.get_num_local_workers() == info_.get_num_workers();
-    }
+    bool isValid() { return info_.get_num_local_workers() == info_.get_num_workers(); }
 
     const husky::Info& info_;
     zmq::context_t& context_;

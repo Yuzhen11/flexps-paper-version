@@ -9,7 +9,7 @@ namespace husky {
 namespace utility {
 namespace {
 
-Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info_, std::pair<int,int> tid_cid) {
+Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info_, std::pair<int, int> tid_cid) {
     int pid = worker_info_.get_process_id();
 
     Info info;
@@ -19,7 +19,7 @@ Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info_, 
 
     WorkerInfo worker_info;
     worker_info.set_process_id(pid);
-    std::unordered_map<int,int> cluster_id_to_global_id;
+    std::unordered_map<int, int> cluster_id_to_global_id;
     auto& cluster = instance.get_cluster();
     for (auto& kv : cluster) {
         auto proc_id = kv.first;
@@ -35,7 +35,6 @@ Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info_, 
 
     return info;
 }
-
 }
 
 }  // namespace utility

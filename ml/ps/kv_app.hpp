@@ -1,14 +1,14 @@
 #pragma once
 
-#include <cassert>
-#include <vector>
 #include <algorithm>
+#include <cassert>
 #include <unordered_map>
+#include <vector>
 
-#include "customer.hpp"
 #include "core/info.hpp"
-#include "husky/core/mailbox.hpp"
+#include "customer.hpp"
 #include "husky/base/serialization.hpp"
+#include "husky/core/mailbox.hpp"
 
 namespace ml {
 namespace ps {
@@ -18,11 +18,9 @@ struct PSInfo {
     int global_id;
     int num_global_threads;
     int num_ps_servers;
-    std::unordered_map<int,int> cluster_id_to_global_id;  // {cluster_id, global_id}
+    std::unordered_map<int, int> cluster_id_to_global_id;  // {cluster_id, global_id}
 
-    int get_tid(int cluster_id) {
-        return cluster_id_to_global_id[cluster_id];
-    }
+    int get_tid(int cluster_id) { return cluster_id_to_global_id[cluster_id]; }
 };
 
 PSInfo info2psinfo(const husky::Info& info) {
@@ -35,50 +33,51 @@ PSInfo info2psinfo(const husky::Info& info) {
     return psinfo;
 }
 
-/* 
+/*
  * Use std::vector first, may replaced by SArray
  */
-template<typename Val>
+template <typename Val>
 struct KVPairs {
     std::vector<int> keys;
     std::vector<Val> vals;
 };
 
 class SimpleApp {
-public:
+   public:
     void ShutDown() {
         // To shut down, send an empty BinStream to every worker
-        for (int i = 0; i < info_.num_global_threads; ++ i) {
+        for (int i = 0; i < info_.num_global_threads; ++i) {
             int dst = info_.get_tid(i);
             husky::base::BinStream bin;
             this->obj_->send(dst, bin);
         }
     }
-protected:
+
+   protected:
     using RecvHandle = std::function<void(int ts, husky::base::BinStream& bin)>;
     SimpleApp(const PSInfo& info, husky::LocalMailbox& mailbox, const RecvHandle& recv_handle)
-        : info_(info), obj_(new Customer(mailbox, recv_handle, info.num_global_threads, info.channel_id)) {
-    }
+        : info_(info), obj_(new Customer(mailbox, recv_handle, info.num_global_threads, info.channel_id)) {}
     std::unique_ptr<Customer> obj_;
     PSInfo info_;
-private:
+
+   private:
 };
 
 /*
  * A worker node that can Push/Pull key-value pairs to/from server nodes
  */
-template<typename Val>
+template <typename Val>
 class KVWorker : public SimpleApp {
-public:
+   public:
     using Callback = std::function<void()>;
     using SimpleApp::obj_;  // to avoid to many this->
     KVWorker(const PSInfo& info, husky::LocalMailbox& mailbox)
-        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }) {
+        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin) { Process(ts, bin); }) {
         obj_->Start();
     }
     /*
      * Pushes a list of kv pairs to all server nodes
-     * 
+     *
      * it's a non-blocking call.
      */
     int Push(const std::vector<int>& keys, const std::vector<Val>& vals, const Callback& cb = nullptr) {
@@ -92,16 +91,16 @@ public:
         bool isRequest = true;
         bool isPush = true;
         int src = info_.global_id;
-        for (int i = 0; i < num_servers; ++ i) {
+        for (int i = 0; i < num_servers; ++i) {
             // isRequest, ts, isPush, src
             bins[i] << isRequest << ts << isPush << src;
         }
-        for (int i = 0; i < keys.size(); ++ i) {
-            int dst = keys[i]%num_servers;  // use the basic hash partition
+        for (int i = 0; i < keys.size(); ++i) {
+            int dst = keys[i] % num_servers;  // use the basic hash partition
             // k, v
             bins[dst] << keys[i] << vals[i];  // serialize
         }
-        for (int i = 0; i < num_servers; ++ i) {
+        for (int i = 0; i < num_servers; ++i) {
             this->obj_->send(info_.get_tid(i), bins[i]);  // send
         }
         return ts;
@@ -116,19 +115,19 @@ public:
         auto num_servers = info_.num_ps_servers;
         int ts = obj_->NewRequest(num_servers);
         AddCallback(ts, cb);
-        
+
         husky::base::BinStream bins[num_servers];
         bool isRequest = true;
         bool isPush = false;
         int src = info_.global_id;
-        for (int i = 0; i < num_servers; ++ i) {
+        for (int i = 0; i < num_servers; ++i) {
             bins[i] << isRequest << ts << isPush << src;
         }
-        for (int i = 0; i < keys.size(); ++ i) {
-            int dst = keys[i]%num_servers;
+        for (int i = 0; i < keys.size(); ++i) {
+            int dst = keys[i] % num_servers;
             bins[dst] << keys[i];
         }
-        for (int i = 0; i < num_servers; ++ i) {
+        for (int i = 0; i < num_servers; ++i) {
             this->obj_->send(info_.get_tid(i), bins[i]);  // send
         }
         // add callback
@@ -137,28 +136,28 @@ public:
             mu_.lock();
             auto& kvs = recv_kvs_[ts];
             mu_.unlock();
-            
+
             // TODO may incur a lot copy
             std::vector<std::pair<int, Val>> v;
             for (const auto& s : kvs) {
-                for (int i = 0; i < s.keys.size(); ++ i) {
+                for (int i = 0; i < s.keys.size(); ++i) {
                     v.push_back({s.keys[i], s.vals[i]});
                 }
             }
-            std::sort(v.begin(), v.end(), [](const std::pair<int, Val>& p1, const std::pair<int, Val>& p2) {
-                return p1.first < p2.first;
-            });
+            std::sort(v.begin(), v.end(),
+                      [](const std::pair<int, Val>& p1, const std::pair<int, Val>& p2) { return p1.first < p2.first; });
             vals->resize(keys.size());
-            for (int i = 0; i < keys.size(); ++ i) {
+            for (int i = 0; i < keys.size(); ++i) {
                 int k = keys[i];
-                auto p = std::find_if(v.begin(), v.end(), [k](const std::pair<int, Val>& p){ return p.first == k; });
-                assert(p!=v.end());
+                auto p = std::find_if(v.begin(), v.end(), [k](const std::pair<int, Val>& p) { return p.first == k; });
+                assert(p != v.end());
                 (*vals)[i] = p->second;
             }
             mu_.lock();
             recv_kvs_.erase(ts);
             mu_.unlock();
-            if (cb) cb();
+            if (cb)
+                cb();
         });
         return ts;
     }
@@ -175,7 +174,8 @@ public:
         int src;
         bin >> push;
         bin >> src;
-        if (push == true);  // if is push
+        if (push == true)
+            ;                      // if is push
         else if (push == false) {  // if is pull
             KVPairs<Val> kvs;
             // Format: keys, values
@@ -194,7 +194,8 @@ public:
      * Add a callback for a request
      */
     void AddCallback(int ts, const Callback& cb) {
-        if (!cb) return;
+        if (!cb)
+            return;
         std::lock_guard<std::mutex> lk(mu_);
         callbacks_[ts] = cb;
     }
@@ -214,7 +215,8 @@ public:
         }
         mu_.unlock();
     }
-private:
+
+   private:
     // storage for the kvs
     std::unordered_map<int, std::vector<KVPairs<Val>>> recv_kvs_;
     // callbacks
@@ -222,19 +224,18 @@ private:
     std::mutex mu_;
 };
 
-
 // forward declaration
-template<typename Val>
+template <typename Val>
 struct KVServerDefaultHandle;
 
 /*
  * A server node for maintaining kv pairs
  */
-template<typename Val>
+template <typename Val>
 class KVServer : public SimpleApp {
-public:
+   public:
     KVServer(const PSInfo& info, husky::LocalMailbox& mailbox)
-        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin){ Process(ts, bin); }),
+        : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin) { Process(ts, bin); }),
           request_handle_(KVServerDefaultHandle<Val>()) {
         // Start the recv thread once everything is set up
         this->obj_->Start();
@@ -255,16 +256,15 @@ public:
         husky::base::BinStream bin;
         bool isRequest = false;
         // isRequest, ts, isPush, src
-        bin << isRequest << ts << push << src; 
+        bin << isRequest << ts << push << src;
 
         bin << res.keys << res.vals;
         this->obj_->send(src, bin);
     }
-private:
+
+   private:
     // internal receive handle
-    void Process(int ts, husky::base::BinStream& bin) {
-        request_handle_(ts, bin, this);
-    }
+    void Process(int ts, husky::base::BinStream& bin) { request_handle_(ts, bin, this); }
     // request handle
     ReqHandle request_handle_;
 };
@@ -273,7 +273,7 @@ private:
  * The default KVServer handle
  * An example handle adding pushed kv into store
  */
-template<typename Val>
+template <typename Val>
 struct KVServerDefaultHandle {
     void operator()(int ts, husky::base::BinStream& bin, KVServer<Val>* server) {
         bool push;  // push or not
@@ -282,7 +282,7 @@ struct KVServerDefaultHandle {
         KVPairs<Val> res;
         if (push == true) {  // if is push
             while (bin.size() > 0) {
-                int k; 
+                int k;
                 Val v;
                 bin >> k >> v;
                 // husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
@@ -292,7 +292,8 @@ struct KVServerDefaultHandle {
             while (bin.size() > 0) {
                 int k;
                 bin >> k;
-                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+" v:"+std::to_string(store[k]));
+                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
+                // v:"+std::to_string(store[k]));
                 res.keys.push_back(k);
                 res.vals.push_back(store[k]);
             }

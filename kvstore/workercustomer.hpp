@@ -1,8 +1,8 @@
 #pragma once
 
+#include <condition_variable>
 #include <functional>
 #include <mutex>
-#include <condition_variable>
 #include <thread>
 #include "base/serialization.hpp"
 #include "core/mailbox.hpp"
@@ -13,27 +13,22 @@ namespace kvstore {
  * Use the same name with ps-lite
  *
  * It has its own receiving thread to poll messages from LocalMailbox
- * and invoke the callback. 
+ * and invoke the callback.
  *
  * Users (KVWorker and KVServer) need to give
  * a callback function
- * 
+ *
  */
 class WorkerCustomer {
-public:
+   public:
     /*
      * the handle for a received message
      */
-    using RecvHandle = std::function<void(int,int,husky::base::BinStream&,bool)>;
+    using RecvHandle = std::function<void(int, int, husky::base::BinStream&, bool)>;
 
     WorkerCustomer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int channel_id)
-        : mailbox_(mailbox),
-          recv_handle_(recv_handle),
-          channel_id_(channel_id){
-    }
-    ~WorkerCustomer() {
-        recv_thread_->join();
-    }
+        : mailbox_(mailbox), recv_handle_(recv_handle), channel_id_(channel_id) {}
+    ~WorkerCustomer() { recv_thread_->join(); }
     void Start() {
         // spawn a new thread to recevive
         recv_thread_ = std::unique_ptr<std::thread>(new std::thread(&WorkerCustomer::Receiving, this));
@@ -45,10 +40,10 @@ public:
 
     int NewRequest(int kv_id, int num_responses) {
         std::lock_guard<std::mutex> lk(tracker_mu_);
-        if (kv_id >= tracker_.size()) 
-            tracker_.resize(kv_id+1);
+        if (kv_id >= tracker_.size())
+            tracker_.resize(kv_id + 1);
         tracker_[kv_id].push_back({num_responses, 0});
-        return tracker_[kv_id].size()-1;
+        return tracker_[kv_id].size() - 1;
     }
     void WaitRequest(int kv_id, int timestamp) {
         std::unique_lock<std::mutex> lk(tracker_mu_);
@@ -60,10 +55,9 @@ public:
         std::lock_guard<std::mutex> lk(tracker_mu_);
         return tracker_[kv_id][timestamp].second;
     }
-    void send(int dst, husky::base::BinStream& bin) {
-        mailbox_.send(dst, channel_id_, 0, bin);
-    }
-private:
+    void send(int dst, husky::base::BinStream& bin) { mailbox_.send(dst, channel_id_, 0, bin); }
+
+   private:
     void Receiving() {
         // poll and recv from mailbox
         int num_finished_workers = 0;
@@ -80,7 +74,7 @@ private:
             int ts;
             bin >> isRequest >> kv_id >> ts;
             tracker_mu_.lock();
-            bool runCallback = tracker_[kv_id][ts].second == tracker_[kv_id][ts].first - 1?true:false;
+            bool runCallback = tracker_[kv_id][ts].second == tracker_[kv_id][ts].first - 1 ? true : false;
             tracker_mu_.unlock();
             // invoke the callback
             recv_handle_(kv_id, ts, bin, runCallback);
@@ -103,12 +97,11 @@ private:
     // tracker
     std::mutex tracker_mu_;
     std::condition_variable tracker_cond_;
-    std::vector<std::vector<std::pair<int,int>>> tracker_;  // kv_id, ts, <expected, current>
+    std::vector<std::vector<std::pair<int, int>>> tracker_;  // kv_id, ts, <expected, current>
 
     // some info
     int channel_id_;
     int total_workers_;
-
 };
 
 }  // namespace kvstore

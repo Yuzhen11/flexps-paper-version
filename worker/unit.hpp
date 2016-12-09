@@ -8,12 +8,10 @@ namespace husky {
  * Unit: A class to manage the UDF thread
  */
 class Unit {
-public:
+   public:
     Unit() = default;
-    template<typename Exec>
-    Unit(Exec exec)
-        : th_(exec) {
-    }
+    template <typename Exec>
+    Unit(Exec exec) : th_(exec) {}
     // move only
     Unit(Unit&&) = default;
     Unit& operator=(Unit&& rhs) {
@@ -25,7 +23,8 @@ public:
         if (th_.joinable())
             th_.join();
     }
-private:
+
+   private:
     std::thread th_;
 };
 

@@ -1,17 +1,18 @@
-#include "worker/engine.hpp"
 #include "ml/ps/kv_app.hpp"
+#include "worker/engine.hpp"
 
 using namespace husky;
 
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port"});
-    if (!rt) return 1;
+    if (!rt)
+        return 1;
 
     Engine engine;
 
     auto task = TaskFactory::Get().create_task(Task::Type::PSTaskType, 1, 4);
     static_cast<PSTask*>(task.get())->set_num_ps_servers(2);
-    engine.add_task(std::move(task), [](const Info& info){
+    engine.add_task(std::move(task), [](const Info& info) {
         PSTask* ptask = static_cast<PSTask*>(info.get_task());
         if (info.get_cluster_id() == 0) {
             base::log_msg("server num:" + std::to_string(ptask->get_num_ps_servers()));
@@ -24,7 +25,7 @@ int main(int argc, char** argv) {
             std::vector<int> keys(num);
             std::vector<float> vals(num);
 
-            for (int i = 0; i < num; ++ i) {
+            for (int i = 0; i < num; ++i) {
                 keys[i] = i;
                 vals[i] = i;
             }
@@ -37,8 +38,8 @@ int main(int argc, char** argv) {
             // pull
             std::vector<float> rets;
             kvworker.Wait(kvworker.Pull(keys, &rets));
-            for (int i = 0; i < num; ++ i) {
-                base::log_msg("pull result of key:"+std::to_string(keys[i])+" is: "+std::to_string(rets[i]));
+            for (int i = 0; i < num; ++i) {
+                base::log_msg("pull result of key:" + std::to_string(keys[i]) + " is: " + std::to_string(rets[i]));
             }
             kvworker.ShutDown();
         } else if (ptask->is_server(info.get_cluster_id())) {
