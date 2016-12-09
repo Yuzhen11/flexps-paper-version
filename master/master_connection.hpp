@@ -4,7 +4,6 @@
 #include <unordered_map>
 
 #include "husky/core/zmq_helpers.hpp"
-#include "base/debug.hpp"
 #include "husky/base/log.hpp"
 
 namespace husky {

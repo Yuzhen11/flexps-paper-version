@@ -2,7 +2,6 @@
 
 #include <thread>
 
-#include "base/debug.hpp"
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
 #include "husky/core/zmq_helpers.hpp"
@@ -125,7 +124,7 @@ public:
                 postprocess(instance, info);
                 info.get_mlworker().reset();
                 // tell worker when I finished
-                zmq_sendmore_int32(&socket, constants::THREAD_FINISHED);
+                zmq_sendmore_int32(&socket, constants::kThreadFinished);
                 zmq_sendmore_int32(&socket, instance->get_id());
                 zmq_send_int32(&socket, tid_cid.first);
             }));

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <memory>
 
 #include "worker/worker.hpp"

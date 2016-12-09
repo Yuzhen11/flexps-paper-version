@@ -1,6 +1,5 @@
 #pragma once
 
-#include "base/debug.hpp"
 #include "husky/base/log.hpp"
 #include "husky/base/exception.hpp"
 #include "husky/core/worker_info.hpp"
@@ -18,7 +17,7 @@ namespace husky {
  *
  * Basically it runs an event-loop to receive signal from Workers and react accordingly.
  *
- * The event may be MASTER_INIT, MASTER_INSTANCE_FINISHED, MASTER_EXIT.
+ * The event may be kMasterInit, kMasterInstanceFinished, kMasterExit.
  */
 class Master {
 public:
@@ -37,14 +36,14 @@ public:
         while (true) {
             int type = zmq_recv_int32(&recv_socket);
             base::log_msg("[Master]: Type: "+std::to_string(type));
-            if (type == constants::MASTER_INIT) {
+            if (type == constants::kMasterInit) {
                 // 1. Received tasks from Worker
                 recv_tasks_from_worker();
 
                 // 2. Extract instances
                 extract_instaces();
             }
-            else if (type == constants::MASTER_INSTANCE_FINISHED) {
+            else if (type == constants::kMasterInstanceFinished) {
                 // 1. Receive finished instances
                 auto bin = zmq_recv_binstream(&recv_socket);
                 int instance_id, proc_id;
@@ -55,7 +54,7 @@ public:
                 // 2. Extract instances
                 extract_instaces();
             }
-            else if (type == constants::MASTER_EXIT) {
+            else if (type == constants::kMasterExit) {
                 break;
             }
             else {
@@ -111,7 +110,7 @@ private:
             auto& cluster = instance->get_cluster();
             for (auto& kv : cluster) {
                 auto it = sockets.find(kv.first);
-                zmq_sendmore_int32(&it->second, constants::TASK_TYPE);
+                zmq_sendmore_int32(&it->second, constants::kTaskType);
                 zmq_send_binstream(&it->second, bin);
             }
         }
@@ -122,7 +121,7 @@ private:
     void send_exit_signal() {
         auto& proc_sockets = master_connection.get_send_sockets();
         for (auto& socket : proc_sockets) {
-            zmq_send_int32(&socket.second, constants::MASTER_FINISHED);
+            zmq_send_int32(&socket.second, constants::kMasterFinished);
         }
     }
 

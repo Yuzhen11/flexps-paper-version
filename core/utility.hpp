@@ -2,10 +2,9 @@
 
 #include "core/info.hpp"
 #include "core/instance.hpp"
-#include "husky/core/hash_ring.hpp"
 #include "husky/core/worker_info.hpp"
 
-// This file contains function to handle relationships among Info, Instance, HashRing, WorkerInfo...
+// This file contains function to handle relationships among Info, Instance, WorkerInfo...
 namespace husky {
 namespace utility {
 namespace {

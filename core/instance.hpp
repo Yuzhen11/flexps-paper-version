@@ -5,7 +5,6 @@
 #include "husky/base/serialization.hpp"
 #include "husky/base/log.hpp"
 #include "core/task.hpp"
-#include "base/debug.hpp"
 
 namespace husky {
 

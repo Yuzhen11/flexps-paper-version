@@ -1,10 +1,11 @@
 #pragma once
+
 #include <unordered_map>
 #include <memory>
 
 #include "husky/base/log.hpp"
-#include "husky/core/hash_ring.hpp"
 #include "core/task.hpp"
+
 #include "ml/common/mlworker.hpp"
 
 namespace husky {

@@ -6,7 +6,6 @@
 #include "husky/base/exception.hpp"
 #include "husky/base/serialization.hpp"
 #include "husky/core/zmq_helpers.hpp"
-#include "base/debug.hpp"
 #include "core/constants.hpp"
 #include "core/instance.hpp"
 #include "core/worker_info.hpp"
@@ -50,7 +49,7 @@ public:
                 task->serialize(bin);  // push the task
             }
             auto& socket = master_connector.get_send_socket();
-            zmq_sendmore_int32(&socket, constants::MASTER_INIT);
+            zmq_sendmore_int32(&socket, constants::kMasterInit);
             zmq_send_binstream(&socket, bin);
             base::log_msg("[Worker]: Totally "+std::to_string(buffered_tasks.size())+" tasks sent");
             // clear buffered tasks
@@ -65,13 +64,13 @@ public:
     void send_exit() {
         if (worker_info.get_process_id() == 0) {
             auto& socket = master_connector.get_send_socket();
-            zmq_send_int32(&socket, constants::MASTER_EXIT);
+            zmq_send_int32(&socket, constants::kMasterExit);
         }
     }
 
     void send_instance_finished(base::BinStream& bin) {
         auto& socket = master_connector.get_send_socket();
-        zmq_sendmore_int32(&socket, constants::MASTER_INSTANCE_FINISHED);
+        zmq_sendmore_int32(&socket, constants::kMasterInstanceFinished);
         zmq_send_binstream(&socket, bin);  // {instance_id, proc_id}
     }
 
@@ -81,7 +80,7 @@ public:
         while (true) {
             int type = zmq_recv_int32(&socket);
             // base::log_msg("[Worker]: Msg Type: " + std::to_string(type));
-            if (type == constants::TASK_TYPE) {
+            if (type == constants::kTaskType) {
                 auto bin = zmq_recv_binstream(&socket);
                 // TODO Support different types of instance in hierarchy
                 std::shared_ptr<Instance> instance(new Instance);
@@ -90,7 +89,7 @@ public:
                 instance->show_instance(worker_info.get_process_id());
                 instance_runner.run_instance(instance);
             }
-            else if (type == constants::THREAD_FINISHED) {
+            else if (type == constants::kThreadFinished) {
                 int instance_id = zmq_recv_int32(&socket);
                 int thread_id = zmq_recv_int32(&socket);
                 instance_runner.finish_thread(instance_id, thread_id);
@@ -101,7 +100,7 @@ public:
                     send_instance_finished(bin);
                 }
             }
-            else if (type == constants::MASTER_FINISHED) {
+            else if (type == constants::kMasterFinished) {
                 base::log_msg("[Worker]: worker exit");
                 break;
             }
