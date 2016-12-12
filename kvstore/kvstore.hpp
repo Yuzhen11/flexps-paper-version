@@ -28,6 +28,7 @@ class KVStore {
      * Create new mailboxes and add them to el
      */
     void Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoop* const el, zmq::context_t* zmq_context) {
+        is_started_ = true;
         int num_workers = worker_info.get_num_workers();
         int num_processes = worker_info.get_num_processes();
         // The following mailboxes [num_workers - 2*num_workers) are for kvworkers
@@ -85,6 +86,7 @@ class KVStore {
      * \brief kvstore stop function
      */
     void Stop() {
+        is_started_ = false;
         // 1. delete the kvworkers
         for (auto* p : kvworkers) {
             delete p;
@@ -100,10 +102,13 @@ class KVStore {
     }
 
     /*
-     * \brief function to create a new kvstore
+     * \brief Create a new kvstore
+     *
+     * @return: kvstore id created
      */
     template <typename Val>
     int CreateKVStore() {
+        assert(is_started_);
         kvmanager->CreateKVManager<Val>(kv_id);
         for (auto* kvworker : kvworkers) {
             kvworker->AddProcessFunc<Val>(kv_id);
@@ -130,6 +135,8 @@ class KVStore {
     // mailbox for kvserver
     husky::LocalMailbox* kvserver_mailbox;
     std::unique_ptr<KVManager> kvmanager;
+
+    bool is_started_ = false;
 };
 
 }  // namespace kvstore

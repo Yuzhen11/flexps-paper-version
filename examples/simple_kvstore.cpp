@@ -1,4 +1,5 @@
 #include "worker/engine.hpp"
+#include "kvstore/kvstore.hpp"
 
 using namespace husky;
 
@@ -8,10 +9,12 @@ int main(int argc, char** argv) {
         return 1;
 
     Engine engine;
+    // Start the kvstore, should start after mailbox is up 
+    kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(), Context::get_zmq_context());
 
     auto task = TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 1);
-    int kv0 = engine.create_kvstore<int>();
-    int kv1 = engine.create_kvstore<float>();
+    int kv0 = kvstore::KVStore::Get().CreateKVStore<int>();
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
     engine.add_task(std::move(task), [kv0, kv1](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<int> keys{0};
@@ -28,4 +31,6 @@ int main(int argc, char** argv) {
     });
     engine.submit();
     engine.exit();
+    // Stop the kvstore, should stop before mailbox is down
+    kvstore::KVStore::Get().Stop();
 }

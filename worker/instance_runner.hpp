@@ -60,16 +60,16 @@ class InstanceRunner {
             case Task::Type::SingleTaskType: {
                 base::log_msg("[Debug][run_instance] setting to single generic");
                 info.set_mlworker(
-                    new ml::single::SingleGenericModel(info.get_task()->get_id(), info.get_local_id(),
-                                                       static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
+                    new ml::single::SingleGenericModel(static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
+                                                       static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
                 break;
             }
             case Task::Type::HogwildTaskType: {
                 base::log_msg("[Debug][run_instance] setting to hogwild! generic");
                 info.set_mlworker(new ml::hogwild::HogwildGenericModel(
-                    info.get_task()->get_id(), master_connector_.get_context(), info,
-                    static_cast<GenericMLTask*>(info.get_task())->get_dimensions()));
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), master_connector_.get_context(), info,
+                    static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
                 break;
             }

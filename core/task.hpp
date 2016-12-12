@@ -85,15 +85,32 @@ class Task {
     Type type_;  // task type
 };
 
+class MLTask : public Task {
+   public:
+    void set_dimensions(int dim) { dim_ = dim; }
+    void set_kvstore(int kv_id) { kv_id_ = kv_id; }
+
+    int get_dimensions() { return dim_; }
+    int get_kvstore() { return kv_id_; }
+   protected:
+    // For serialization usage only
+    MLTask() = default;
+    MLTask(int id, Task::Type type) : Task(id, type) {}
+    MLTask(int id, int total_epoch, int num_workers, Task::Type type) :  Task(id, total_epoch, num_workers, type) {}
+
+    int kv_id_ = -1;
+    int dim_ = -1;
+};
+
 /*
  * Parameter Server Model Task
  */
-class PSTask : public Task {
+class PSTask : public MLTask {
    public:
     // For serialization usage only
     PSTask() = default;
-    PSTask(int id) : Task(id, Type::PSTaskType) {}
-    PSTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::PSTaskType) {}
+    PSTask(int id) : MLTask(id, Type::PSTaskType) {}
+    PSTask(int id, int total_epoch, int num_workers) : MLTask(id, total_epoch, num_workers, Type::PSTaskType) {}
     // TODO When we add new class member here, we need to override the serialize and
     // deserialize functions!!!
     friend BinStream& operator<<(BinStream& bin, const PSTask& task) { return task.serialize(bin); }
@@ -115,12 +132,12 @@ class PSTask : public Task {
 /*
  * Single-threaded Model Task
  */
-class SingleTask : public Task {
+class SingleTask : public MLTask {
    public:
     // For serialization usage only
     SingleTask() = default;
-    SingleTask(int id) : Task(id, Type::SingleTaskType) {}
-    SingleTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::SingleTaskType) {}
+    SingleTask(int id) : MLTask(id, Type::SingleTaskType) {}
+    SingleTask(int id, int total_epoch, int num_workers) : MLTask(id, total_epoch, num_workers, Type::SingleTaskType) {}
     friend BinStream& operator<<(BinStream& bin, const SingleTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, SingleTask& task) { return task.deserialize(bin); }
 };
@@ -128,12 +145,12 @@ class SingleTask : public Task {
 /*
  * Hogwild! Model Task
  */
-class HogwildTask : public Task {
+class HogwildTask : public MLTask {
    public:
     // For serialization usage only
     HogwildTask() = default;
-    HogwildTask(int id) : Task(id, Type::HogwildTaskType) {}
-    HogwildTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::HogwildTaskType) {}
+    HogwildTask(int id) : MLTask(id, Type::HogwildTaskType) {}
+    HogwildTask(int id, int total_epoch, int num_workers) : MLTask(id, total_epoch, num_workers, Type::HogwildTaskType) {}
     friend BinStream& operator<<(BinStream& bin, const HogwildTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, HogwildTask& task) { return task.deserialize(bin); }
 };
@@ -143,18 +160,15 @@ class HogwildTask : public Task {
  *
  * Can be PS, Hogwild! and Single
  */
-class GenericMLTask : public Task {
+class GenericMLTask : public MLTask {
    public:
     // For serialization usage only
     GenericMLTask() = default;
-    GenericMLTask(int id) : Task(id, Type::GenericMLTaskType) {}
+    GenericMLTask(int id) : MLTask(id, Type::GenericMLTaskType) {}
     GenericMLTask(int id, int total_epoch, int num_workers)
-        : Task(id, total_epoch, num_workers, Type::GenericMLTaskType) {}
+        : MLTask(id, total_epoch, num_workers, Type::GenericMLTaskType) {}
 
-    void set_dimensions(int dim) { dim_ = dim; }
     void set_running_type(Type type) { running_type_ = type; }
-
-    int get_dimensions() { return dim_; }
 
     Type get_running_type() { return running_type_; }
 
@@ -170,7 +184,6 @@ class GenericMLTask : public Task {
     friend BinStream& operator>>(BinStream& bin, GenericMLTask& task) { return task.deserialize(bin); }
 
    private:
-    int dim_;
     Type running_type_ = Type::DummyType;
 };
 
