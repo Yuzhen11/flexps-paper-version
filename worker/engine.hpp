@@ -16,9 +16,7 @@ namespace husky {
  */
 class Engine {
    public:
-    Engine() {
-        start();
-    }
+    Engine() { start(); }
     ~Engine() {
         // TODO Now cannot finalize global, the reason maybe is becuase master_connector still contain
         // the sockets so we cannot delete zmq_context now

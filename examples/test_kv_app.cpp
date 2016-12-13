@@ -1,6 +1,7 @@
 #include "ml/ps/kv_app.hpp"
 #include "worker/engine.hpp"
 
+#include <cmath>
 #include <cstdlib>
 #include <limits>
 

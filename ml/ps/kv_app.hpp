@@ -75,6 +75,7 @@ class KVWorker : public SimpleApp {
         : SimpleApp(info, mailbox, [this](int ts, husky::base::BinStream& bin) { Process(ts, bin); }) {
         obj_->Start();
     }
+    ~KVWorker() { obj_->Stop(); }
     /*
      * Pushes a list of kv pairs to all server nodes
      *
@@ -240,7 +241,7 @@ class KVServer : public SimpleApp {
         // Start the recv thread once everything is set up
         this->obj_->Start();
     }
-    ~KVServer() = default;
+    ~KVServer() { this->obj_->Stop(); }
 
     /*
      * the handle to process a push/pull request from a worker

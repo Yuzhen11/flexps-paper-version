@@ -59,9 +59,9 @@ class InstanceRunner {
             }
             case Task::Type::SingleTaskType: {
                 base::log_msg("[Debug][run_instance] setting to single generic");
-                info.set_mlworker(
-                    new ml::single::SingleGenericModel(static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
-                                                       static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                info.set_mlworker(new ml::single::SingleGenericModel(
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
+                    static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
                 break;
             }

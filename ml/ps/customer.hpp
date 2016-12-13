@@ -29,7 +29,14 @@ class Customer {
 
     Customer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int total_workers, int channel_id)
         : mailbox_(mailbox), recv_handle_(recv_handle), total_workers_(total_workers), channel_id_(channel_id) {}
-    ~Customer() { recv_thread_->join(); }
+    ~Customer() { assert(!recv_thread_->joinable()); }
+    /*
+     * KVWorker/KVServer need to stop the Customer thread manually
+     */
+    void Stop() { recv_thread_->join(); }
+    /*
+     * KVWorker/KVServer need to start the Customer thread manually
+     */
     void Start() {
         // spawn a new thread to recevive
         recv_thread_ = std::unique_ptr<std::thread>(new std::thread(&Customer::Receiving, this));

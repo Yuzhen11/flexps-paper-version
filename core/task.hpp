@@ -92,11 +92,12 @@ class MLTask : public Task {
 
     int get_dimensions() { return dim_; }
     int get_kvstore() { return kv_id_; }
+
    protected:
     // For serialization usage only
     MLTask() = default;
     MLTask(int id, Task::Type type) : Task(id, type) {}
-    MLTask(int id, int total_epoch, int num_workers, Task::Type type) :  Task(id, total_epoch, num_workers, type) {}
+    MLTask(int id, int total_epoch, int num_workers, Task::Type type) : Task(id, total_epoch, num_workers, type) {}
 
     int kv_id_ = -1;
     int dim_ = -1;
@@ -150,7 +151,8 @@ class HogwildTask : public MLTask {
     // For serialization usage only
     HogwildTask() = default;
     HogwildTask(int id) : MLTask(id, Type::HogwildTaskType) {}
-    HogwildTask(int id, int total_epoch, int num_workers) : MLTask(id, total_epoch, num_workers, Type::HogwildTaskType) {}
+    HogwildTask(int id, int total_epoch, int num_workers)
+        : MLTask(id, total_epoch, num_workers, Type::HogwildTaskType) {}
     friend BinStream& operator<<(BinStream& bin, const HogwildTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, HogwildTask& task) { return task.deserialize(bin); }
 };

@@ -2,6 +2,8 @@
 #include "husky/core/objlist.hpp"
 #include "worker/engine.hpp"
 
+#include <random>
+
 using namespace husky;
 
 class PIObject {

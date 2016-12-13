@@ -1,5 +1,5 @@
-#include "worker/engine.hpp"
 #include "kvstore/kvstore.hpp"
+#include "worker/engine.hpp"
 
 using namespace husky;
 
@@ -9,8 +9,9 @@ int main(int argc, char** argv) {
         return 1;
 
     Engine engine;
-    // Start the kvstore, should start after mailbox is up 
-    kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(), Context::get_zmq_context());
+    // Start the kvstore, should start after mailbox is up
+    kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
+                                  Context::get_zmq_context());
 
     auto task = TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 1);
     int kv0 = kvstore::KVStore::Get().CreateKVStore<int>();

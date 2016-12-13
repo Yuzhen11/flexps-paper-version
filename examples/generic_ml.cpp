@@ -11,8 +11,9 @@ int main(int argc, char** argv) {
         return 1;
 
     Engine engine;
-    // Start the kvstore, should start after mailbox is up 
-    kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(), Context::get_zmq_context());
+    // Start the kvstore, should start after mailbox is up
+    kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
+                                  Context::get_zmq_context());
     // Didn't specify the epoch num and thread num, leave master to decide them
     int kv0 = kvstore::KVStore::Get().CreateKVStore<float>();
     auto task1 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);
