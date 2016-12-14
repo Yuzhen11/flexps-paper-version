@@ -40,10 +40,8 @@ int main(int argc, char** argv) {
 
         // mailbox
         auto* mailbox = Context::get_mailbox(info.get_local_id());
-        // worker_info
-        auto* worker_info = &Context::get_worker_info();
         // TODO, Channel depends on too many things, bad! At least worker_info can be deleted
-        ch.setup(info.get_local_id(), info.get_global_id(), *worker_info, mailbox);
+        ch.setup(info.get_local_id(), info.get_global_id(), info.get_worker_info(), mailbox);
 
         ch.push(cnt, 0);
         ch.flush();

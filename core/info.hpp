@@ -21,6 +21,8 @@ class Info {
     int get_proc_id() const { return worker_info_.get_process_id(); }
     int get_num_local_workers() const { return worker_info_.get_num_local_workers(); }
     int get_num_workers() const { return worker_info_.get_num_workers(); }
+    const WorkerInfo& get_worker_info() const { return worker_info_; }
+    WorkerInfo& get_worker_info() { return worker_info_; }
     std::vector<int> get_local_tids() const { return worker_info_.get_local_tids(); }
     std::vector<int> get_pids() const { return worker_info_.get_pids(); }
 
