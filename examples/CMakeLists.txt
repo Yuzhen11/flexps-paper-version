@@ -98,3 +98,8 @@ target_link_libraries(GenericML husky)
 target_link_libraries(GenericML ${EXTERNAL_LIB})
 set_property(TARGET GenericML PROPERTY CXX_STANDARD 14)
 
+# TestDatastore
+add_executable(TestDatastore test_datastore.cpp)
+target_link_libraries(TestDatastore husky)
+target_link_libraries(TestDatastore ${EXTERNAL_LIB})
+set_property(TARGET TestDatastore PROPERTY CXX_STANDARD 14)
