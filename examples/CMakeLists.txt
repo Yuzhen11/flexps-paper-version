@@ -38,11 +38,11 @@ target_link_libraries(ProcMain ${EXTERNAL_LIB})
 
 set_property(TARGET ProcMain PROPERTY CXX_STANDARD 14)
 
-# MasterMain
-add_executable(MasterMain MasterMain.cpp)
-target_link_libraries(MasterMain husky)
-target_link_libraries(MasterMain ${EXTERNAL_LIB})
-set_property(TARGET MasterMain PROPERTY CXX_STANDARD 14)
+# ClusterManagerMain
+add_executable(ClusterManagerMain ClusterManagerMain.cpp)
+target_link_libraries(ClusterManagerMain husky)
+target_link_libraries(ClusterManagerMain ${EXTERNAL_LIB})
+set_property(TARGET ClusterManagerMain PROPERTY CXX_STANDARD 14)
 
 # ProcMainWithContext
 add_executable(ProcMainWithContext ProcMainWithContext.cpp)
@@ -56,11 +56,11 @@ target_link_libraries(ProcMainWithContextDriver husky)
 target_link_libraries(ProcMainWithContextDriver ${EXTERNAL_LIB})
 set_property(TARGET ProcMainWithContextDriver PROPERTY CXX_STANDARD 14)
 
-# MasterMainWithContext
-add_executable(MasterMainWithContext MasterMainWithContext.cpp)
-target_link_libraries(MasterMainWithContext husky)
-target_link_libraries(MasterMainWithContext ${EXTERNAL_LIB})
-set_property(TARGET MasterMainWithContext PROPERTY CXX_STANDARD 14)
+# ClusterManagerMainWithContext
+add_executable(ClusterManagerMainWithContext ClusterManagerMainWithContext.cpp)
+target_link_libraries(ClusterManagerMainWithContext husky)
+target_link_libraries(ClusterManagerMainWithContext ${EXTERNAL_LIB})
+set_property(TARGET ClusterManagerMainWithContext PROPERTY CXX_STANDARD 14)
 
 # TestPI
 add_executable(TestPI pi.cpp)

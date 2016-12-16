@@ -10,7 +10,7 @@
 #include "core/info.hpp"
 #include "core/instance.hpp"
 #include "core/utility.hpp"
-#include "worker/master_connector.hpp"
+#include "worker/cluster_manager_connector.hpp"
 #include "worker/task_store.hpp"
 #include "worker/unit.hpp"
 
@@ -25,9 +25,9 @@ namespace husky {
 class InstanceRunner {
    public:
     InstanceRunner() = delete;
-    InstanceRunner(WorkerInfo& worker_info, MasterConnector& master_connector, TaskStore& task_store)
+    InstanceRunner(WorkerInfo& worker_info, ClusterManagerConnector& cluster_manager_connector, TaskStore& task_store)
         : worker_info_(worker_info),
-          master_connector_(master_connector),
+          cluster_manager_connector_(cluster_manager_connector),
           task_store_(task_store),
           units_(worker_info.get_num_local_workers()) {}
 
@@ -49,7 +49,7 @@ class InstanceRunner {
         Info info = utility::instance_to_info(*instance, worker_info_, tid_cid);
         info.set_task(task_store_.get_task(instance->get_id()).get());
 
-        // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by master
+        // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by cluster_manager
         if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
             base::log_msg("type: " + std::to_string(static_cast<int>(instance->get_type())));
             switch (instance->get_type()) {
@@ -68,7 +68,7 @@ class InstanceRunner {
             case Task::Type::HogwildTaskType: {
                 base::log_msg("[Debug][run_instance] setting to hogwild! generic");
                 info.set_mlworker(new ml::hogwild::HogwildGenericModel(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), master_connector_.get_context(), info,
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(), info,
                     static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
                 break;
@@ -119,7 +119,7 @@ class InstanceRunner {
         for (auto tid_cid : local_threads) {
             // worker threads
             units_[tid_cid.first] = std::move(Unit([this, instance, tid_cid] {
-                zmq::socket_t socket = master_connector_.get_socket_to_recv();
+                zmq::socket_t socket = cluster_manager_connector_.get_socket_to_recv();
                 // set the info
                 Info info = info_factory(instance, tid_cid);
                 // run the UDF!!!
@@ -154,7 +154,7 @@ class InstanceRunner {
         instances_.erase(instance_id);
         instance_keeper_.erase(instance_id);
 
-        // generate the bin to master
+        // generate the bin to cluster_manager
         auto proc_id = worker_info_.get_process_id();
         base::BinStream bin;
         bin << instance_id;
@@ -164,7 +164,7 @@ class InstanceRunner {
 
    private:
     WorkerInfo& worker_info_;
-    MasterConnector& master_connector_;
+    ClusterManagerConnector& cluster_manager_connector_;
     TaskStore& task_store_;
     std::unordered_map<int, std::shared_ptr<Instance>> instances_;
     std::unordered_map<int, std::unordered_set<int>> instance_keeper_;

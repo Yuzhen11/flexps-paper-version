@@ -7,7 +7,7 @@ using namespace husky;
 
 int main() {
     std::string bind_addr = "tcp://*:12345";  // for main loop
-    std::string master_addr = "tcp://proj10:45123";
+    std::string cluster_manager_addr = "tcp://proj10:45123";
     std::string host_name = "proj10";
 
     // worker info
@@ -17,12 +17,12 @@ int main() {
     worker_info.add_worker(0, 1, 1);
     worker_info.set_process_id(0);
 
-    // master connector
+    // cluster_manager connector
     zmq::context_t context;
-    MasterConnector master_connector(context, bind_addr, master_addr, host_name);
+    ClusterManagerConnector cluster_manager_connector(context, bind_addr, cluster_manager_addr, host_name);
 
     // create worker
-    husky::Worker worker(std::move(worker_info), std::move(master_connector));
+    husky::Worker worker(std::move(worker_info), std::move(cluster_manager_connector));
 
     // add tasks
     auto task1 =
@@ -39,6 +39,6 @@ int main() {
         base::log_msg("task2 is running");
     });
 
-    worker.send_tasks_to_master();
+    worker.send_tasks_to_cluster_manager();
     worker.main_loop();
 }

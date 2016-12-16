@@ -8,19 +8,19 @@
 
 namespace husky {
 
-class MasterConnection {
+class ClusterManagerConnection {
    public:
-    MasterConnection() = delete;
-    MasterConnection(zmq::context_t& context_, const std::string& bind_addr)
+    ClusterManagerConnection() = delete;
+    ClusterManagerConnection(zmq::context_t& context_, const std::string& bind_addr)
         : context(context_), recv_socket(context, ZMQ_PULL) {
         recv_socket.bind(bind_addr);
-        base::log_msg("[MasterConnection]: Bind to " + bind_addr);
+        base::log_msg("[ClusterManagerConnection]: Bind to " + bind_addr);
     }
 
     void add_proc(int proc_id, const std::string& remote_addr) {
         zmq::socket_t socket(context, ZMQ_PUSH);
         socket.connect(remote_addr);
-        base::log_msg("[MasterConnection]: Connect to " + remote_addr);
+        base::log_msg("[ClusterManagerConnection]: Connect to " + remote_addr);
         proc_sockets.emplace(proc_id, std::move(socket));
     }
     auto& get_send_sockets() { return proc_sockets; }

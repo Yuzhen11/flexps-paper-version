@@ -7,55 +7,55 @@
 #include "core/constants.hpp"
 #include "core/instance.hpp"
 #include "husky/base/serialization.hpp"
-#include "master/master_connection.hpp"
-#include "master/task_scheduler.hpp"
+#include "cluster_manager/cluster_manager_connection.hpp"
+#include "cluster_manager/task_scheduler.hpp"
 
 namespace husky {
 
 /*
- * Master implements the Master logic
+ * ClusterManager implements the ClusterManager logic
  *
  * Basically it runs an event-loop to receive signal from Workers and react accordingly.
  *
- * The event may be kMasterInit, kMasterInstanceFinished, kMasterExit.
+ * The event may be kClusterManagerInit, kClusterManagerInstanceFinished, kClusterManagerExit.
  */
-class Master {
+class ClusterManager {
    public:
-    Master() = delete;
-    Master(WorkerInfo&& worker_info_, MasterConnection&& master_connection_)
+    ClusterManager() = delete;
+    ClusterManager(WorkerInfo&& worker_info_, ClusterManagerConnection&& cluster_manager_connection_)
         : worker_info(std::move(worker_info_)),
-          master_connection(std::move(master_connection_)),
+          cluster_manager_connection(std::move(cluster_manager_connection_)),
           task_scheduler(new SequentialTaskScheduler(worker_info)) {}
 
     /*
-     * The main loop for master logic
+     * The main loop for cluster_manager logic
      */
-    void master_loop() {
-        auto& recv_socket = master_connection.get_recv_socket();
+    void cluster_manager_loop() {
+        auto& recv_socket = cluster_manager_connection.get_recv_socket();
         while (true) {
             int type = zmq_recv_int32(&recv_socket);
-            base::log_msg("[Master]: Type: " + std::to_string(type));
-            if (type == constants::kMasterInit) {
+            base::log_msg("[ClusterManager]: Type: " + std::to_string(type));
+            if (type == constants::kClusterManagerInit) {
                 // 1. Received tasks from Worker
                 recv_tasks_from_worker();
 
                 // 2. Extract instances
                 extract_instaces();
-            } else if (type == constants::kMasterInstanceFinished) {
+            } else if (type == constants::kClusterManagerInstanceFinished) {
                 // 1. Receive finished instances
                 auto bin = zmq_recv_binstream(&recv_socket);
                 int instance_id, proc_id;
                 bin >> instance_id >> proc_id;
                 task_scheduler->finish_local_instance(instance_id, proc_id);
-                base::log_msg("[Master]: task id: " + std::to_string(instance_id) + " proc id: " +
+                base::log_msg("[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " +
                               std::to_string(proc_id) + " done");
 
                 // 2. Extract instances
                 extract_instaces();
-            } else if (type == constants::kMasterExit) {
+            } else if (type == constants::kClusterManagerExit) {
                 break;
             } else {
-                throw base::HuskyException("[Master] Master Loop recv type error, type is: " + std::to_string(type));
+                throw base::HuskyException("[ClusterManager] ClusterManager Loop recv type error, type is: " + std::to_string(type));
             }
         }
     }
@@ -66,14 +66,14 @@ class Master {
      */
     void recv_tasks_from_worker() {
         // recv tasks from proc 0
-        auto& socket = master_connection.get_recv_socket();
+        auto& socket = cluster_manager_connection.get_recv_socket();
         auto bin = zmq_recv_binstream(&socket);
         auto tasks = task::extract_tasks(bin);
         task_scheduler->init_tasks(tasks);
         for (auto& task : tasks) {
-            base::log_msg("[Master]: Task: " + std::to_string(task->get_id()) + " added");
+            base::log_msg("[ClusterManager]: Task: " + std::to_string(task->get_id()) + " added");
         }
-        base::log_msg("[Master]: Totally " + std::to_string(tasks.size()) + " tasks received");
+        base::log_msg("[ClusterManager]: Totally " + std::to_string(tasks.size()) + " tasks received");
     }
 
     /*
@@ -96,8 +96,8 @@ class Master {
      * Send instances to Workers
      */
     void send_instances(const std::vector<std::shared_ptr<Instance>>& instances) {
-        base::log_msg("[Master]: Assigning next instances");
-        auto& sockets = master_connection.get_send_sockets();
+        base::log_msg("[ClusterManager]: Assigning next instances");
+        auto& sockets = cluster_manager_connection.get_send_sockets();
         for (auto& instance : instances) {
             instance->show_instance();
             base::BinStream bin;
@@ -115,9 +115,9 @@ class Master {
      * Send exit signal to Workers
      */
     void send_exit_signal() {
-        auto& proc_sockets = master_connection.get_send_sockets();
+        auto& proc_sockets = cluster_manager_connection.get_send_sockets();
         for (auto& socket : proc_sockets) {
-            zmq_send_int32(&socket.second, constants::kMasterFinished);
+            zmq_send_int32(&socket.second, constants::kClusterManagerFinished);
         }
     }
 
@@ -126,7 +126,7 @@ class Master {
     WorkerInfo worker_info;
 
     // connect to workers
-    MasterConnection master_connection;
+    ClusterManagerConnection cluster_manager_connection;
 
     // task scheduler
     std::unique_ptr<TaskScheduler> task_scheduler;

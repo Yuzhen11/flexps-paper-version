@@ -262,7 +262,7 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
 /*
  * Serialize task bin to std::vector<std::shared_ptr<tasks>>
  *
- * Invoke by Master::recv_tasks_from_worker()
+ * Invoke by ClusterManager::recv_tasks_from_worker()
  */
 std::vector<std::shared_ptr<Task>> extract_tasks(BinStream& bin) {
     std::vector<std::shared_ptr<Task>> tasks;

@@ -6,26 +6,26 @@
 using namespace husky;
 
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port"});
+    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port"});
     if (!rt)
         return 1;
 
     std::string bind_addr = "tcp://*:" + Context::get_param("worker_port");
-    std::string master_addr = "tcp://" + Context::get_config().get_master_host() + ":" +
-                              std::to_string(Context::get_config().get_master_port());
+    std::string cluster_manager_addr = "tcp://" + Context::get_param("cluster_manager_host") + ":" +
+                              Context::get_param("clsuter_manager_port");
     std::string host_name = Context::get_param("hostname");
 
     // worker info
     WorkerInfo worker_info = Context::get_worker_info();
 
-    // master connector
-    MasterConnector master_connector(*Context::get_zmq_context(), bind_addr, master_addr, host_name);
+    // cluster_manager connector
+    ClusterManagerConnector cluster_manager_connector(*Context::get_zmq_context(), bind_addr, cluster_manager_addr, host_name);
 
     // Create mailbox
     Context::create_mailbox_env();
 
     // create worker
-    husky::Worker worker(std::move(worker_info), std::move(master_connector));
+    husky::Worker worker(std::move(worker_info), std::move(cluster_manager_connector));
 
     // add tasks
     auto task1 =
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
         base::log_msg("task2 is running");
     });
 
-    worker.send_tasks_to_master();
+    worker.send_tasks_to_cluster_manager();
     worker.main_loop();
 
     // clean up
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     // delete el;
     // for (int i = 0; i < Context::get_worker_info()->get_num_local_workers(); i++)
     //     delete mailboxes[i];
-    // TODO Now cannot finalize global, the reason maybe is becuase master_connector still contain
+    // TODO Now cannot finalize global, the reason maybe is becuase cluster_manager_connector still contain
     // the sockets so we cannot delete zmq_context now
     // Context::finalize_global();
 }

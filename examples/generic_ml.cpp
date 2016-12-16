@@ -6,7 +6,7 @@
 using namespace husky;
 
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port"});
+    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port"});
     if (!rt)
         return 1;
 
@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
     // Start the kvstore, should start after mailbox is up
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
-    // Didn't specify the epoch num and thread num, leave master to decide them
+    // Didn't specify the epoch num and thread num, leave cluster_manager to decide them
     int kv0 = kvstore::KVStore::Get().CreateKVStore<float>();
     auto task1 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);
     static_cast<MLTask*>(task1.get())->set_dimensions(10);

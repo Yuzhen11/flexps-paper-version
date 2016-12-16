@@ -15,7 +15,7 @@ class PIObject {
 };
 
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port"});
+    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port"});
     if (!rt)
         return 1;
 

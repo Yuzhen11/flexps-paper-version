@@ -11,29 +11,29 @@
 #include "husky/core/zmq_helpers.hpp"
 #include "worker/basic.hpp"
 #include "worker/instance_runner.hpp"
-#include "worker/master_connector.hpp"
+#include "worker/cluster_manager_connector.hpp"
 #include "worker/task_store.hpp"
 
 namespace husky {
 
 /*
- * Worker contains the event-loop to receive tasks from Master,
- * and also has function to communicate with Master,
- * like send_tasks_to_master(), send_exit()
+ * Worker contains the event-loop to receive tasks from ClusterManager,
+ * and also has function to communicate with ClusterManager,
+ * like send_tasks_to_cluster_manager(), send_exit()
  */
 class Worker {
    public:
     Worker() = delete;
-    Worker(WorkerInfo&& worker_info_, MasterConnector&& master_connector_)
+    Worker(WorkerInfo&& worker_info_, ClusterManagerConnector&& cluster_manager_connector_)
         : worker_info(std::move(worker_info_)),
-          master_connector(std::move(master_connector_)),
-          instance_runner(worker_info, master_connector, task_store) {}
+          cluster_manager_connector(std::move(cluster_manager_connector_)),
+          instance_runner(worker_info, cluster_manager_connector, task_store) {}
 
     // User need to add task to taskstore
     void add_task(std::unique_ptr<Task>&& task, const FuncT& func) { task_store.add_task(std::move(task), func); }
 
-    void send_tasks_to_master() {
-        // Only Proc 0 need to send tasks to master
+    void send_tasks_to_cluster_manager() {
+        // Only Proc 0 need to send tasks to cluster_manager
         if (worker_info.get_process_id() == 0) {
             base::BinStream bin;
             auto& task_map = task_store.get_task_map();
@@ -45,8 +45,8 @@ class Worker {
                 bin << task->get_type();  // push the task type first
                 task->serialize(bin);     // push the task
             }
-            auto& socket = master_connector.get_send_socket();
-            zmq_sendmore_int32(&socket, constants::kMasterInit);
+            auto& socket = cluster_manager_connector.get_send_socket();
+            zmq_sendmore_int32(&socket, constants::kClusterManagerInit);
             zmq_send_binstream(&socket, bin);
             base::log_msg("[Worker]: Totally " + std::to_string(buffered_tasks.size()) + " tasks sent");
             // clear buffered tasks
@@ -55,25 +55,25 @@ class Worker {
     }
 
     /*
-     * send exit signal to master, stop the master
+     * send exit signal to cluster_manager, stop the cluster_manager
      * normally it's the last statement in worker
      */
     void send_exit() {
         if (worker_info.get_process_id() == 0) {
-            auto& socket = master_connector.get_send_socket();
-            zmq_send_int32(&socket, constants::kMasterExit);
+            auto& socket = cluster_manager_connector.get_send_socket();
+            zmq_send_int32(&socket, constants::kClusterManagerExit);
         }
     }
 
     void send_instance_finished(base::BinStream& bin) {
-        auto& socket = master_connector.get_send_socket();
-        zmq_sendmore_int32(&socket, constants::kMasterInstanceFinished);
+        auto& socket = cluster_manager_connector.get_send_socket();
+        zmq_sendmore_int32(&socket, constants::kClusterManagerInstanceFinished);
         zmq_send_binstream(&socket, bin);  // {instance_id, proc_id}
     }
 
     void main_loop() {
-        auto& socket = master_connector.get_recv_socket();
-        auto& send_socket = master_connector.get_send_socket();
+        auto& socket = cluster_manager_connector.get_recv_socket();
+        auto& send_socket = cluster_manager_connector.get_send_socket();
         while (true) {
             int type = zmq_recv_int32(&socket);
             // base::log_msg("[Worker]: Msg Type: " + std::to_string(type));
@@ -96,7 +96,7 @@ class Worker {
                     auto bin = instance_runner.remove_instance(instance_id);
                     send_instance_finished(bin);
                 }
-            } else if (type == constants::kMasterFinished) {
+            } else if (type == constants::kClusterManagerFinished) {
                 base::log_msg("[Worker]: worker exit");
                 break;
             } else {
@@ -106,7 +106,7 @@ class Worker {
     }
 
    private:
-    MasterConnector master_connector;
+    ClusterManagerConnector cluster_manager_connector;
     WorkerInfo worker_info;
     InstanceRunner instance_runner;
     TaskStore task_store;
