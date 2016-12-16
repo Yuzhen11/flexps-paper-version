@@ -1,6 +1,7 @@
 #pragma once
 
 #include <thread>
+#include "boost/thread.hpp"
 
 namespace husky {
 
@@ -25,7 +26,8 @@ class Unit {
     }
 
    private:
-    std::thread th_;
+    // use boost::thread to see exception throwed in thread
+    boost::thread th_;
 };
 
 }  // namespace husky

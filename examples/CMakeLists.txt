@@ -57,7 +57,7 @@ target_link_libraries(ProcMainWithContextDriver ${EXTERNAL_LIB})
 set_property(TARGET ProcMainWithContextDriver PROPERTY CXX_STANDARD 14)
 
 # ClusterManagerMainWithContext
-add_executable(ClusterManagerMainWithContext ClusterManagerMainWithContext.cpp)
+add_executable(ClusterManagerMainWithContext ClusterManagerMainWithContext.cpp $<TARGET_OBJECTS:husky-master-objs>)
 target_link_libraries(ClusterManagerMainWithContext husky)
 target_link_libraries(ClusterManagerMainWithContext ${EXTERNAL_LIB})
 set_property(TARGET ClusterManagerMainWithContext PROPERTY CXX_STANDARD 14)
@@ -103,3 +103,9 @@ add_executable(TestDatastore test_datastore.cpp)
 target_link_libraries(TestDatastore husky)
 target_link_libraries(TestDatastore ${EXTERNAL_LIB})
 set_property(TARGET TestDatastore PROPERTY CXX_STANDARD 14)
+
+# TestLoad
+add_executable(TestLoad test_load.cpp)
+target_link_libraries(TestLoad husky)
+target_link_libraries(TestLoad ${EXTERNAL_LIB})
+set_property(TARGET TestLoad PROPERTY CXX_STANDARD 14)

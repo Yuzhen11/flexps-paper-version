@@ -7,7 +7,9 @@
 #include "worker/task_factory.hpp"
 #include "worker/worker.hpp"
 
+#include "husky/core/constants.hpp"
 #include "husky/core/job_runner.hpp"
+#include "husky/core/coordinator.hpp"
 
 namespace husky {
 
@@ -16,7 +18,11 @@ namespace husky {
  */
 class Engine {
    public:
-    Engine() { start(); }
+    Engine() { 
+        start(); 
+        // Start Coordinator
+        Context::get_coordinator()->serve();
+    }
     ~Engine() {
         // TODO Now cannot finalize global, the reason maybe is becuase cluster_manager_connector still contain
         // the sockets so we cannot delete zmq_context now
@@ -42,7 +48,15 @@ class Engine {
      *
      * It means that no more tasks will submit. Basically the end of the process
      */
-    void exit() { worker->send_exit(); }
+    void exit() { 
+        worker->send_exit(); 
+        // use coordinator to send finish signal
+        for (auto tid : Context::get_worker_info().get_local_tids()) {
+            base::BinStream finish_signal;
+            finish_signal << Context::get_param("hostname") << tid;
+            Context::get_coordinator()->notify_master(finish_signal, TYPE_EXIT);
+        }
+    }
 
    private:
     /*
