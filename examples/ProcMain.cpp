@@ -19,7 +19,7 @@ int main() {
 
     // cluster_manager connector
     zmq::context_t context;
-    ClusterManagerConnector cluster_manager_connector(context, bind_addr, cluster_manager_addr, host_name);
+    ClusterManagerConnector cluster_manager_connector(&context, bind_addr, cluster_manager_addr, host_name);
 
     // create worker
     husky::Worker worker(std::move(worker_info), std::move(cluster_manager_connector));

@@ -72,7 +72,7 @@ class Engine {
         WorkerInfo worker_info = Context::get_worker_info();
 
         // cluster_manager connector
-        ClusterManagerConnector cluster_manager_connector(*Context::get_zmq_context(), bind_addr, cluster_manager_addr, host_name);
+        ClusterManagerConnector cluster_manager_connector(Context::get_zmq_context(), bind_addr, cluster_manager_addr, host_name);
 
         // Create mailboxes
         Context::create_mailbox_env();

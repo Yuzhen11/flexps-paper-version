@@ -15,7 +15,7 @@ int main() {
     // cluster_manager connection
     std::string bind_addr = "tcp://*:45123";
     zmq::context_t context;
-    ClusterManagerConnection cluster_manager_connection(context, bind_addr);
+    ClusterManagerConnection cluster_manager_connection(&context, bind_addr);
     auto connect_str = "tcp://" + remote_addr + ":" + remote_port;
     cluster_manager_connection.add_proc(0, connect_str);
 
@@ -23,5 +23,5 @@ int main() {
     // cluster_manager.recv_tasks_from_worker();
     // cluster_manager.test_connection();
     // cluster_manager.assign_initial_tasks();
-    cluster_manager.cluster_manager_loop();
+    cluster_manager.serve();
 }
