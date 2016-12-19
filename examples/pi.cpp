@@ -19,10 +19,10 @@ int main(int argc, char** argv) {
     if (!rt)
         return 1;
 
-    Engine engine;
+    auto& engine = Engine::Get();
 
     auto task = TaskFactory::Get().create_task(Task::Type::HuskyTaskType, 1, 4);
-    engine.add_task(std::move(task), [](const Info& info) {
+    engine.AddTask(std::move(task), [](const Info& info) {
         int num_pts_per_thread = 1000;
         std::random_device rd;
         std::mt19937 generator(rd());
@@ -55,11 +55,11 @@ int main(int argc, char** argv) {
             base::log_msg("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
         }
     });
-    engine.submit();
+    engine.Submit();
 
     auto task2 = TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 4);
-    engine.add_task(std::move(task2), [](const Info& info) { base::log_msg("task2 running"); });
+    engine.AddTask(std::move(task2), [](const Info& info) { base::log_msg("task2 running"); });
 
-    engine.submit();
-    engine.exit();
+    engine.Submit();
+    engine.Exit();
 }

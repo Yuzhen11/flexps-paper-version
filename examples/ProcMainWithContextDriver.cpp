@@ -8,12 +8,12 @@ int main(int argc, char** argv) {
     if (!rt)
         return 1;
 
-    Engine engine;
+    auto& engine = Engine::Get();
 
     // add tasks
     auto task1 =
         TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 2);  // id: 0, total_epoch: 1, num_workers: 2
-    engine.add_task(std::move(task1), [](const Info& info) {
+    engine.AddTask(std::move(task1), [](const Info& info) {
         base::log_msg("local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
                       std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id()));
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -56,15 +56,15 @@ int main(int argc, char** argv) {
 
     auto task2 =
         TaskFactory::Get().create_task(Task::Type::BasicTaskType, 2, 1);  // id: 1, total_epoch: 2, num_workers: 1
-    engine.add_task(std::move(task2), [](const Info& info) {
+    engine.AddTask(std::move(task2), [](const Info& info) {
         base::log_msg("local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
                       std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id()));
         std::this_thread::sleep_for(std::chrono::seconds(1));
         base::log_msg("task2 is running");
     });
 
-    engine.submit();
-    engine.exit();
+    engine.Submit();
+    engine.Exit();
 
     return 0;
 }

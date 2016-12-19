@@ -8,11 +8,11 @@ int main(int argc, char** argv) {
     if (!rt)
         return 1;
 
-    Engine engine;
+    auto& engine = Engine::Get();
 
     auto task = TaskFactory::Get().create_task(Task::Type::PSTaskType, 1, 4);
     static_cast<PSTask*>(task.get())->set_num_ps_servers(2);
-    engine.add_task(std::move(task), [](const Info& info) {
+    engine.AddTask(std::move(task), [](const Info& info) {
         PSTask* ptask = static_cast<PSTask*>(info.get_task());
         if (info.get_cluster_id() == 0) {
             base::log_msg("server num:" + std::to_string(ptask->get_num_ps_servers()));
@@ -48,6 +48,6 @@ int main(int argc, char** argv) {
             kvserver.ShutDown();
         }
     });
-    engine.submit();
-    engine.exit();
+    engine.Submit();
+    engine.Exit();
 }

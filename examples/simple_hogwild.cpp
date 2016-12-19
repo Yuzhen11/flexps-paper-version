@@ -10,10 +10,10 @@ int main(int argc, char** argv) {
     if (!rt)
         return 1;
 
-    Engine engine;
+    auto& engine = Engine::Get();
 
     auto task = TaskFactory::Get().create_task(Task::Type::HogwildTaskType, 1, 4);
-    engine.add_task(std::move(task), [](const Info& info) {
+    engine.AddTask(std::move(task), [](const Info& info) {
         int dim = 100;
         // create a hogwild model, which means it's shared
         ml::hogwild::HogwildModel<std::vector<float>> model(*Context::get_zmq_context(), info, dim);
@@ -33,6 +33,6 @@ int main(int argc, char** argv) {
         }
 
     });
-    engine.submit();
-    engine.exit();
+    engine.Submit();
+    engine.Exit();
 }

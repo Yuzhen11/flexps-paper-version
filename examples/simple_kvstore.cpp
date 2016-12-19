@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
     if (!rt)
         return 1;
 
-    Engine engine;
+    auto& engine = Engine::Get();
     // Start the kvstore, should start after mailbox is up
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     auto task = TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 1);
     int kv0 = kvstore::KVStore::Get().CreateKVStore<int>();
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    engine.add_task(std::move(task), [kv0, kv1](const Info& info) {
+    engine.AddTask(std::move(task), [kv0, kv1](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<int> keys{0};
         std::vector<float> vals{2.0};
@@ -30,8 +30,8 @@ int main(int argc, char** argv) {
         // kvworker->Wait(kv1, kvworker->Pull(kv1, keys, &rets));
         base::log_msg(std::to_string(rets[0]));
     });
-    engine.submit();
-    engine.exit();
+    engine.Submit();
+    engine.Exit();
     // Stop the kvstore, should stop before mailbox is down
     kvstore::KVStore::Get().Stop();
 }
