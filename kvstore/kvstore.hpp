@@ -104,12 +104,13 @@ class KVStore {
     /*
      * \brief Create a new kvstore
      *
+     * @param: the operation needed by the KVServer
      * @return: kvstore id created
      */
     template <typename Val>
-    int CreateKVStore() {
+    int CreateKVStore(PushOp push_op = PushOp::kAssign) {
         assert(is_started_);
-        kvmanager->CreateKVManager<Val>(kv_id);
+        kvmanager->CreateKVManager<Val>(kv_id, push_op);
         for (auto* kvworker : kvworkers) {
             kvworker->AddProcessFunc<Val>(kv_id);
         }

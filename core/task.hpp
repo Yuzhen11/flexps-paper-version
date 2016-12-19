@@ -80,7 +80,7 @@ class Task {
     int total_epoch_ = 1;  // total epoch numbers
     int current_epoch_ = 0;
 
-    int num_workers_;  // num of workers needed to run the job
+    int num_workers_ = 0;  // num of workers needed to run the job
 
     Type type_;  // task type
 };

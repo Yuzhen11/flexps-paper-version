@@ -68,7 +68,6 @@ class HogwildGenericModel : public common::GenericMLWorker {
             husky::zmq_send_int32(&socket_, int());
             auto ptr = husky::zmq_recv_int64(&socket_);
             model_ = reinterpret_cast<std::vector<float>*>(ptr);
-            husky::base::log_msg(std::to_string(model_->size()));
         }
     }
 
@@ -134,7 +133,7 @@ class HogwildGenericModel : public common::GenericMLWorker {
      */
     virtual void Put(int key, float val) {
         assert(key < model_->size());
-        (*model_)[key] = val;
+        (*model_)[key] += val;
     }
     virtual float Get(int key) {
         assert(key < model_->size());
@@ -175,8 +174,8 @@ class HogwildGenericModel : public common::GenericMLWorker {
      * check whether all the threads are in the same machine
      */
     bool isValid() {
-        husky::base::log_msg("locals: " + std::to_string(info_.get_num_local_workers()) + " globals:" +
-                             std::to_string(info_.get_num_workers()));
+        // husky::base::log_msg("locals: " + std::to_string(info_.get_num_local_workers()) + " globals:" +
+        //                      std::to_string(info_.get_num_workers()));
         return info_.get_num_local_workers() == info_.get_num_workers();
     }
 

@@ -6,6 +6,7 @@
 
 #include "kvpairs.hpp"
 
+#include "husky/base/exception.hpp"
 #include "husky/base/serialization.hpp"
 #include "husky/core/mailbox.hpp"
 
@@ -66,6 +67,10 @@ class ServerCustomer {
     int channel_id_;
 };
 
+enum class PushOp {
+    kAdd, kAssign
+};
+
 /*
  * KVServerBase: Base class for different kvserver
  */
@@ -76,7 +81,9 @@ class KVServerBase {
 template <typename Val>
 class KVServer : public KVServerBase {
    public:
-    KVServer() = default;
+
+    KVServer() = delete;
+    KVServer(PushOp push_op = PushOp::kAssign): push_op_(push_op) {}
     ~KVServer() = default;
 
     /*
@@ -93,16 +100,28 @@ class KVServer : public KVServerBase {
                 Val v;
                 bin >> k >> v;
                 // husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
-                store[k] = v;
+                switch (push_op_) {
+                case PushOp::kAdd: {
+                    store_[k] += v;
+                    break;
+                }
+                case PushOp::kAssign: {
+                    store_[k] = v;
+                    break;
+                }
+                default: {
+                    throw husky::base::HuskyException("KVserver PushOp error");
+                }
+                }
             }
         } else {  // if is pull
             while (bin.size() > 0) {
                 int k;
                 bin >> k;
                 // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
-                // v:"+std::to_string(store[k]));
+                // v:"+std::to_string(store_[k]));
                 res.keys.push_back(k);
-                res.vals.push_back(store[k]);
+                res.vals.push_back(store_[k]);
             }
         }
         Response(kv_id, ts, push, src, res, customer);
@@ -125,7 +144,8 @@ class KVServer : public KVServerBase {
     }
 
     // The real storeage
-    std::unordered_map<int, Val> store;
+    std::unordered_map<int, Val> store_;
+    PushOp push_op_;
 };
 
 /*
@@ -150,8 +170,8 @@ class KVManager {
      * make sure all the kvstore is set up before the actuall workload
      */
     template <typename Val>
-    void CreateKVManager(int kv_id) {
-        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>())));
+    void CreateKVManager(int kv_id, PushOp push_op) {
+        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(push_op))));
     }
 
    private:

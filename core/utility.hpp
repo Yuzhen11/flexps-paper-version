@@ -16,6 +16,7 @@ Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info_, 
     info.set_local_id(tid_cid.first);
     info.set_global_id(worker_info_.local_to_global_id(tid_cid.first));
     info.set_cluster_id(tid_cid.second);
+    info.set_current_epoch(instance.get_epoch());
 
     WorkerInfo worker_info;
     worker_info.set_process_id(pid);

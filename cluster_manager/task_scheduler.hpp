@@ -69,7 +69,7 @@ class SequentialTaskScheduler : public TaskScheduler {
     std::shared_ptr<Instance> task_to_instance(Task& task) {
         auto num_workers = worker_info.get_num_workers();
         // TODO: For debug and testing only. ClusterManager needs to design workers number for GenericMLTaskType
-        if (task.get_type() == Task::Type::GenericMLTaskType)
+        if (task.get_type() == Task::Type::GenericMLTaskType && task.get_num_workers() == 0)
             task.set_num_workers(1);
         assert(num_workers >= task.get_num_workers());
         // randomly select threads

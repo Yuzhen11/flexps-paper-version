@@ -25,6 +25,7 @@ class Info {
     WorkerInfo& get_worker_info() { return worker_info_; }
     std::vector<int> get_local_tids() const { return worker_info_.get_local_tids(); }
     std::vector<int> get_pids() const { return worker_info_.get_pids(); }
+    int get_current_epoch() const { return current_epoch_; }
 
     const std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() const { return mlworker_; }
     std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() { return mlworker_; }
@@ -51,16 +52,14 @@ class Info {
     void set_task(Task* task) { task_ = task; }
     void set_cluster_global(const std::unordered_map<int, int>& rhs) { cluster_id_to_global_id_ = rhs; }
     void set_cluster_global(std::unordered_map<int, int>&& rhs) { cluster_id_to_global_id_ = std::move(rhs); }
+    void set_current_epoch(int current_epoch) { current_epoch_ = current_epoch; }
 
    private:
     int local_id_;
     int global_id_;
     int cluster_id_;  // The id within this cluster
 
-    // to be deleted
-    int proc_id;
-    int num_local_threads;   // cluster num locally
-    int num_global_threads;  // cluster num in total
+    int current_epoch_;
 
     WorkerInfo worker_info_;
     Task* task_;
