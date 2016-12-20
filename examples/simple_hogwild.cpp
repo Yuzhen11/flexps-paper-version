@@ -14,14 +14,14 @@ int main(int argc, char** argv) {
 
     auto task = TaskFactory::Get().create_task(Task::Type::HogwildTaskType, 1, 4);
     engine.AddTask(std::move(task), [](const Info& info) {
-        int dim = 100;
+        int dim = 5;
         // create a hogwild model, which means it's shared
         ml::hogwild::HogwildModel<std::vector<float>> model(*Context::get_zmq_context(), info, dim);
         std::vector<float>* p_model = model.get();
         // update p according to your data
         int j = info.get_cluster_id();
-        for (int i = 0; i < 1000; ++i) {
-            (*p_model)[j] += 1;
+        for (int i = 0; i < 10000; ++i) {
+            (*p_model)[j] += 0.01;
             j += 1;
             j %= p_model->size();
         }

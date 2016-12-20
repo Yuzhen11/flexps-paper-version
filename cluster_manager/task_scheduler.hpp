@@ -66,33 +66,80 @@ class SequentialTaskScheduler : public TaskScheduler {
             tracker.insert(kv.first);
         }
     }
-    std::shared_ptr<Instance> task_to_instance(Task& task) {
-        auto num_workers = worker_info.get_num_workers();
-        // TODO: For debug and testing only. ClusterManager needs to design workers number for GenericMLTaskType
-        if (task.get_type() == Task::Type::GenericMLTaskType && task.get_num_workers() == 0)
-            task.set_num_workers(1);
-        assert(num_workers >= task.get_num_workers());
-        // randomly select threads
+
+    /*
+     * Get workers globally
+     *
+     * Randomly select workers globally
+     */
+    std::vector<int> get_workers(int required_num_workers) {
         std::vector<int> selected_workers;
-        while (selected_workers.size() < task.get_num_workers()) {
+        int num_workers = worker_info.get_num_workers();
+        assert(num_workers >= required_num_workers);
+        while (selected_workers.size() < required_num_workers) {
             int tid = rand() % num_workers;
             while (std::find(selected_workers.begin(), selected_workers.end(), tid) != selected_workers.end()) {
                 tid = rand() % num_workers;
             }
             selected_workers.push_back(tid);
         }
+        return selected_workers;
+    }
+
+    /*
+     * Get workers locally, only used for Task::Type::HogwildTaskType
+     *
+     * Randomly select workers locally within one process
+     */
+    std::vector<int> get_local_workers(int required_num_workers) {
+        std::vector<int> selected_workers;
+        // To be simple, just randomly select a process
+        std::vector<int> pids = worker_info.get_pids();
+        int pid = rand() % pids.size();
+        int num_local_workers = worker_info.get_num_local_workers(pid);
+        assert(num_local_workers >= required_num_workers);
+        while (selected_workers.size() < required_num_workers) {
+            int tid = worker_info.local_to_global_id(pid, rand() % num_local_workers);
+            while (std::find(selected_workers.begin(), selected_workers.end(), tid) != selected_workers.end()) {
+                tid = worker_info.local_to_global_id(pid, rand() % num_local_workers);
+            }
+            selected_workers.push_back(tid);
+        }
+        return selected_workers;
+    }
+
+    /*
+     * Generate real running instance from task
+     *
+     * Be careful that instance may not be complete within the process:
+     * Empty instance -> set_task() -> set_num_workers() -> add_thread() -> complete instance
+     */
+    std::shared_ptr<Instance> task_to_instance(const Task& task) {
         // create the instance
         std::shared_ptr<Instance> instance(new Instance);
-        // TODO If the task type is GenericMLTaskType and the running type is unset, need to decide it's real running
-        // type now
+        // TODO If the task type is GenericMLTaskType and the running type is unset, 
+        // need to decide it's real running type now
         if (task.get_type() == Task::Type::GenericMLTaskType &&
-            static_cast<GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
+            static_cast<const GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
             // TODO now set to SingleTaskType for testing...
             instance->set_task(task, Task::Type::SingleTaskType);
             // instance->set_task(task, Task::Type::HogwildTaskType);
         } else {
             instance->set_task(task);
         }
+
+        // TODO: ClusterManager needs to design workers number for GenericMLTaskType if user didn't set it
+        if (task.get_type() == Task::Type::GenericMLTaskType && task.get_num_workers() == 0)
+            instance->set_num_workers(1);
+
+        // randomly select threads
+        std::vector<int> selected_workers;
+        if (instance->get_type() == Task::Type::HogwildTaskType)
+            selected_workers = get_local_workers(instance->get_num_workers());
+        else
+            selected_workers = get_workers(instance->get_num_workers());
+
+        // add threads to instance
         for (int i = 0; i < selected_workers.size(); ++i) {
             int proc_id = worker_info.get_process_id(selected_workers[i]);
             instance->add_thread(proc_id, selected_workers[i], i);

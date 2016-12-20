@@ -59,7 +59,6 @@ class HogwildModel {
             husky::zmq_send_int32(&socket_, int());
             auto ptr = husky::zmq_recv_int64(&socket_);
             model = reinterpret_cast<ModelType*>(ptr);
-            husky::base::log_msg(std::to_string(model->size()));
         }
     }
 

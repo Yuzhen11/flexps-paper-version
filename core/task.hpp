@@ -172,7 +172,7 @@ class GenericMLTask : public MLTask {
 
     void set_running_type(Type type) { running_type_ = type; }
 
-    Type get_running_type() { return running_type_; }
+    Type get_running_type() const { return running_type_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
         Task::serialize(bin);

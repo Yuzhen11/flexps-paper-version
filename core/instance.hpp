@@ -14,34 +14,34 @@ class Instance {
    public:
     Instance() = default;
 
-    Instance(Task& task, Task::Type newtype = Task::Type::DummyType) { set_task(task, newtype); }
+    Instance(const Task& task, Task::Type newtype = Task::Type::DummyType) { set_task(task, newtype); }
 
-    void set_task(Task& task, Task::Type newtype = Task::Type::DummyType) {
+    void set_task(const Task& task, Task::Type newtype = Task::Type::DummyType) {
         switch (task.get_type()) {
         case Task::Type::BasicTaskType: {  // Basic Task
             task_.reset(new Task(task));
             break;
         }
         case Task::Type::HuskyTaskType: {  // Husky Task
-            task_.reset(new HuskyTask(static_cast<HuskyTask&>(task)));
+            task_.reset(new HuskyTask(static_cast<const HuskyTask&>(task)));
             break;
         }
         case Task::Type::PSTaskType: {  // PS Task
-            task_.reset(new PSTask(static_cast<PSTask&>(task)));
+            task_.reset(new PSTask(static_cast<const PSTask&>(task)));
             break;
         }
         case Task::Type::HogwildTaskType: {  // Hogwild Task
-            task_.reset(new HogwildTask(static_cast<HogwildTask&>(task)));
+            task_.reset(new HogwildTask(static_cast<const HogwildTask&>(task)));
             break;
         }
         case Task::Type::SingleTaskType: {  // Single Task
-            task_.reset(new SingleTask(static_cast<SingleTask&>(task)));
+            task_.reset(new SingleTask(static_cast<const SingleTask&>(task)));
             break;
         }
         case Task::Type::GenericMLTaskType: {  // GenericML Task
-            if (static_cast<GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
+            if (static_cast<const GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
                 // if there's a running task, set it
-                newtype = static_cast<GenericMLTask&>(task).get_running_type();
+                newtype = static_cast<const GenericMLTask&>(task).get_running_type();
             } else {
                 // if still generic, set it according to newtype
             }
@@ -106,6 +106,7 @@ class Instance {
     // getter
     inline int get_id() const { return task_->get_id(); }
     inline int get_epoch() const { return task_->get_current_epoch(); }
+    inline int get_num_workers() const { return task_->get_num_workers(); }
     inline Task::Type get_type() const { return task_->get_type(); }
     auto& get_cluster() { return cluster_; }
     const auto& get_cluster() const { return cluster_; }
@@ -125,6 +126,7 @@ class Instance {
     // setter
     void add_thread(int proc_id, int tid, int id) { cluster_[proc_id].push_back({tid, id}); }
     void set_cluster(const std::unordered_map<int, std::vector<std::pair<int, int>>>& cluster) { cluster_ = cluster; }
+    void set_num_workers(int num_workers) { task_->set_num_workers(num_workers); }
 
     virtual BinStream& serialize(BinStream& bin) const {
         bin << task_->get_type();

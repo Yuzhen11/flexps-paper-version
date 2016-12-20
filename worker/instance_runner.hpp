@@ -105,8 +105,6 @@ class InstanceRunner {
             default:
                 throw base::HuskyException("GenericMLTaskType error");
             }
-            // reset the mlworker
-            info.get_mlworker().reset();
         }
     }
 
@@ -131,7 +129,11 @@ class InstanceRunner {
                 // run the UDF!!!
                 task_store_.get_func(instance->get_id())(info);
 
+                // postprocess
                 postprocess(instance, info);
+                // reset the mlworker
+                info.get_mlworker().reset();
+
                 if (info.get_cluster_id() == 0)
                     base::log_msg("[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + " finishes!");
 
