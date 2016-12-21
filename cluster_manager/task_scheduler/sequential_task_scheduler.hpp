@@ -1,27 +1,15 @@
 #pragma once
 
-#include <cstdlib>
-#include <ctime>
-#include <queue>
-#include <unordered_map>
-#include "core/instance.hpp"
-#include "core/task.hpp"
+#include "task_scheduler.hpp"
+#include "task_scheduler_utils.hpp"
 
 namespace husky {
-class TaskScheduler {
-   public:
-    TaskScheduler(WorkerInfo& worker_info_) : worker_info(worker_info_) {}
-    virtual void init_tasks(const std::vector<std::shared_ptr<Task>>&) = 0;
-    virtual void finish_local_instance(int instance_id, int proc_id) = 0;
-    virtual std::vector<std::shared_ptr<Instance>> extract_instances() = 0;
-    virtual bool is_finished() = 0;
 
-    virtual ~TaskScheduler(){};
-
-   protected:
-    WorkerInfo& worker_info;
-};
-
+/*
+ * SequentialTaskScheduler implements TaskScheduler
+ *
+ * It basically extracts and executes tasks from queue one by one
+ */
 class SequentialTaskScheduler : public TaskScheduler {
    public:
     SequentialTaskScheduler(WorkerInfo& worker_info_) : TaskScheduler(worker_info_) {}
@@ -117,20 +105,7 @@ class SequentialTaskScheduler : public TaskScheduler {
     std::shared_ptr<Instance> task_to_instance(const Task& task) {
         // create the instance
         std::shared_ptr<Instance> instance(new Instance);
-        // TODO If the task type is GenericMLTaskType and the running type is unset, 
-        // need to decide it's real running type now
-        if (task.get_type() == Task::Type::GenericMLTaskType &&
-            static_cast<const GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
-            // TODO now set to SingleTaskType for testing...
-            instance->set_task(task, Task::Type::SingleTaskType);
-            // instance->set_task(task, Task::Type::HogwildTaskType);
-        } else {
-            instance->set_task(task);
-        }
-
-        // TODO: ClusterManager needs to design workers number for GenericMLTaskType if user didn't set it
-        if (task.get_type() == Task::Type::GenericMLTaskType && task.get_num_workers() == 0)
-            instance->set_num_workers(1);
+        instance_basic_setup(instance, task);
 
         // randomly select threads
         std::vector<int> selected_workers;
@@ -147,4 +122,5 @@ class SequentialTaskScheduler : public TaskScheduler {
         return instance;
     }
 };
+
 }  // namespace husky

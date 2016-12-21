@@ -46,7 +46,8 @@ class ClusterManagerContext {
         for (int i = 0; i < procs.size(); ++i) {
             cluster_manager_connection.add_proc(i, "tcp://" + procs[i] + ":" + remote_port);
         }
-        cluster_manager_.setup(std::move(worker_info), std::move(cluster_manager_connection));
+        std::string task_scheduler_type = Context::get_param("task_scheduler_type");
+        cluster_manager_.setup(std::move(worker_info), std::move(cluster_manager_connection), task_scheduler_type);
     }
 
    private:

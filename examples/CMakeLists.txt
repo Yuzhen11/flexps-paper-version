@@ -109,3 +109,9 @@ add_executable(TestLoad test_load.cpp)
 target_link_libraries(TestLoad husky)
 target_link_libraries(TestLoad ${EXTERNAL_LIB})
 set_property(TARGET TestLoad PROPERTY CXX_STANDARD 14)
+
+# TestGreedy
+add_executable(TestGreedy test_greedy_task_scheduler.cpp)
+target_link_libraries(TestGreedy husky)
+target_link_libraries(TestGreedy ${EXTERNAL_LIB})
+set_property(TARGET TestGreedy PROPERTY CXX_STANDARD 14)

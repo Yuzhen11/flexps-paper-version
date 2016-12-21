@@ -30,6 +30,7 @@ class Info {
     const std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() const { return mlworker_; }
     std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() { return mlworker_; }
     Task* const get_task() const { return task_; }
+    inline int const get_task_id() const { return task_->get_id(); }
     const std::unordered_map<int, int>& get_cluster_global() const { return cluster_id_to_global_id_; }
 
     int get_tid(int cluster_id) const {

@@ -8,7 +8,8 @@
 #include "core/instance.hpp"
 #include "husky/base/serialization.hpp"
 #include "cluster_manager/cluster_manager_connection.hpp"
-#include "cluster_manager/task_scheduler.hpp"
+#include "cluster_manager/task_scheduler/sequential_task_scheduler.hpp"
+#include "cluster_manager/task_scheduler/greedy_task_scheduler.hpp"
 
 namespace husky {
 
@@ -22,18 +23,34 @@ namespace husky {
 class ClusterManager {
    public:
     ClusterManager() = default;
-    ClusterManager(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection)
+    ClusterManager(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection, const std::string& hint = "")
         : worker_info_(std::move(worker_info)),
-          cluster_manager_connection_(new ClusterManagerConnection(std::move(cluster_manager_connection))),
-          task_scheduler_(new SequentialTaskScheduler(worker_info_)),
-          is_setup(true) {}
+          cluster_manager_connection_(new ClusterManagerConnection(std::move(cluster_manager_connection))) {
+            setup_task_scheduler(hint);
+            is_setup = true;
+        }
 
     // setup
-    void setup(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection) {
+    void setup(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection, const std::string& hint = "") {
         worker_info_ = std::move(worker_info);
         cluster_manager_connection_.reset(new ClusterManagerConnection(std::move(cluster_manager_connection)));
-        task_scheduler_.reset(new SequentialTaskScheduler(worker_info_));
+        setup_task_scheduler(hint);
         is_setup = true;
+    }
+
+    void setup_task_scheduler(const std::string& hint) {
+        if (hint == "greedy") {
+            task_scheduler_.reset(new GreedyTaskScheduler(worker_info_));
+            base::log_msg("[ClusterManager]: TaskScheduler set to Greedy");
+        } else if (hint == "sequential") {
+            task_scheduler_.reset(new SequentialTaskScheduler(worker_info_));
+            base::log_msg("[ClusterManager]: TaskScheduler set to Sequential");
+        } else if (hint == "") {  // The default is sequential
+            task_scheduler_.reset(new SequentialTaskScheduler(worker_info_));
+            base::log_msg("[ClusterManager]: TaskScheduler set to Sequential");
+        } else {
+            throw base::HuskyException("[ClusterManager] setup_task_scheduler failed, unknown hint: "+hint);
+        }
     }
 
     /*
@@ -106,7 +123,7 @@ class ClusterManager {
      * Send instances to Workers
      */
     void send_instances(const std::vector<std::shared_ptr<Instance>>& instances) {
-        base::log_msg("[ClusterManager]: Assigning next instances");
+        base::log_msg("[ClusterManager]: Assigning next instances, size is "+std::to_string(instances.size()));
         auto& sockets = cluster_manager_connection_->get_send_sockets();
         for (auto& instance : instances) {
             instance->show_instance();
