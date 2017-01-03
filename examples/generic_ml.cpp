@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
     
     //  A Hogwild! Task
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task1 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);
+    auto task1 = TaskFactory::Get().create_task<GenericMLTask>();
     static_cast<MLTask*>(task1.get())->set_dimensions(10);
     static_cast<MLTask*>(task1.get())->set_kvstore(kv1);
     static_cast<GenericMLTask*>(task1.get())->set_running_type(Task::Type::HogwildTaskType);  // set the running type explicitly
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 
     // A Single Task
     int kv2 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task2 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);
+    auto task2 = TaskFactory::Get().create_task<GenericMLTask>();
     static_cast<MLTask*>(task2.get())->set_dimensions(5);
     static_cast<MLTask*>(task2.get())->set_kvstore(kv2);
     static_cast<GenericMLTask*>(task2.get())->set_running_type(Task::Type::SingleTaskType);  // set the running type explicitly
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 
     // A PS Task
     int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
-    auto task3 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);
+    auto task3 = TaskFactory::Get().create_task<GenericMLTask>();
     static_cast<MLTask*>(task3.get())->set_dimensions(5);
     static_cast<MLTask*>(task3.get())->set_kvstore(kv3);
     static_cast<GenericMLTask*>(task3.get())->set_running_type(Task::Type::PSTaskType);  // set the running type explicitly

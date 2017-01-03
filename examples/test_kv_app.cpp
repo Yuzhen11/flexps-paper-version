@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
-    auto task = TaskFactory::Get().create_task(Task::Type::PSTaskType, 1, 4);
+    auto task = TaskFactory::Get().create_task<PSTask>(1, 4);
     static_cast<PSTask*>(task.get())->set_num_ps_servers(2);
     engine.AddTask(std::move(task), [](const Info& info) {
         PSTask* ptask = static_cast<PSTask*>(info.get_task());

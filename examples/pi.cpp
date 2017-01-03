@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
-    auto task = TaskFactory::Get().create_task(Task::Type::HuskyTaskType, 1, 4);
+    auto task = TaskFactory::Get().create_task<HuskyTask>(1, 4);
     engine.AddTask(std::move(task), [](const Info& info) {
         int num_pts_per_thread = 1000;
         std::random_device rd;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
     });
     engine.Submit();
 
-    auto task2 = TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 4);
+    auto task2 = TaskFactory::Get().create_task<Task>(1, 4);
     engine.AddTask(std::move(task2), [](const Info& info) { base::log_msg("task2 running"); });
 
     engine.Submit();

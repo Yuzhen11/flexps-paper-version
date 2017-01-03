@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     auto& engine = Engine::Get();
     datastore::DataStore<std::string> data_store1(Context::get_worker_info().get_num_local_workers());
 
-    auto task = TaskFactory::Get().create_task(Task::Type::HuskyTaskType, 1, 4);
+    auto task = TaskFactory::Get().create_task<HuskyTask>(1, 4);
     engine.AddTask(std::move(task), [&data_store1](const Info& info) {
         // load
         // write to datastore
@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     });
     engine.Submit();
 
-    auto task2 = TaskFactory::Get().create_task(Task::Type::HuskyTaskType, 1, 4);
+    auto task2 = TaskFactory::Get().create_task<HuskyTask>(1, 4);
     engine.AddTask(std::move(task2), [&data_store1](const Info& info) {
         // read from datastore
         auto& local_data = data_store1.Pull(info.get_local_id());

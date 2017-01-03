@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
-    auto task = TaskFactory::Get().create_task(Task::Type::HogwildTaskType, 1, 4);
+    auto task = TaskFactory::Get().create_task<HogwildTask>(1, 4);
     engine.AddTask(std::move(task), [](const Info& info) {
         int dim = 5;
         // create a hogwild model, which means it's shared

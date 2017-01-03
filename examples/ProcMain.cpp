@@ -26,14 +26,14 @@ int main() {
 
     // add tasks
     auto task1 =
-        TaskFactory::Get().create_task(Task::Type::BasicTaskType, 1, 2);  // id: 0, total_epoch: 1, num_workers: 2
+        TaskFactory::Get().create_task<Task>(1, 2);  // id: 0, total_epoch: 1, num_workers: 2
     worker.add_task(std::move(task1), [](const Info& info) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         base::log_msg("task1 is running");
     });
 
     auto task2 =
-        TaskFactory::Get().create_task(Task::Type::BasicTaskType, 2, 1);  // id: 1, total_epoch: 2, num_workers: 1
+        TaskFactory::Get().create_task<Task>(2, 1);  // id: 1, total_epoch: 2, num_workers: 1
     worker.add_task(std::move(task2), [](const Info& info) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         base::log_msg("task2 is running");
