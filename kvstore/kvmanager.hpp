@@ -67,9 +67,13 @@ class ServerCustomer {
     int channel_id_;
 };
 
-enum class PushOp {
-    kAdd, kAssign
-};
+
+// forward declaration
+template <typename Val>
+class KVServer;
+// template alias
+template<typename Val>
+using ReqHandle = std::function<void(int, int, husky::base::BinStream&, ServerCustomer*, KVServer<Val>*)>;
 
 /*
  * KVServerBase: Base class for different kvserver
@@ -83,51 +87,16 @@ class KVServer : public KVServerBase {
    public:
 
     KVServer() = delete;
-    KVServer(PushOp push_op = PushOp::kAssign): push_op_(push_op) {}
+    KVServer(const ReqHandle<Val>& request_handler): request_handler_(request_handler){}
     ~KVServer() = default;
 
     /*
      * Handle the BinStream and then reply
      */
     virtual void HandleAndReply(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
-        bool push;  // push or not
-        int src;
-        bin >> push >> src;
-        KVPairs<Val> res;
-        if (push == true) {  // if is push
-            while (bin.size() > 0) {
-                int k;
-                Val v;
-                bin >> k >> v;
-                // husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
-                switch (push_op_) {
-                case PushOp::kAdd: {
-                    store_[k] += v;
-                    break;
-                }
-                case PushOp::kAssign: {
-                    store_[k] = v;
-                    break;
-                }
-                default: {
-                    throw husky::base::HuskyException("KVserver PushOp error");
-                }
-                }
-            }
-        } else {  // if is pull
-            while (bin.size() > 0) {
-                int k;
-                bin >> k;
-                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
-                // v:"+std::to_string(store_[k]));
-                res.keys.push_back(k);
-                res.vals.push_back(store_[k]);
-            }
-        }
-        Response(kv_id, ts, push, src, res, customer);
+        request_handler_(kv_id, ts, bin, customer, this);
     }
 
-   private:
     /*
      * response to the push/pull request
      * The whole callback process is:
@@ -143,9 +112,9 @@ class KVServer : public KVServerBase {
         customer->send(src, bin);
     }
 
-    // The real storeage
-    std::unordered_map<int, Val> store_;
-    PushOp push_op_;
+   private:
+    ReqHandle<Val> request_handler_;
+
 };
 
 /*
@@ -167,11 +136,11 @@ class KVManager {
 
     /*
      * create different kv_store
-     * make sure all the kvstore is set up before the actuall workload
+     * make sure all the kvstore is set up before the actual workload
      */
     template <typename Val>
-    void CreateKVManager(int kv_id, PushOp push_op) {
-        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(push_op))));
+    void CreateKVManager(int kv_id, const ReqHandle<Val>& request_handler) {
+        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(request_handler))));
     }
 
    private:
@@ -187,6 +156,70 @@ class KVManager {
     // customer for communication
     std::unique_ptr<ServerCustomer> customer_;
     std::unordered_map<int, std::unique_ptr<KVServerBase>> kv_store_;
+};
+
+// The default functor for add operation, used by PSTask
+template<typename Val>
+struct KVServerDefaultAddHandle {
+    void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
+        bool push;  // push or not
+        int src;
+        bin >> push >> src;
+        KVPairs<Val> res;
+        if (push == true) {  // if is push
+            while (bin.size() > 0) {
+                int k;
+                Val v;
+                bin >> k >> v;
+                // husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
+                store_[k] += v;
+            }
+        } else {  // if is pull
+            while (bin.size() > 0) {
+                int k;
+                bin >> k;
+                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
+                // v:"+std::to_string(store_[k]));
+                res.keys.push_back(k);
+                res.vals.push_back(store_[k]);
+            }
+        }
+        server->Response(kv_id, ts, push, src, res, customer);
+    }
+    // The real storeage
+    std::unordered_map<int, Val> store_;
+};
+
+// The default functor for assign operation
+template<typename Val>
+struct KVServerDefaultAssignHandle {
+    void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
+        bool push;  // push or not
+        int src;
+        bin >> push >> src;
+        KVPairs<Val> res;
+        if (push == true) {  // if is push
+            while (bin.size() > 0) {
+                int k;
+                Val v;
+                bin >> k >> v;
+                // husky::base::log_msg("[Debug][KVServer] Assigning k:"+std::to_string(k)+" v:"+std::to_string(v));
+                store_[k] = v;
+            }
+        } else {  // if is pull
+            while (bin.size() > 0) {
+                int k;
+                bin >> k;
+                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
+                // v:"+std::to_string(store_[k]));
+                res.keys.push_back(k);
+                res.vals.push_back(store_[k]);
+            }
+        }
+        server->Response(kv_id, ts, push, src, res, customer);
+    }
+    // The real storeage
+    std::unordered_map<int, Val> store_;
 };
 
 }  // namespace kvstore

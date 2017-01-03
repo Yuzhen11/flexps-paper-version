@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     });
 
     // A PS Task
-    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::PushOp::kAdd);
+    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
     auto task3 = TaskFactory::Get().create_task(Task::Type::GenericMLTaskType);
     static_cast<MLTask*>(task3.get())->set_dimensions(5);
     static_cast<MLTask*>(task3.get())->set_kvstore(kv3);
