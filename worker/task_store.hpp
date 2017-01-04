@@ -17,10 +17,12 @@ class TaskStore {
     /*
      * Add a task into the task_map, the task added should be derived from Task
      */
-    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) {
-        int tid = task->get_id();
+    template<typename TaskT>
+    void add_task(const TaskT& task, const FuncT& func) {
+        std::unique_ptr<Task> ptask(new TaskT(task));
+        int tid = ptask->get_id();
         assert(task_map.find(tid) == task_map.end());
-        task_map.insert(std::make_pair(tid, std::make_pair(std::move(task), func)));
+        task_map.insert(std::make_pair(tid, std::make_pair(std::move(ptask), func)));
         buffered_tasks.push_back(tid);
     }
     void clear_buffered_tasks() { buffered_tasks.clear(); }

@@ -30,7 +30,8 @@ class Worker {
           instance_runner(worker_info, cluster_manager_connector, task_store) {}
 
     // User need to add task to taskstore
-    void add_task(std::unique_ptr<Task>&& task, const FuncT& func) { task_store.add_task(std::move(task), func); }
+    template<typename TaskT>
+    void add_task(const TaskT& task, const FuncT& func) { task_store.add_task(task, func); }
 
     void send_tasks_to_cluster_manager() {
         // Only Proc 0 need to send tasks to cluster_manager

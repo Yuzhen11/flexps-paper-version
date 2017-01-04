@@ -14,9 +14,9 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
-    auto task = TaskFactory::Get().create_task<PSTask>(1, 4);
-    static_cast<PSTask*>(task.get())->set_num_ps_servers(2);
-    engine.AddTask(std::move(task), [](const Info& info) {
+    auto task = TaskFactory::Get().CreateTask<PSTask>(1, 4);
+    task.set_num_ps_servers(2);
+    engine.AddTask(task, [](const Info& info) {
         PSTask* ptask = static_cast<PSTask*>(info.get_task());
         if (info.get_cluster_id() == 0) {
             base::log_msg("server num:" + std::to_string(ptask->get_num_ps_servers()));

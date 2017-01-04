@@ -13,10 +13,10 @@ int main(int argc, char** argv) {
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
 
-    auto task = TaskFactory::Get().create_task<Task>(1, 1);
+    auto task = TaskFactory::Get().CreateTask<Task>(1, 1);
     int kv0 = kvstore::KVStore::Get().CreateKVStore<int>();
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    engine.AddTask(std::move(task), [kv0, kv1](const Info& info) {
+    engine.AddTask(task, [kv0, kv1](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<int> keys{0};
         std::vector<float> vals{2.0};

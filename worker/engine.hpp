@@ -26,7 +26,8 @@ class Engine {
     /*
      * Add a new task to the buffer
      */
-    void AddTask(std::unique_ptr<Task>&& task, const FuncT& func) { worker->add_task(std::move(task), func); }
+    template<typename TaskT>
+    void AddTask(const TaskT& task, const FuncT& func) { worker->add_task(task, func); }
 
     /*
      * Submit the buffered tasks to cluster_manager

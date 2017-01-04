@@ -14,8 +14,8 @@ int main(int argc, char** argv) {
     // Create DataStore
     datastore::DataStore<std::string> data_store1(Context::get_worker_info().get_num_local_workers());
 
-    auto task = TaskFactory::Get().create_task<HuskyTask>(1, 1);
-    engine.AddTask(std::move(task), [&data_store1](const Info& info) {
+    auto task = TaskFactory::Get().CreateTask<HuskyTask>(1, 1);
+    engine.AddTask(task, [&data_store1](const Info& info) {
         // load
         auto parse_func = [](boost::string_ref& chunk) {
             if (chunk.size() == 0)

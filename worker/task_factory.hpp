@@ -17,11 +17,10 @@ class TaskFactory {
     }
 
     template <typename TaskT, typename... Args>
-    std::unique_ptr<Task> create_task(Args&&... args) {
-        std::unique_ptr<Task> ptask;
-        ptask.reset(new TaskT(task_id_, std::forward<Args>(args)...));
+    TaskT CreateTask(Args&&... args) {
+        TaskT task(task_id_, std::forward<Args>(args)...);
         task_id_ += 1;
-        return ptask;
+        return task;
     }
 
    private:

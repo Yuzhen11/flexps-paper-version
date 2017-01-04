@@ -18,13 +18,13 @@ int main(int argc, char** argv) {
     
     //  A Hogwild! Task
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task1 = TaskFactory::Get().create_task<GenericMLTask>();
-    static_cast<MLTask*>(task1.get())->set_dimensions(10);
-    static_cast<MLTask*>(task1.get())->set_kvstore(kv1);
-    static_cast<GenericMLTask*>(task1.get())->set_running_type(Task::Type::HogwildTaskType);  // set the running type explicitly
-    task1->set_total_epoch(2);  // 2 epochs
-    task1->set_num_workers(4);  // 4 workers
-    engine.AddTask(std::move(task1), [](const Info& info) {
+    auto task1 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    task1.set_dimensions(10);
+    task1.set_kvstore(kv1);
+    task1.set_running_type(Task::Type::HogwildTaskType);  // set the running type explicitly
+    task1.set_total_epoch(2);  // 2 epochs
+    task1.set_num_workers(4);  // 4 workers
+    engine.AddTask(task1, [](const Info& info) {
         auto& worker = info.get_mlworker();
         // int k = 3;
         // worker->Put(k, 0.456);
@@ -40,11 +40,11 @@ int main(int argc, char** argv) {
 
     // A Single Task
     int kv2 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task2 = TaskFactory::Get().create_task<GenericMLTask>();
-    static_cast<MLTask*>(task2.get())->set_dimensions(5);
-    static_cast<MLTask*>(task2.get())->set_kvstore(kv2);
-    static_cast<GenericMLTask*>(task2.get())->set_running_type(Task::Type::SingleTaskType);  // set the running type explicitly
-    engine.AddTask(std::move(task2), [](const Info& info) {
+    auto task2 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    task2.set_dimensions(5);
+    task2.set_kvstore(kv2);
+    task2.set_running_type(Task::Type::SingleTaskType);  // set the running type explicitly
+    engine.AddTask(task2, [](const Info& info) {
         auto& worker = info.get_mlworker();
         // int k = 3;
         // worker->Put(k, 0.456);
@@ -60,12 +60,12 @@ int main(int argc, char** argv) {
 
     // A PS Task
     int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
-    auto task3 = TaskFactory::Get().create_task<GenericMLTask>();
-    static_cast<MLTask*>(task3.get())->set_dimensions(5);
-    static_cast<MLTask*>(task3.get())->set_kvstore(kv3);
-    static_cast<GenericMLTask*>(task3.get())->set_running_type(Task::Type::PSTaskType);  // set the running type explicitly
-    task3->set_num_workers(4);  // 4 workers
-    engine.AddTask(std::move(task3), [](const Info& info) {
+    auto task3 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    task3.set_dimensions(5);
+    task3.set_kvstore(kv3);
+    task3.set_running_type(Task::Type::PSTaskType);  // set the running type explicitly
+    task3.set_num_workers(4);  // 4 workers
+    engine.AddTask(task3, [](const Info& info) {
         husky::base::log_msg("PS Model running");
         auto& worker = info.get_mlworker();
         for (int i = 0; i < 100; ++ i) {
