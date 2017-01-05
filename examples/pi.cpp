@@ -1,6 +1,7 @@
 #include "husky/core/channel/push_channel.hpp"
 #include "husky/core/objlist.hpp"
 #include "worker/engine.hpp"
+#include "core/color.hpp"
 
 #include <random>
 
@@ -52,7 +53,13 @@ int main(int argc, char** argv) {
             for (auto i : ch.get(pi_object))
                 sum += i;
             int total_pts = num_pts_per_thread * info.get_num_workers();
-            husky::LOG_I << "Estimated PI :" + std::to_string(4.0 * sum / total_pts);
+            husky::LOG_I << BLUE("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
+            husky::LOG_I << YELLOW("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
+            husky::LOG_I << GREEN("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
+            husky::LOG_I << RED("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
+            husky::LOG_I << BLACK("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
+            husky::LOG_I << CLAY("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
+            husky::LOG_I << PURPLE("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
         }
     });
     engine.Submit();
