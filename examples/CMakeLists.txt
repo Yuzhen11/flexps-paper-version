@@ -110,6 +110,12 @@ target_link_libraries(TestLoad husky)
 target_link_libraries(TestLoad ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestLoad PROPERTY CXX_STANDARD 14)
 
+# TestLoadData
+add_executable(TestLoadData test_load_data.cpp)
+target_link_libraries(TestLoadData husky)
+target_link_libraries(TestLoadData ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestLoadData PROPERTY CXX_STANDARD 14)
+
 # TestGreedy
 add_executable(TestGreedy test_greedy_task_scheduler.cpp)
 target_link_libraries(TestGreedy husky)

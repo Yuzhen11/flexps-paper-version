@@ -31,6 +31,11 @@ public:
         data_[local_id]->push_back(data);
     }
 
+    void Push(int local_id, DataType&& data) {
+        assert(data_[local_id] != nullptr);
+        data_[local_id]->push_back(std::move(data));
+    }
+
     /*
      * Pull the local storage
      *
