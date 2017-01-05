@@ -14,7 +14,7 @@ class ClusterManagerConnection {
     ClusterManagerConnection(zmq::context_t* context, const std::string& bind_addr)
         : context_(context), recv_socket_(*context_, ZMQ_PULL) {
         recv_socket_.bind(bind_addr);
-        base::log_msg("[ClusterManagerConnection]: Bind to " + bind_addr);
+        husky::LOG_I << "[ClusterManagerConnection]: Bind to " + bind_addr;
     }
 
     ClusterManagerConnection(const ClusterManagerConnection&) = delete;
@@ -26,7 +26,7 @@ class ClusterManagerConnection {
     void add_proc(int proc_id, const std::string& remote_addr) {
         zmq::socket_t socket(*context_, ZMQ_PUSH);
         socket.connect(remote_addr);
-        base::log_msg("[ClusterManagerConnection]: Connect to " + remote_addr);
+        husky::LOG_I << "[ClusterManagerConnection]: Connect to " + remote_addr;
         proc_sockets_.emplace(proc_id, std::move(socket));
     }
     auto& get_send_sockets() { return proc_sockets_; }

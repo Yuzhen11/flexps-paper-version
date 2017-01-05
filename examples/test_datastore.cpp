@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
         // read from datastore
         auto& local_data = data_store1.Pull(info.get_local_id());
         for (auto& data : local_data) {
-            husky::base::log_msg("data 1: "+data);
+            husky::LOG_I << "data 1: " << data;
         }
     });
     engine.Submit();

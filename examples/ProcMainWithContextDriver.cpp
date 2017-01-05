@@ -14,10 +14,10 @@ int main(int argc, char** argv) {
     auto task1 =
         TaskFactory::Get().CreateTask<Task>(1, 2);  // id: 0, total_epoch: 1, num_workers: 2
     engine.AddTask(task1, [](const Info& info) {
-        base::log_msg("local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
-                      std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id()));
+        LOG_I << "local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
+                      std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id());
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        base::log_msg("task1 is running");
+        LOG_I << "task1 is running";
 
         // info.show();
         auto* mailbox = Context::get_mailbox(info.get_local_id());
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
                 BinStream bin = mailbox->recv(0, 0);
                 std::string recv;
                 bin >> recv;
-                base::log_msg("cluster_id:" + std::to_string(info.get_cluster_id()) + " recv: " + recv);
+                LOG_I << "cluster_id:" + std::to_string(info.get_cluster_id()) + " recv: " + recv;
             }
         } else if (info.get_cluster_id() == 1) {  // cluster_id: 1
             // send
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
                 BinStream bin = mailbox->recv(0, 0);
                 std::string recv;
                 bin >> recv;
-                base::log_msg("cluster_id:" + std::to_string(info.get_cluster_id()) + " recv: " + recv);
+                LOG_I << "cluster_id:" + std::to_string(info.get_cluster_id()) + " recv: " + recv;
             }
         }
     });
@@ -57,10 +57,10 @@ int main(int argc, char** argv) {
     auto task2 =
         TaskFactory::Get().CreateTask<Task>(2, 1);  // id: 1, total_epoch: 2, num_workers: 1
     engine.AddTask(task2, [](const Info& info) {
-        base::log_msg("local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
-                      std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id()));
+        LOG_I << "local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
+                      std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id());
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        base::log_msg("task2 is running");
+        LOG_I << "task2 is running";
     });
 
     engine.Submit();

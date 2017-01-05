@@ -76,7 +76,7 @@ class HogwildGenericModel : public common::GenericMLWorker {
      * 1. Sync() and 2. leader delete the model
      */
     ~HogwildGenericModel() {
-        husky::base::log_msg("[Debug] Hogwild destructor invokded");
+        husky::LOG_I << "[Debug] Hogwild destructor invokded";
         Sync();
         if (info_.get_cluster_id() == 0) {
             delete model_;
@@ -86,7 +86,7 @@ class HogwildGenericModel : public common::GenericMLWorker {
     void print_model() const {
         // debug
         for (int i = 0; i < model_->size(); ++i)
-            husky::base::log_msg(std::to_string((*model_)[i]));
+            husky::LOG_I << std::to_string((*model_)[i]);
     }
 
     /*
@@ -94,9 +94,9 @@ class HogwildGenericModel : public common::GenericMLWorker {
      */
     virtual void Load() override {
         if (info_.get_cluster_id() == 0) {
-            husky::base::log_msg("[Hogwild] loading");
-            husky::base::log_msg("[Hogwild] model_id:" + std::to_string(model_id_) + " local_id:" +
-                                 std::to_string(info_.get_local_id()));
+            husky::LOG_I << "[Hogwild] loading";
+            husky::LOG_I << "[Hogwild] model_id:" + std::to_string(model_id_) + " local_id:"+
+                                 std::to_string(info_.get_local_id());
 
             auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
 
@@ -115,7 +115,7 @@ class HogwildGenericModel : public common::GenericMLWorker {
     virtual void Dump() override {
         Sync();
         if (info_.get_cluster_id() == 0) {
-            husky::base::log_msg("[Hogwild] dumping");
+            husky::LOG_I << "[Hogwild] dumping";
 
             auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
 

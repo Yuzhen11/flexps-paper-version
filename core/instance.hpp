@@ -77,9 +77,9 @@ class Instance {
         int num_threads = 0;
         for (auto& kv : cluster_)
             num_threads += kv.second.size();
-        base::log_msg("[Instance]: Task id:" + std::to_string(task_->get_id()) + " Epoch:" +
+        husky::LOG_I << "[Instance]: Task id:" + std::to_string(task_->get_id()) + " Epoch:" +
                       std::to_string(task_->get_current_epoch()) + " Proc Num:" + std::to_string(cluster_.size()) +
-                      " Thread Num:" + std::to_string(num_threads));
+                      " Thread Num:" + std::to_string(num_threads);
         for (auto& kv : cluster_) {
             std::stringstream ss;
             ss << "Proc id: " << kv.first << ": { ";
@@ -87,7 +87,7 @@ class Instance {
                 ss << "<" << tid.first << "," << tid.second << "> ";
             }
             ss << "}";
-            base::log_msg("[Instance]: " + ss.str());
+            husky::LOG_I << "[Instance]: " + ss.str();
         }
     }
 
@@ -100,7 +100,7 @@ class Instance {
             ss << "<" << tid.first << "," << tid.second << "> ";
         }
         ss << "}";
-        base::log_msg("[Instance]: " + ss.str() + " Added");
+        husky::LOG_I << "[Instance]: " + ss.str() + " Added";
     }
 
     // getter

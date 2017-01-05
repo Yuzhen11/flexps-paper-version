@@ -20,16 +20,16 @@ class SingleGenericModel : public common::GenericMLWorker {
     void print_model() const {
         // debug
         for (int i = 0; i < model_.size(); ++i)
-            husky::base::log_msg(std::to_string(model_[i]));
+            husky::LOG_I << std::to_string(model_[i]);
     }
 
     /*
      * Get parameters from global kvstore
      */
     virtual void Load() override {
-        husky::base::log_msg("[Single] loading");
-        husky::base::log_msg("[Single] model_id:" + std::to_string(model_id_) + " local_id:" +
-                             std::to_string(local_id_));
+        husky::LOG_I << "[Single] loading";
+        husky::LOG_I << "[Single] model_id:" + std::to_string(model_id_) + " local_id:"+
+                             std::to_string(local_id_);
 
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
 
@@ -44,7 +44,7 @@ class SingleGenericModel : public common::GenericMLWorker {
      * Put the parameters to global kvstore
      */
     virtual void Dump() override {
-        husky::base::log_msg("[Single] dumping");
+        husky::LOG_I << "[Single] dumping";
 
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
 

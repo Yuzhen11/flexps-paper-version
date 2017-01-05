@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
     task3.set_running_type(Task::Type::PSTaskType);  // set the running type explicitly
     task3.set_num_workers(4);  // 4 workers
     engine.AddTask(task3, [](const Info& info) {
-        husky::base::log_msg("PS Model running");
+        husky::LOG_I << "PS Model running";
         auto& worker = info.get_mlworker();
         for (int i = 0; i < 100; ++ i) {
             std::vector<int> keys{3};
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
         std::vector<float> vals;
         worker->Pull(keys, &vals);
         worker->Sync();
-        husky::base::log_msg("PS Generic result is: "+std::to_string(vals[0]));
+        husky::LOG_I << "PS Generic result is: "+std::to_string(vals[0]);
     });
 
     engine.Submit();

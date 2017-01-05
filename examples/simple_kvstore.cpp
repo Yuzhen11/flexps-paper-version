@@ -23,12 +23,12 @@ int main(int argc, char** argv) {
         int ts = kvworker->PushLocal(kv1, info.get_proc_id(), keys, vals);
         // int ts = kvworker->Push(kv1, keys, vals);
         kvworker->Wait(kv1, ts);
-        husky::base::log_msg("Push Done!");
+        husky::LOG_I << "Push Done!";
 
         std::vector<float> rets;
         kvworker->Wait(kv1, kvworker->PullLocal(kv1, info.get_proc_id(), keys, &rets));
         // kvworker->Wait(kv1, kvworker->Pull(kv1, keys, &rets));
-        base::log_msg(std::to_string(rets[0]));
+        husky::LOG_I << rets[0];
     });
     engine.Submit();
     engine.Exit();

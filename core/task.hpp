@@ -71,7 +71,7 @@ class Task {
         std::stringstream ss;
         ss << "Task:" << id_ << " total_epoch:" << total_epoch_ << " current_epoch:" << current_epoch_
            << " num_workers:" << num_workers_ << " type:" << static_cast<int>(type_);
-        base::log_msg("[Task]: " + ss.str());
+        husky::LOG_I << "[Task]: " + ss.str();
     }
 
    protected:

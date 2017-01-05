@@ -41,13 +41,13 @@ class ClusterManager {
     void setup_task_scheduler(const std::string& hint) {
         if (hint == "greedy") {
             task_scheduler_.reset(new GreedyTaskScheduler(worker_info_));
-            base::log_msg("[ClusterManager]: TaskScheduler set to Greedy");
+            husky::LOG_I << "[ClusterManager]: TaskScheduler set to Greedy";
         } else if (hint == "sequential") {
             task_scheduler_.reset(new SequentialTaskScheduler(worker_info_));
-            base::log_msg("[ClusterManager]: TaskScheduler set to Sequential");
+            husky::LOG_I << "[ClusterManager]: TaskScheduler set to Sequential";
         } else if (hint == "") {  // The default is sequential
             task_scheduler_.reset(new SequentialTaskScheduler(worker_info_));
-            base::log_msg("[ClusterManager]: TaskScheduler set to Sequential");
+            husky::LOG_I << "[ClusterManager]: TaskScheduler set to Sequential";
         } else {
             throw base::HuskyException("[ClusterManager] setup_task_scheduler failed, unknown hint: "+hint);
         }
@@ -61,7 +61,7 @@ class ClusterManager {
         auto& recv_socket = cluster_manager_connection_->get_recv_socket();
         while (true) {
             int type = zmq_recv_int32(&recv_socket);
-            base::log_msg("[ClusterManager]: Type: " + std::to_string(type));
+            husky::LOG_I << "[ClusterManager]: Type: " + std::to_string(type);
             if (type == constants::kClusterManagerInit) {
                 // 1. Received tasks from Worker
                 recv_tasks_from_worker();
@@ -74,8 +74,7 @@ class ClusterManager {
                 int instance_id, proc_id;
                 bin >> instance_id >> proc_id;
                 task_scheduler_->finish_local_instance(instance_id, proc_id);
-                base::log_msg("[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " +
-                              std::to_string(proc_id) + " done");
+                husky::LOG_I << "[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " + std::to_string(proc_id) + " done";
 
                 // 2. Extract instances
                 extract_instaces();
@@ -98,9 +97,9 @@ class ClusterManager {
         auto tasks = task::extract_tasks(bin);
         task_scheduler_->init_tasks(tasks);
         for (auto& task : tasks) {
-            base::log_msg("[ClusterManager]: Task: " + std::to_string(task->get_id()) + " added");
+            husky::LOG_I << "[ClusterManager]: Task: " + std::to_string(task->get_id()) + " added";
         }
-        base::log_msg("[ClusterManager]: Totally " + std::to_string(tasks.size()) + " tasks received");
+        husky::LOG_I << "[ClusterManager]: Totally " + std::to_string(tasks.size()) + " tasks received";
     }
 
     /*
@@ -123,7 +122,7 @@ class ClusterManager {
      * Send instances to Workers
      */
     void send_instances(const std::vector<std::shared_ptr<Instance>>& instances) {
-        base::log_msg("[ClusterManager]: Assigning next instances, size is "+std::to_string(instances.size()));
+        husky::LOG_I << "[ClusterManager]: Assigning next instances, size is "+std::to_string(instances.size());
         auto& sockets = cluster_manager_connection_->get_send_sockets();
         for (auto& instance : instances) {
             instance->show_instance();

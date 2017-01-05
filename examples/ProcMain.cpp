@@ -29,14 +29,14 @@ int main() {
         TaskFactory::Get().CreateTask<Task>(1, 2);  // id: 0, total_epoch: 1, num_workers: 2
     worker.add_task(task1, [](const Info& info) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        base::log_msg("task1 is running");
+        husky::LOG_I << "task1 is running";
     });
 
     auto task2 =
         TaskFactory::Get().CreateTask<Task>(2, 1);  // id: 1, total_epoch: 2, num_workers: 1
     worker.add_task(task2, [](const Info& info) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        base::log_msg("task2 is running");
+        husky::LOG_I << "task2 is running";
     });
 
     worker.send_tasks_to_cluster_manager();

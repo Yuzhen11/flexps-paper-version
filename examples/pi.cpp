@@ -52,13 +52,13 @@ int main(int argc, char** argv) {
             for (auto i : ch.get(pi_object))
                 sum += i;
             int total_pts = num_pts_per_thread * info.get_num_workers();
-            base::log_msg("Estimated PI :" + std::to_string(4.0 * sum / total_pts));
+            husky::LOG_I << "Estimated PI :" + std::to_string(4.0 * sum / total_pts);
         }
     });
     engine.Submit();
 
     auto task2 = TaskFactory::Get().CreateTask<Task>(1, 4);
-    engine.AddTask(task2, [](const Info& info) { base::log_msg("task2 running"); });
+    engine.AddTask(task2, [](const Info& info) { husky::LOG_I << "task2 running"; });
 
     engine.Submit();
     engine.Exit();

@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         auto parse_func = [](boost::string_ref& chunk) {
             if (chunk.size() == 0)
                 return;
-            husky::base::log_msg(chunk.to_string());
+            husky::LOG_I << chunk.to_string();
         };
         husky::io::LineInputFormat infmt;
         infmt.set_input(husky::Context::get_param("input"));

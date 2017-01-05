@@ -39,7 +39,7 @@ class Info {
     }
     void show() const {
         for (auto& kv : cluster_id_to_global_id_) {
-            base::log_msg("Info: " + std::to_string(kv.first) + " " + std::to_string(kv.second));
+            husky::LOG_I << "Info: " + std::to_string(kv.first) + " " + std::to_string(kv.second);
         }
     }
 

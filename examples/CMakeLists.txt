@@ -34,84 +34,84 @@ endif(MONGOCLIENT_FOUND)
 # ProcMain
 add_executable(ProcMain ProcMain.cpp)
 target_link_libraries(ProcMain husky)
-target_link_libraries(ProcMain ${EXTERNAL_LIB})
+target_link_libraries(ProcMain ${HUSKY_EXTERNAL_LIB})
 
 set_property(TARGET ProcMain PROPERTY CXX_STANDARD 14)
 
 # ClusterManagerMain
 add_executable(ClusterManagerMain ClusterManagerMain.cpp)
 target_link_libraries(ClusterManagerMain husky)
-target_link_libraries(ClusterManagerMain ${EXTERNAL_LIB})
+target_link_libraries(ClusterManagerMain ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET ClusterManagerMain PROPERTY CXX_STANDARD 14)
 
 # ProcMainWithContext
 add_executable(ProcMainWithContext ProcMainWithContext.cpp)
 target_link_libraries(ProcMainWithContext husky)
-target_link_libraries(ProcMainWithContext ${EXTERNAL_LIB})
+target_link_libraries(ProcMainWithContext ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET ProcMainWithContext PROPERTY CXX_STANDARD 14)
 
 # ProcMainWithContextDriver
 add_executable(ProcMainWithContextDriver ProcMainWithContextDriver.cpp)
 target_link_libraries(ProcMainWithContextDriver husky)
-target_link_libraries(ProcMainWithContextDriver ${EXTERNAL_LIB})
+target_link_libraries(ProcMainWithContextDriver ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET ProcMainWithContextDriver PROPERTY CXX_STANDARD 14)
 
 # ClusterManagerMainWithContext
 add_executable(ClusterManagerMainWithContext ClusterManagerMainWithContext.cpp $<TARGET_OBJECTS:husky-master-objs>)
 target_link_libraries(ClusterManagerMainWithContext husky)
-target_link_libraries(ClusterManagerMainWithContext ${EXTERNAL_LIB})
+target_link_libraries(ClusterManagerMainWithContext ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET ClusterManagerMainWithContext PROPERTY CXX_STANDARD 14)
 
 # TestPI
 add_executable(TestPI pi.cpp)
 target_link_libraries(TestPI husky)
-target_link_libraries(TestPI ${EXTERNAL_LIB})
+target_link_libraries(TestPI ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestPI PROPERTY CXX_STANDARD 14)
 
 # SimpleKVApp
 add_executable(SimpleKVApp simple_kv_app.cpp)
 target_link_libraries(SimpleKVApp husky)
-target_link_libraries(SimpleKVApp ${EXTERNAL_LIB})
+target_link_libraries(SimpleKVApp ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SimpleKVApp PROPERTY CXX_STANDARD 14)
 
 # TestKVApp
 add_executable(TestKVApp test_kv_app.cpp)
 target_link_libraries(TestKVApp husky)
-target_link_libraries(TestKVApp ${EXTERNAL_LIB})
+target_link_libraries(TestKVApp ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestKVApp PROPERTY CXX_STANDARD 14)
 
 # SimpleHogwild
 add_executable(SimpleHogwild simple_hogwild.cpp)
 target_link_libraries(SimpleHogwild husky)
-target_link_libraries(SimpleHogwild ${EXTERNAL_LIB})
+target_link_libraries(SimpleHogwild ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SimpleHogwild PROPERTY CXX_STANDARD 14)
 
 # SimpleKVStore
 add_executable(SimpleKVStore simple_kvstore.cpp)
 target_link_libraries(SimpleKVStore husky)
-target_link_libraries(SimpleKVStore ${EXTERNAL_LIB})
+target_link_libraries(SimpleKVStore ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SimpleKVStore PROPERTY CXX_STANDARD 14)
 
 # GenericML
 add_executable(GenericML generic_ml.cpp)
 target_link_libraries(GenericML husky)
-target_link_libraries(GenericML ${EXTERNAL_LIB})
+target_link_libraries(GenericML ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET GenericML PROPERTY CXX_STANDARD 14)
 
 # TestDatastore
 add_executable(TestDatastore test_datastore.cpp)
 target_link_libraries(TestDatastore husky)
-target_link_libraries(TestDatastore ${EXTERNAL_LIB})
+target_link_libraries(TestDatastore ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestDatastore PROPERTY CXX_STANDARD 14)
 
 # TestLoad
 add_executable(TestLoad test_load.cpp)
 target_link_libraries(TestLoad husky)
-target_link_libraries(TestLoad ${EXTERNAL_LIB})
+target_link_libraries(TestLoad ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestLoad PROPERTY CXX_STANDARD 14)
 
 # TestGreedy
 add_executable(TestGreedy test_greedy_task_scheduler.cpp)
 target_link_libraries(TestGreedy husky)
-target_link_libraries(TestGreedy ${EXTERNAL_LIB})
+target_link_libraries(TestGreedy ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestGreedy PROPERTY CXX_STANDARD 14)

@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
         model.sync();
         if (info.get_cluster_id() == 0) {
             for (int i = 0; i < p_model->size(); ++i) {
-                husky::base::log_msg(std::to_string((*p_model)[i]));
+            husky::LOG_I << (*p_model)[i];
             }
         }
 

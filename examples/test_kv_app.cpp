@@ -19,11 +19,11 @@ int main(int argc, char** argv) {
     engine.AddTask(task, [](const Info& info) {
         PSTask* ptask = static_cast<PSTask*>(info.get_task());
         if (info.get_cluster_id() == 0) {
-            base::log_msg("server num:" + std::to_string(ptask->get_num_ps_servers()));
-            base::log_msg("worker num:" + std::to_string(ptask->get_num_ps_workers()));
+            husky::LOG_I << "server num:" + std::to_string(ptask->get_num_ps_servers());
+            husky::LOG_I << "worker num:" + std::to_string(ptask->get_num_ps_workers());
         }
         if (ptask->is_worker(info.get_cluster_id())) {
-            base::log_msg(std::to_string(info.get_cluster_id()) + ": I am a worker");
+            husky::LOG_I << std::to_string(info.get_cluster_id()) + ": I am a worker";
             ml::ps::KVWorker<float> kv(ml::ps::info2psinfo(info), *Context::get_mailbox(info.get_local_id()));
             int num = 10000;
             std::vector<int> keys(num);
@@ -58,11 +58,11 @@ int main(int argc, char** argv) {
             for (int i = 0; i < num; ++i) {
                 res += fabs(rets[i] - vals[i] * repeat);
             }
-            base::log_msg("error: " + std::to_string(res));
+            husky::LOG_I << "error: " + std::to_string(res);
 
             kv.ShutDown();
         } else if (ptask->is_server(info.get_cluster_id())) {
-            base::log_msg(std::to_string(info.get_cluster_id()) + ": I am a server");
+            husky::LOG_I << std::to_string(info.get_cluster_id()) + ": I am a server";
             ml::ps::KVServer<float> kvserver(ml::ps::info2psinfo(info), *Context::get_mailbox(info.get_local_id()));
             kvserver.ShutDown();
         }

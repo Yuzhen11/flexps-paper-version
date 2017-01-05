@@ -17,14 +17,14 @@ class ClusterManagerConnector {
           cluster_manager_addr_(cluster_manager_addr),
           host_name_(host_name) {
         recv_socket_.bind(bind_addr_);
-        base::log_msg("[ClusterManagerConnector]: Bind to " + bind_addr_);
+        husky::LOG_I << "[ClusterManagerConnector]: Bind to " + bind_addr_;
         send_socket_.connect(cluster_manager_addr_);
-        base::log_msg("[ClusterManagerConnector]: Connect to " + cluster_manager_addr_);
+        husky::LOG_I << "[ClusterManagerConnector]: Connect to " + cluster_manager_addr_;
 
         local_addr_ = bind_addr_;
         auto pos = local_addr_.find("*");
         local_addr_.replace(pos, 1, host_name_);
-        base::log_msg("[ClusterManagerConnector]: Local address: " + local_addr_);
+        husky::LOG_I << "[ClusterManagerConnector]: Local address: " + local_addr_;
     }
 
     ClusterManagerConnector(const ClusterManagerConnector&) = delete;
