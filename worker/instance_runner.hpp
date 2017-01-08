@@ -55,7 +55,7 @@ class InstanceRunner {
             switch (instance->get_type()) {
             case Task::Type::PSTaskType: {
                 husky::LOG_I << "[Debug][run_instance] setting to PS generic";
-                info.set_mlworker(new ml::ps::PSGenericModel(
+                info.set_mlworker(new ml::ps::PsBspGenericModel(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id()));
                 break;
             }

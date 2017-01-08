@@ -3,6 +3,9 @@
 #include "ml/common/mlworker.hpp"
 #include "worker/engine.hpp"
 
+#include "core/color.hpp"
+#include "kvstore/consistency/bsp.hpp"
+
 using namespace husky;
 
 int main(int argc, char** argv) {
@@ -59,26 +62,26 @@ int main(int argc, char** argv) {
     });
 
     // A PS Task
-    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
+    // int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
+    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(4, true));  // for bsp server
     auto task3 = TaskFactory::Get().CreateTask<GenericMLTask>();
     task3.set_dimensions(5);
     task3.set_kvstore(kv3);
     task3.set_running_type(Task::Type::PSTaskType);  // set the running type explicitly
     task3.set_num_workers(4);  // 4 workers
-    engine.AddTask(task3, [](const Info& info) {
+    engine.AddTask(task3, [kv3](const Info& info) {
         husky::LOG_I << "PS Model running";
         auto& worker = info.get_mlworker();
-        for (int i = 0; i < 100; ++ i) {
-            std::vector<int> keys{3};
-            std::vector<float> vals{0.456};
+        for (int i = 0; i < 10; ++ i) {
+            std::vector<float> rets;
+            std::vector<int> keys{0};
+            // pull
+            worker->Pull(keys, &rets);
+            husky::LOG_I << BLUE("id:"+std::to_string(info.get_local_id())+" iter "+std::to_string(i)+": "+std::to_string(rets[0]));
+            // push
+            std::vector<float> vals{2.0};
             worker->Push(keys, vals);
-            worker->Sync();
         }
-        std::vector<int> keys{3};
-        std::vector<float> vals;
-        worker->Pull(keys, &vals);
-        worker->Sync();
-        husky::LOG_I << "PS Generic result is: "+std::to_string(vals[0]);
     });
 
     engine.Submit();
