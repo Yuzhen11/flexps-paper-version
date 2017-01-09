@@ -13,11 +13,11 @@ namespace ml {
 namespace hogwild {
 
 /*
- * For the HogwildGenericModel, the type ModelType is now fixed to std::vector<float>
+ * For the HogwildGenericWorker, the type ModelType is now fixed to std::vector<float>
  */
-class HogwildGenericModel : public common::GenericMLWorker {
+class HogwildGenericWorker : public common::GenericMLWorker {
    public:
-    HogwildGenericModel() = delete;
+    HogwildGenericWorker() = delete;
     /*
      * constructor to construct a hogwild model
      * \param context zmq_context
@@ -25,7 +25,7 @@ class HogwildGenericModel : public common::GenericMLWorker {
      * \param args variable args to initialize the variables
      */
     template <typename... Args>
-    HogwildGenericModel(int model_id, zmq::context_t& context, const husky::Info& info, Args&&... args)
+    HogwildGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, Args&&... args)
         : info_(info),
           model_id_(model_id),
           context_(context),
@@ -75,7 +75,7 @@ class HogwildGenericModel : public common::GenericMLWorker {
      * destructor
      * 1. Sync() and 2. leader delete the model
      */
-    ~HogwildGenericModel() {
+    ~HogwildGenericWorker() {
         husky::LOG_I << "[Debug] Hogwild destructor invokded";
         Sync();
         if (info_.get_cluster_id() == 0) {

@@ -55,13 +55,13 @@ class InstanceRunner {
             switch (instance->get_type()) {
             case Task::Type::PSTaskType: {
                 husky::LOG_I << "[Debug][run_instance] setting to PS generic";
-                info.set_mlworker(new ml::ps::PsBspGenericModel(
+                info.set_mlworker(new ml::ps::PSGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id()));
                 break;
             }
             case Task::Type::SingleTaskType: {
                 husky::LOG_I << "[Debug][run_instance] setting to Single generic";
-                info.set_mlworker(new ml::single::SingleGenericModel(
+                info.set_mlworker(new ml::single::SingleGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
                     static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
@@ -69,7 +69,7 @@ class InstanceRunner {
             }
             case Task::Type::HogwildTaskType: {
                 husky::LOG_I << "[Debug][run_instance] setting to Hogwild! generic";
-                info.set_mlworker(new ml::hogwild::HogwildGenericModel(
+                info.set_mlworker(new ml::hogwild::HogwildGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(), info,
                     static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();

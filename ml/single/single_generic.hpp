@@ -9,12 +9,12 @@
 namespace ml {
 namespace single {
 
-class SingleGenericModel : public common::GenericMLWorker {
+class SingleGenericWorker: public common::GenericMLWorker {
    public:
-    SingleGenericModel() = default;
+    SingleGenericWorker() = default;
 
     template <typename... Args>
-    SingleGenericModel(int model_id, int local_id, Args&&... args)
+    SingleGenericWorker(int model_id, int local_id, Args&&... args)
         : model_id_(model_id), local_id_(local_id), model_(std::forward<Args>(args)...) {}
 
     void print_model() const {

@@ -58,6 +58,7 @@ struct KVServerSSPHandle {
                     KVPairs<Val> res = retrieve(std::get<2>(pull_pair));
                     server->Response(kv_id, std::get<1>(pull_pair), 0, std::get<0>(pull_pair), res, customer);
                 }
+                blocked_pulls_.clear();
             }
             worker_progress_[src] += 1;
         } else {  // if is pull
