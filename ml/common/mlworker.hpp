@@ -28,10 +28,10 @@ class GenericMLWorker {
      * Push/Pull APIs are very suitable for PS, but may not be suitable for
      * Hogwild! and Single
      */
-    virtual int Push(const std::vector<int>& keys, const std::vector<float>& vals, const Callback& cb = nullptr) {
+    virtual void Push(const std::vector<int>& keys, const std::vector<float>& vals) {
         throw husky::base::HuskyException("Push Not implemented");
     }
-    virtual int Pull(const std::vector<int>& keys, std::vector<float>* vals, const Callback& cb = nullptr) {
+    virtual void Pull(const std::vector<int>& keys, std::vector<float>* vals) {
         throw husky::base::HuskyException("Pull Not implemented");
     }
 

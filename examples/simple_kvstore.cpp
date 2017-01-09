@@ -2,8 +2,6 @@
 #include "worker/engine.hpp"
 
 #include "core/color.hpp"
-#include "kvstore/consistency/bsp_server.hpp"
-#include "kvstore/consistency/ssp_server.hpp"
 
 using namespace husky;
 
@@ -35,8 +33,8 @@ int main(int argc, char** argv) {
     });
     engine.Submit();
 
+    // Test KVStore using KVServerBSPHandle: BSP
     task = TaskFactory::Get().CreateTask<Task>(1, 4);
-    // int kv2 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
     int kv2 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(4, true));
     engine.AddTask(task, [kv2](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
@@ -44,7 +42,7 @@ int main(int argc, char** argv) {
             std::vector<float> rets;
             std::vector<int> keys{0};
             // pull
-            kvworker->Wait(kv2, kvworker->Pull(kv2, keys, &rets));  // in BSP, expect to see all the update
+            kvworker->Wait(kv2, kvworker->Pull(kv2, keys, &rets));  // In BSP, expect to see all the update
             husky::LOG_I << BLUE("id:"+std::to_string(info.get_local_id())+" iter "+std::to_string(i)+": "+std::to_string(rets[0]));
             // push
             std::vector<float> vals{1.0};
@@ -53,6 +51,7 @@ int main(int argc, char** argv) {
     });
     engine.Submit();
 
+    // Test KVStore using KVServerSSPHandle: SSP
     task = TaskFactory::Get().CreateTask<Task>(1, 4);
     int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerSSPHandle<float>(4, 1));  // staleness: 1
     engine.AddTask(task, [kv3](const Info& info) {
@@ -61,11 +60,29 @@ int main(int argc, char** argv) {
             std::vector<float> rets;
             std::vector<int> keys{0};
             // pull
-            kvworker->Wait(kv3, kvworker->Pull(kv3, keys, &rets));  // in SSP, the difference parameter of each worker in the same iter should be at most staleness*num_workers*2-2?
+            kvworker->Wait(kv3, kvworker->Pull(kv3, keys, &rets));  // In SSP, the difference of parameter in each worker in the same iter should be at most staleness*num_workers*2-2?
             husky::LOG_I << GREEN("id:"+std::to_string(info.get_local_id())+" iter "+std::to_string(i)+": "+std::to_string(rets[0]));
             // push
             std::vector<float> vals{1.0};
             kvworker->Wait(kv3, kvworker->Push(kv3, keys, vals));
+        }
+    });
+    engine.Submit();
+
+    // Test KVStore using KVServerDefaultAddHandle: ASP 
+    task = TaskFactory::Get().CreateTask<Task>(1, 4);
+    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
+    engine.AddTask(task, [kv4](const Info& info) {
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
+        for (int i = 0; i < 10; ++ i) {
+            std::vector<float> rets;
+            std::vector<int> keys{0};
+            // pull
+            kvworker->Wait(kv4, kvworker->Pull(kv4, keys, &rets));  // In BSP, expect to see all the update
+            husky::LOG_I << BLUE("id:"+std::to_string(info.get_local_id())+" iter "+std::to_string(i)+": "+std::to_string(rets[0]));
+            // push
+            std::vector<float> vals{1.0};
+            kvworker->Wait(kv4, kvworker->Push(kv4, keys, vals));
         }
     });
     engine.Submit();

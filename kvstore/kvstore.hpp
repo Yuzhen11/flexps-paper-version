@@ -7,6 +7,10 @@
 #include "kvmanager.hpp"
 #include "kvworker.hpp"
 
+#include "handles/basic_server.hpp"
+#include "handles/ssp_server.hpp"
+#include "handles/bsp_server.hpp"
+
 namespace kvstore {
 
 /*

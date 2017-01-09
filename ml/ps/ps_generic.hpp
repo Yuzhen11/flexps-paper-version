@@ -8,6 +8,8 @@ namespace ps {
 /*
  * Generic model for PS
  *
+ * Just a wraper for kvstore::KVWorker, so users doesn't need to care about wait and timestamp
+ *
  * ASP/BSP/SSP may all use this worker
  * SSP may have other workers 
  *
@@ -19,20 +21,18 @@ class PSGenericWorker : public common::GenericMLWorker {
     PSGenericWorker(int model_id, int local_id): model_id_(model_id),
         kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)) {
     }
-    virtual int Push(const std::vector<int>& keys, const std::vector<float>& vals, const Callback& cb = nullptr) override {
+    virtual void Push(const std::vector<int>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
-        ts_ = kvworker_->Push(model_id_, keys, vals, cb);
-        return ts_;
+        ts_ = kvworker_->Push(model_id_, keys, vals, nullptr);
     }
-    virtual int Pull(const std::vector<int>& keys, std::vector<float>* vals, const Callback& cb = nullptr) override {
+    virtual void Pull(const std::vector<int>& keys, std::vector<float>* vals) override {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         if (ts_ != -1)
             kvworker_->Wait(model_id_, ts_);  // Wait for last Push
-        ts_ = kvworker_->Pull(model_id_, keys, vals, cb);
+        ts_ = kvworker_->Pull(model_id_, keys, vals, nullptr);
         kvworker_->Wait(model_id_, ts_);  // Wait for this Pull
-        return ts_;
     }
    private:
     int model_id_;
