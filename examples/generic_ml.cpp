@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
     auto task3 = TaskFactory::Get().CreateTask<GenericMLTask>();
     task3.set_dimensions(5);
     task3.set_kvstore(kv3);
-    task3.set_running_type(Task::Type::PSTaskType);  // set the running type explicitly
+    task3.set_running_type(Task::Type::PSBSPTaskType);  // set the running type explicitly
     task3.set_num_workers(4);  // 4 workers
     engine.AddTask(task3, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     auto task4 = TaskFactory::Get().CreateTask<GenericMLTask>();
     task4.set_dimensions(5);
     task4.set_kvstore(kv4);
-    task4.set_running_type(Task::Type::PSTaskType);  // set the running type explicitly
+    task4.set_running_type(Task::Type::PSSSPTaskType);  // set the running type explicitly
     task4.set_num_workers(4);  // 4 workers
     engine.AddTask(task4, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
     auto task5 = TaskFactory::Get().CreateTask<GenericMLTask>();
     task5.set_dimensions(5);
     task5.set_kvstore(kv5);
-    task5.set_running_type(Task::Type::PSTaskType);  // set the running type explicitly
+    task5.set_running_type(Task::Type::PSASPTaskType);  // set the running type explicitly
     task5.set_num_workers(4);  // 4 workers
     engine.AddTask(task5, [](const Info& info) {
         if (info.get_cluster_id() == 0)

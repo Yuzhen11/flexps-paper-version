@@ -21,6 +21,9 @@ class Task {
     enum class Type {
         BasicTaskType,
         PSTaskType,
+        PSASPTaskType,
+        PSSSPTaskType,
+        PSBSPTaskType,
         HogwildTaskType,
         SingleTaskType,
         GenericMLTaskType,
@@ -104,6 +107,8 @@ class MLTask : public Task {
 };
 
 /*
+ * Deprecated
+ *
  * Parameter Server Model Task
  */
 class PSTask : public MLTask {
@@ -128,6 +133,19 @@ class PSTask : public MLTask {
 
    private:
     int num_servers_ = 1;
+};
+
+/*
+ * PSGenericTask,
+ * type can be PSBSPTaskType, PSSSPTaskType, PSASPTaskType
+ */
+class PSGenericTask : public MLTask {
+   public:
+    // For serialization usage only
+    PSGenericTask() = default;
+    PSGenericTask(int id, Type type) : MLTask(id, type) {}
+    friend BinStream& operator<<(BinStream& bin, const PSGenericTask& task) { return task.serialize(bin); }
+    friend BinStream& operator>>(BinStream& bin, PSGenericTask& task) { return task.deserialize(bin); }
 };
 
 /*
@@ -205,13 +223,6 @@ class HuskyTask : public Task {
 namespace task {
 namespace {
 // Conversion functions to cast down along the task hierarchy
-Task& get_task(const std::shared_ptr<Task>& task) { return *task.get(); }
-PSTask& get_pstask(const std::shared_ptr<Task>& task) { return *dynamic_cast<PSTask*>(task.get()); }
-HuskyTask& get_huskytask(const std::shared_ptr<Task>& task) { return *dynamic_cast<HuskyTask*>(task.get()); }
-HogwildTask& get_hogwildtask(const std::shared_ptr<Task>& task) { return *dynamic_cast<HogwildTask*>(task.get()); }
-GenericMLTask& get_genericmltask(const std::shared_ptr<Task>& task) {
-    return *dynamic_cast<GenericMLTask*>(task.get());
-}
 
 std::unique_ptr<Task> deserialize(BinStream& bin) {
     Task::Type type;
@@ -232,6 +243,14 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
     }
     case Task::Type::PSTaskType: {  // PS Task
         PSTask* task = new PSTask();
+        bin >> *task;
+        ret.reset(task);
+        break;
+    }
+    case Task::Type::PSBSPTaskType:
+    case Task::Type::PSSSPTaskType:
+    case Task::Type::PSASPTaskType: {  // PS Task
+        PSGenericTask* task = new PSGenericTask();
         bin >> *task;
         ret.reset(task);
         break;

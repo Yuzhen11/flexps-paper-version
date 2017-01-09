@@ -47,15 +47,23 @@ class Instance {
             }
             assert(newtype != Task::Type::DummyType);
             switch (newtype) {
-            case Task::Type::PSTaskType: {
-                task_.reset(new PSTask(task.get_id()));
+            case Task::Type::PSBSPTaskType: {  // PS BSP
+                task_.reset(new PSGenericTask(task.get_id(), Task::Type::PSBSPTaskType));
                 break;
             }
-            case Task::Type::HogwildTaskType: {
+            case Task::Type::PSSSPTaskType: {  // PS SSP
+                task_.reset(new PSGenericTask(task.get_id(), Task::Type::PSSSPTaskType));
+                break;
+            }
+            case Task::Type::PSASPTaskType: {  // PS ASP
+                task_.reset(new PSGenericTask(task.get_id(), Task::Type::PSASPTaskType));
+                break;
+            }
+            case Task::Type::HogwildTaskType: {  // Hogwild!
                 task_.reset(new HogwildTask(task.get_id()));
                 break;
             }
-            case Task::Type::SingleTaskType: {
+            case Task::Type::SingleTaskType: {  // Single
                 task_.reset(new SingleTask(task.get_id()));
                 break;
             }
@@ -93,6 +101,10 @@ class Instance {
 
     void show_instance(int proc_id) const {
         auto iter = cluster_.find(proc_id);
+        if (iter == cluster_.end()) {
+            husky::LOG_I << "No instance added in Proc id: " << proc_id;
+            return;
+        }
         std::stringstream ss;
         task_->show();
         ss << "Task id:" << task_->get_id() << " Proc id:" << iter->first << ": { ";
@@ -110,11 +122,14 @@ class Instance {
     inline Task::Type get_type() const { return task_->get_type(); }
     auto& get_cluster() { return cluster_; }
     const auto& get_cluster() const { return cluster_; }
-    auto get_threads(int proc_id) const {
+    std::vector<std::pair<int, int>> get_threads(int proc_id) const {
         auto it = cluster_.find(proc_id);
-        return it->second;
+        if (it == cluster_.end())
+            return {};
+        else 
+            return it->second;
     }
-    auto get_num_threads() const {
+    int get_num_threads() const {
         int total_threads = 0;
         for (auto& kv : cluster_) {
             total_threads += kv.second.size();

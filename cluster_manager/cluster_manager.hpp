@@ -129,11 +129,10 @@ class ClusterManager {
             base::BinStream bin;
             // TODO Support different types of instance in hierarchy
             instance->serialize(bin);
-            auto& cluster = instance->get_cluster();
-            for (auto& kv : cluster) {
-                auto it = sockets.find(kv.first);
-                zmq_sendmore_int32(&it->second, constants::kTaskType);
-                zmq_send_binstream(&it->second, bin);
+            auto& proc_sockets = cluster_manager_connection_->get_send_sockets();
+            for (auto& socket : proc_sockets) { // send to all processes
+                zmq_sendmore_int32(&socket.second, constants::kTaskType);
+                zmq_send_binstream(&socket.second, bin);
             }
         }
     }

@@ -80,7 +80,6 @@ class Worker {
             // husky::LOG_I << "[Worker]: Msg Type: " + std::to_string(type);
             if (type == constants::kTaskType) {
                 auto bin = zmq_recv_binstream(&socket);
-                // TODO Support different types of instance in hierarchy
                 std::shared_ptr<Instance> instance(new Instance);
                 instance->deserialize(bin);
                 // Print debug info

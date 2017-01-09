@@ -53,7 +53,9 @@ class InstanceRunner {
         if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
             husky::LOG_I << "type: " + std::to_string(static_cast<int>(instance->get_type()));
             switch (instance->get_type()) {
-            case Task::Type::PSTaskType: {
+            case Task::Type::PSBSPTaskType:
+            case Task::Type::PSSSPTaskType:
+            case Task::Type::PSASPTaskType: {
                 husky::LOG_I << "[Debug][run_instance] setting to PS generic";
                 info.set_mlworker(new ml::ps::PSGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id()));
@@ -88,7 +90,9 @@ class InstanceRunner {
     void postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
         if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
             switch (instance->get_type()) {
-            case Task::Type::PSTaskType: {
+            case Task::Type::PSBSPTaskType:
+            case Task::Type::PSSSPTaskType:
+            case Task::Type::PSASPTaskType: {
                 husky::LOG_I << "[Debug][run_instance] PS generic done";
                 break;
             }
@@ -115,6 +119,9 @@ class InstanceRunner {
         assert(instances_.find(instance->get_id()) == instances_.end());
         // retrieve local threads
         auto local_threads = extract_local_instance(instance);
+        if (local_threads.empty()) {
+            return;
+        }
         instances_.insert({instance->get_id(), instance});  // store the instance
 
         for (auto tid_cid : local_threads) {
