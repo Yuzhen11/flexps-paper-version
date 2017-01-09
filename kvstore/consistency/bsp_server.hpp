@@ -6,8 +6,6 @@
 #include "husky/base/serialization.hpp"
 #include "kvstore/kvmanager.hpp"
 
-#include <iostream>
-
 namespace kvstore {
 
 /*

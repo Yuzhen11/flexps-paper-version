@@ -4,7 +4,7 @@
 #include "worker/engine.hpp"
 
 #include "core/color.hpp"
-#include "kvstore/consistency/bsp.hpp"
+#include "kvstore/consistency/bsp_server.hpp"
 
 using namespace husky;
 
