@@ -38,7 +38,7 @@ class SingleGenericWorker: public common::GenericMLWorker {
             keys[i] = i;
         int ts = kvworker->Pull(model_id_, keys, &model_);
         kvworker->Wait(model_id_, ts);
-        print_model();
+        //print_model();
     }
     /*
      * Put the parameters to global kvstore
@@ -55,7 +55,7 @@ class SingleGenericWorker: public common::GenericMLWorker {
         kvworker->Wait(model_id_, ts);
     }
     /*
-     * Put/Get APIs
+     * Put/Get, Push/Pull APIs
      */
     virtual void Put(int key, float val) override {
         assert(key < model_.size());
@@ -65,6 +65,22 @@ class SingleGenericWorker: public common::GenericMLWorker {
         assert(key < model_.size());
         return model_[key];
     }
+
+    virtual void Push(const std::vector<int>& keys, const std::vector<float>& vals) override {
+        assert(keys.size() == vals.size());
+        for (int i = 0; i < keys.size(); i++) {
+            assert(i < model_.size());
+            model_[keys[i]] = vals[i];
+        }
+    }
+    virtual void Pull(const std::vector<int>& keys, std::vector<float>* vals) override {
+        vals->resize(keys.size());
+        for (int i = 0; i < keys.size(); i++) {
+            assert(i < model_.size());
+            (*vals)[i] = model_[keys[i]];
+        }
+    }
+    
 
    private:
     std::vector<float> model_;

@@ -129,7 +129,7 @@ class HogwildGenericWorker : public common::GenericMLWorker {
     }
 
     /*
-     * Put/Get APIs
+     * Put/Get Push/Pull APIs
      */
     virtual void Put(int key, float val) {
         assert(key < model_->size());
@@ -139,6 +139,21 @@ class HogwildGenericWorker : public common::GenericMLWorker {
         assert(key < model_->size());
         return (*model_)[key];
     }
+    virtual void Push(const std::vector<int>&keys, const std::vector<float>& vals) override {
+        assert(keys.size() == vals.size());
+        for (int i = 0; i < keys.size(); i++) {
+            assert(i < model_->size());
+            (*model_)[keys[i]] = vals[i];
+        }
+    }
+    virtual void Pull(const std::vector<int>& keys, std::vector<float>* vals) override {
+        vals->resize(keys.size());
+        for (int i = 0; i < keys.size(); i++) {
+            assert(i < model_->size());
+            (*vals)[i] = (*model_)[keys[i]];
+        }
+    }
+    
 
     /*
      * Get the model
