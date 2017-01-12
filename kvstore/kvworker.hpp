@@ -98,32 +98,9 @@ class KVWorker {
     int Pull(int kv_id, const std::vector<int>& keys, std::vector<Val>* vals, const Callback& cb = nullptr) {
         auto num_servers = info_.num_ps_servers;
         int ts = customer_->NewRequest(kv_id, num_servers);
-        AddCallback(kv_id, ts, cb);
-
-        husky::base::BinStream bins[num_servers];
-        bool isRequest = true;
-        bool isPush = false;
-        int src = info_.global_id;
-        for (int i = 0; i < num_servers; ++i) {
-            bins[i] << isRequest << kv_id << ts << isPush << src;
-        }
-        for (int i = 0; i < keys.size(); ++i) {
-            int dst = keys[i] % num_servers;
-            bins[dst] << keys[i];
-        }
-        for (int i = 0; i < num_servers; ++i) {
-            // husky::base::log_msg("[Debug][Pull]: sending to: "+std::to_string(info_.get_tid(i)));
-            customer_->send(info_.get_tid(i), bins[i]);  // send
-        }
         // add callback
         // TODO, since here we don't use sarray in ps-lite, deep copy of vector of keys are needed
         AddCallback(kv_id, ts, [this, kv_id, ts, keys, vals, cb, num_servers]() mutable {
-            // check whether I usually need to handle it
-            // if not, return
-            // husky::base::log_msg("NumResponse: "+std::to_string(customer_->NumResponse(kv_id, ts)));
-            // if (customer_->NumResponse(kv_id, ts) < num_servers - 1)
-            //     return;
-
             mu_.lock();
             auto& kvs = static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs;
             mu_.unlock();
@@ -151,6 +128,22 @@ class KVWorker {
             if (cb)
                 cb();
         });
+
+        husky::base::BinStream bins[num_servers];
+        bool isRequest = true;
+        bool isPush = false;
+        int src = info_.global_id;
+        for (int i = 0; i < num_servers; ++i) {
+            bins[i] << isRequest << kv_id << ts << isPush << src;
+        }
+        for (int i = 0; i < keys.size(); ++i) {
+            int dst = keys[i] % num_servers;
+            bins[dst] << keys[i];
+        }
+        for (int i = 0; i < num_servers; ++i) {
+            // husky::base::log_msg("[Debug][Pull]: sending to: "+std::to_string(info_.get_tid(i)));
+            customer_->send(info_.get_tid(i), bins[i]);  // send
+        }
         return ts;
     }
 
@@ -158,17 +151,6 @@ class KVWorker {
     int PullLocal(int kv_id, int dst, const std::vector<int>& keys, std::vector<Val>* vals,
                   const Callback& cb = nullptr) {
         int ts = customer_->NewRequest(kv_id, 1);
-        AddCallback(kv_id, ts, cb);
-
-        husky::base::BinStream bin;
-        bool isRequest = true;
-        bool isPush = false;
-        int src = info_.global_id;
-        bin << isRequest << kv_id << ts << isPush << src;
-        for (int i = 0; i < keys.size(); ++i) {
-            bin << keys[i];
-        }
-        customer_->send(info_.get_tid(dst), bin);  // send
         // add callback
         // TODO, since here we don't use sarray in ps-lite, deep copy of vector of keys are needed
         AddCallback(kv_id, ts, [this, kv_id, ts, keys, vals, cb]() mutable {
@@ -199,6 +181,16 @@ class KVWorker {
             if (cb)
                 cb();
         });
+
+        husky::base::BinStream bin;
+        bool isRequest = true;
+        bool isPush = false;
+        int src = info_.global_id;
+        bin << isRequest << kv_id << ts << isPush << src;
+        for (int i = 0; i < keys.size(); ++i) {
+            bin << keys[i];
+        }
+        customer_->send(info_.get_tid(dst), bin);  // send
         return ts;
     }
     /*
