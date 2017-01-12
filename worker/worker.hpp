@@ -82,8 +82,7 @@ class Worker {
                 auto bin = zmq_recv_binstream(&socket);
                 std::shared_ptr<Instance> instance(new Instance);
                 instance->deserialize(bin);
-                // Print debug info
-                instance->show_instance(worker_info.get_process_id());
+                // instance->show_instance(worker_info.get_process_id());
                 instance_runner.run_instance(instance);
             } else if (type == constants::kThreadFinished) {
                 int instance_id = zmq_recv_int32(&socket);
@@ -91,8 +90,8 @@ class Worker {
                 instance_runner.finish_thread(instance_id, thread_id);
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
-                    husky::LOG_I << "[Worker]: task id:" + std::to_string(instance_id) + " finished on Proc:"+
-                                  std::to_string(worker_info.get_process_id());
+                    husky::LOG_I << BLUE("[Worker]: Instance id:" + std::to_string(instance_id) + " finished on Proc:"+
+                                  std::to_string(worker_info.get_process_id()));
                     auto bin = instance_runner.remove_instance(instance_id);
                     send_instance_finished(bin);
                 }

@@ -5,6 +5,7 @@
 #include "ml/common/mlworker.hpp"
 
 #include "lib/load_data.hpp"
+#include "lib/data_sampler.hpp"
 
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
@@ -51,33 +52,43 @@ int main(int argc, char** argv) {
         if (training_data.empty())
             return;
         auto& worker = info.get_mlworker();
-        std::vector<int> all_keys;
-        for (int i = 0; i < num_params; i++) all_keys.push_back(i);
-        std::vector<float> params;
-        for(int iter = 0; iter < num_iters; iter++) {
-            worker->Pull(all_keys, &params);
-
-            // A full batch gradient descent 
-            // param += alpha * (y[i] - h(i)) * x
-            std::vector<float> step_sum(num_params, 0);
-            // calculate accumulated gradient
-            for (auto& data : training_data) {
-                auto& x = data.x;
-                auto y = data.y;
-                if (y < 0) y = 0;
-                float pred_y = 0.0;
-                for (auto field : x) {
-                    pred_y += params[field.fea] * field.val;
-                }
-                pred_y += params[num_params - 1]; // intercept
-                pred_y = 1. / (1. + exp(-1 * pred_y)); 
-
-                for (auto field : x) {
-                    step_sum[field.fea] += alpha * field.val * (y - pred_y);
-                }
-                step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
+        DataSampler<LabeledPointHObj<double, double, true>> data_sampler(data_store);
+        data_sampler.random_start_point();
+        for (int iter = 0; iter < num_iters; ++ iter) {
+            auto& data = data_sampler.next();  // get next data
+            auto& x = data.x;
+            float y = data.y;
+            if (y < 0) y = 0;
+            std::vector<int> keys;
+            std::vector<float> params;
+            std::vector<float> delta;
+            keys.reserve(x.get_feature_num()+1);
+            delta.reserve(x.get_feature_num()+1);
+            for (auto field : x) {  // set keys
+                keys.push_back(field.fea);
             }
+
+            worker->Pull(keys, &params);  // issue Pull
+
+            // SGD
+            float pred_y = 0.0;
+            int i = 0;
+            for (auto field : x) {
+                pred_y += params[i++] * field.val;
+            }
+            pred_y = 1. / (1. + exp(-1 * pred_y)); 
+
+            for (auto field : x) {
+                delta.push_back(alpha * field.val * (y - pred_y));
+            }
+
+            worker->Push(keys, delta);  // issue Push
+
             // test model
+            std::vector<int> all_keys;
+            for (int i = 0; i < num_params; i++) all_keys.push_back(i);
+            std::vector<float> test_params;
+            worker->Pull(all_keys, &test_params);
             int count = 0;
             float c_count = 0;//correct count
             for (auto& data : training_data) {
@@ -88,22 +99,15 @@ int main(int argc, char** argv) {
                 float pred_y = 0.0;
 
                 for (auto field : x) {
-                    pred_y += params[field.fea] * field.val;
+                    pred_y += test_params[field.fea] * field.val;
                 }
-                pred_y += params[num_params - 1];
+                // pred_y += test_params[num_params - 1];
                 pred_y = 1. / (1. + exp(-pred_y));
                 pred_y = (pred_y > 0.5) ? 1 : 0;
                 if (int(pred_y) == int(y)) { c_count += 1;}
             }
             husky::LOG_I<<std::to_string(iter)<< ":accuracy is " << std::to_string(c_count/count)<<" count is :"<<std::to_string(count)<<" c_count is:"<<std::to_string(c_count);
-            // update params
-            for (int j = 0; j < num_params; j++) {
-                params[j] += step_sum[j]/float(count);
-            }
-
-            worker->Push(all_keys, params); 
         }
-
     });
     engine.Submit();
     engine.Exit();

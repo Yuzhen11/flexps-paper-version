@@ -5,6 +5,7 @@
 #include "core/task.hpp"
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
+#include "core/color.hpp"
 
 namespace husky {
 
@@ -85,9 +86,9 @@ class Instance {
         int num_threads = 0;
         for (auto& kv : cluster_)
             num_threads += kv.second.size();
-        husky::LOG_I << "[Instance]: Task id:" + std::to_string(task_->get_id()) + " Epoch:" +
+        husky::LOG_I << GREEN("[Instance]: Task id:" + std::to_string(task_->get_id()) + " Epoch:" +
                       std::to_string(task_->get_current_epoch()) + " Proc Num:" + std::to_string(cluster_.size()) +
-                      " Thread Num:" + std::to_string(num_threads);
+                      " Thread Num:" + std::to_string(num_threads));
         for (auto& kv : cluster_) {
             std::stringstream ss;
             ss << "Proc id: " << kv.first << ": { ";
@@ -95,14 +96,14 @@ class Instance {
                 ss << "<" << tid.first << "," << tid.second << "> ";
             }
             ss << "}";
-            husky::LOG_I << "[Instance]: " + ss.str();
+            husky::LOG_I << GREEN("[Instance]: " + ss.str());
         }
     }
 
     void show_instance(int proc_id) const {
         auto iter = cluster_.find(proc_id);
         if (iter == cluster_.end()) {
-            husky::LOG_I << "No instance added in Proc id: " << proc_id;
+            husky::LOG_I << GREEN("No instance added in Proc id: " + std::to_string(proc_id));
             return;
         }
         std::stringstream ss;
@@ -112,7 +113,7 @@ class Instance {
             ss << "<" << tid.first << "," << tid.second << "> ";
         }
         ss << "}";
-        husky::LOG_I << "[Instance]: " + ss.str() + " Added";
+        husky::LOG_I << GREEN("[Instance]: " + ss.str() + " Added");
     }
 
     // getter

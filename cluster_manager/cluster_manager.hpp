@@ -109,7 +109,8 @@ class ClusterManager {
     void extract_instaces() {
         // 1. Extract and assign next instances
         auto instances = task_scheduler_->extract_instances();
-        send_instances(instances);
+        if (!instances.empty())
+            send_instances(instances);
 
         // 2. Check whether all tasks have finished
         bool is_finished = task_scheduler_->is_finished();

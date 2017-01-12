@@ -127,3 +127,9 @@ add_executable(SingleLR logistic_regression.cpp)
 target_link_libraries(SingleLR husky)
 target_link_libraries(SingleLR ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SingleLR PROPERTY CXX_STANDARD 14)
+
+# LogisticRegression
+add_executable(SingleLRGeneric logistic_regression_generic.cpp)
+target_link_libraries(SingleLRGeneric husky)
+target_link_libraries(SingleLRGeneric ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET SingleLRGeneric PROPERTY CXX_STANDARD 14)

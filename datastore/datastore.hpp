@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cassert>
 #include <vector>
 
@@ -36,6 +38,10 @@ public:
         data_[local_id]->push_back(std::move(data));
     }
 
+    const std::vector<DataType>& operator[](int local_id) const {
+        return *data_[local_id];
+    }
+
     /*
      * Pull the local storage
      *
@@ -46,6 +52,10 @@ public:
     std::vector<DataType>& Pull(int local_id) {
         assert(data_[local_id] != nullptr);
         return *data_[local_id];
+    }
+
+    std::size_t size() const {
+        return data_.size();
     }
 
 private:

@@ -10,6 +10,8 @@
 
 #include "ml/common/mlworker.hpp"
 
+#include "core/color.hpp"
+
 namespace husky {
 
 /*
@@ -74,7 +76,7 @@ class Task {
         std::stringstream ss;
         ss << "Task:" << id_ << " total_epoch:" << total_epoch_ << " current_epoch:" << current_epoch_
            << " num_workers:" << num_workers_ << " type:" << static_cast<int>(type_);
-        husky::LOG_I << "[Task]: " + ss.str();
+        husky::LOG_I << GREEN("[Task]: " + ss.str());
     }
 
    protected:
