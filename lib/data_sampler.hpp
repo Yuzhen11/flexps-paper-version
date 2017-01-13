@@ -4,9 +4,16 @@
 #include "datastore/datastore.hpp"
 
 namespace husky {
+namespace {
 
 /*
  * DataSampler: Select a random start point and sample the data one by one
+ * Can work on the whole datastore 
+ *
+ * Usage:
+ *   for (int i = 0; i < num_iters; ++ i) {
+ *     auto& data = data_sampler.next();
+ *   }
  */
 template<typename T>
 class DataSampler {
@@ -45,6 +52,13 @@ class DataSampler {
 
 /*
  * BatchDataSampler: Sample the data in batch
+ * Can work on the whole datastore 
+ *
+ * Usage:
+ *   batch_data_sampler.prepare_next_batch();
+ *   for (auto data : get_data_ptrs) {
+ *      ...
+ *   }
  */
 template<typename T>
 class BatchDataSampler {
@@ -81,6 +95,8 @@ class BatchDataSampler {
 
 /*
  * DataIterator: Iterate all the data in datastore one by one
+ *
+ * Can work on the whole datastore 
  *
  * Usage:
  *   while (data_iterator.has_next()) {
@@ -140,4 +156,5 @@ class DataStoreWrapper {
     size_t data_count_ = -1;  // to store the number of data, store it once calculated
 };
 
+}  // namespace
 }  // namespace husky

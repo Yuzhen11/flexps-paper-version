@@ -70,7 +70,7 @@ class SingleGenericWorker: public common::GenericMLWorker {
         assert(keys.size() == vals.size());
         for (int i = 0; i < keys.size(); i++) {
             assert(i < model_.size());
-            model_[keys[i]] = vals[i];
+            model_[keys[i]] += vals[i];
         }
     }
     virtual void Pull(const std::vector<int>& keys, std::vector<float>* vals) override {

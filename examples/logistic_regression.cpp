@@ -9,6 +9,12 @@
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
 
+/*
+ * A full gradient descent example, can only run in Single model
+ *
+ * In each iteration, Pull all the parameters and update `another` local copy using all the data (FGD)
+ *
+ */
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", 
                                        "hdfs_namenode", "hdfs_namenode_port",
@@ -29,7 +35,7 @@ int main(int argc, char** argv) {
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
     // Create the DataStore
-    datastore::DataStore<LabeledPointHObj<double, double, true>> data_store(Context::get_worker_info().get_num_local_workers());
+    datastore::DataStore<LabeledPointHObj<float, float, true>> data_store(Context::get_worker_info().get_num_local_workers());
 
     auto task = TaskFactory::Get().CreateTask<HuskyTask>(1, 1); // 1 epoch, 1 workers
     engine.AddTask(std::move(task), [&data_store, &num_features](const Info& info) {
@@ -98,10 +104,10 @@ int main(int argc, char** argv) {
             husky::LOG_I<<std::to_string(iter)<< ":accuracy is " << std::to_string(c_count/count)<<" count is :"<<std::to_string(count)<<" c_count is:"<<std::to_string(c_count);
             // update params
             for (int j = 0; j < num_params; j++) {
-                params[j] += step_sum[j]/float(count);
+                step_sum[j] /= float(count);
             }
 
-            worker->Push(all_keys, params); 
+            worker->Push(all_keys, step_sum); 
         }
 
     });
