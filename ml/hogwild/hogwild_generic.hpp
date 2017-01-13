@@ -9,6 +9,8 @@
 
 #include "kvstore/kvstore.hpp"
 
+#include "core/color.hpp"
+
 namespace ml {
 namespace hogwild {
 
@@ -76,7 +78,6 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      * 1. Sync() and 2. leader delete the model
      */
     ~HogwildGenericWorker() {
-        husky::LOG_I << "[Debug] Hogwild destructor invokded";
         Sync();
         if (info_.get_cluster_id() == 0) {
             delete model_;
@@ -94,9 +95,9 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      */
     virtual void Load() override {
         if (info_.get_cluster_id() == 0) {
-            husky::LOG_I << "[Hogwild] loading";
-            husky::LOG_I << "[Hogwild] model_id:" + std::to_string(model_id_) + " local_id:"+
-                                 std::to_string(info_.get_local_id());
+            // husky::LOG_I << "[Hogwild] loading";
+            // husky::LOG_I << "[Hogwild] model_id:" + std::to_string(model_id_) + " local_id:"+
+            //                      std::to_string(info_.get_local_id());
 
             auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
 
@@ -105,7 +106,7 @@ class HogwildGenericWorker : public common::GenericMLWorker {
                 keys[i] = i;
             int ts = kvworker->Pull(model_id_, keys, model_);
             kvworker->Wait(model_id_, ts);
-            print_model();
+            // print_model();
         }
         Sync();
     }
@@ -115,7 +116,7 @@ class HogwildGenericWorker : public common::GenericMLWorker {
     virtual void Dump() override {
         Sync();
         if (info_.get_cluster_id() == 0) {
-            husky::LOG_I << "[Hogwild] dumping";
+            // husky::LOG_I << "[Hogwild] dumping";
 
             auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
 
