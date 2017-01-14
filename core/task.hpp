@@ -30,7 +30,8 @@ class Task {
         SingleTaskType,
         GenericMLTaskType,
         HuskyTaskType,
-        DummyType
+        DummyType,
+        TwoPhasesTaskType
     };
 
     // For serialization usage only
@@ -210,6 +211,19 @@ class GenericMLTask : public MLTask {
 };
 
 /*
+ * TwoPhasesTask
+ */
+class TwoPhasesTask : public Task {
+   public:
+    // For serialization usage only
+    TwoPhasesTask() = default;
+    TwoPhasesTask(int id) : Task(id, Type::TwoPhasesTaskType) {}
+    TwoPhasesTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::TwoPhasesTaskType) {}
+    friend BinStream& operator<<(BinStream& bin, const TwoPhasesTask& task) { return task.serialize(bin); }
+    friend BinStream& operator>>(BinStream& bin, TwoPhasesTask& task) { return task.deserialize(bin); }
+};
+
+/*
  * Husky Task
  */
 class HuskyTask : public Task {
@@ -274,6 +288,12 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
         bin >> *task;
         ret.reset(task);
         break;
+    }
+    case Task::Type::TwoPhasesTaskType: {
+      TwoPhasesTask* task = new TwoPhasesTask();
+      bin >> *task;
+      ret.reset(task);
+      break;
     }
     default:
         throw base::HuskyException("Deserializing task error");

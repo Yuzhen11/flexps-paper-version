@@ -55,6 +55,52 @@ class SequentialTaskScheduler : public TaskScheduler {
         }
     }
 
+    /**
+     * Get workers globally
+     *
+     * select workers from each machine 
+     */
+    std::vector<int> get_thread_per_worker(int num_thread_per_worker) {
+        std::map<int, std::vector<int>> pid_tids_map; 
+        std::vector<int> tids;
+
+        int num_processes = worker_info.get_num_processes();
+        // classify all threads to each process
+        // in sequential case, all threads are available
+        // init map
+        for (int i = 0; i < num_processes; i++) {
+            pid_tids_map.emplace(i, tids);
+        }
+
+        auto global_tids = worker_info.get_global_tids();
+        for (auto global_tid : global_tids) {
+            pid_tids_map[worker_info.get_process_id(global_tid)].push_back(global_tid);
+        }
+
+        // guarantee at least thread_per_worker thread in each worker
+        int guarantee = 1;
+        for(auto pid_tid_map : pid_tids_map) {
+            if (pid_tid_map.second.size() < num_thread_per_worker) {
+                guarantee = 0;
+                break;
+            }
+        }
+
+        // if guarantee, select threads in each process
+        if (guarantee == 1) {
+            std::vector<int> selected_workers;
+            for(int j = 0; j < num_processes; j++) {
+                for(int k = 0; k < num_thread_per_worker; k++) {
+                    selected_workers.push_back(worker_info.local_to_global_id(j, k));
+                }
+            }
+
+            return selected_workers;
+        }
+
+        return {};
+    }
+
     /*
      * Get workers globally
      *
@@ -109,7 +155,12 @@ class SequentialTaskScheduler : public TaskScheduler {
 
         // randomly select threads
         std::vector<int> selected_workers;
-        if (instance->get_type() == Task::Type::HogwildTaskType)
+        if (instance->get_type() == Task::Type::TwoPhasesTaskType)
+            if (instance->get_epoch() % 2 == 1 )
+                selected_workers = get_thread_per_worker(instance->get_num_workers());
+            else
+                selected_workers = get_workers(1);
+        else if (instance->get_type() == Task::Type::HogwildTaskType)
             selected_workers = get_local_workers(instance->get_num_workers());
         else
             selected_workers = get_workers(instance->get_num_workers());

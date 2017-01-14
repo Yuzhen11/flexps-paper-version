@@ -145,3 +145,9 @@ add_executable(TestGlobalize test_globalize.cpp)
 target_link_libraries(TestGlobalize husky)
 target_link_libraries(TestGlobalize ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestGlobalize PROPERTY CXX_STANDARD 14)
+
+# TestSVRG
+add_executable(TestSVRG test_svrg.cpp)
+target_link_libraries(TestSVRG husky)
+target_link_libraries(TestSVRG ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestSVRG PROPERTY CXX_STANDARD 14)

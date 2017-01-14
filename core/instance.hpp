@@ -27,6 +27,10 @@ class Instance {
             task_.reset(new HuskyTask(static_cast<const HuskyTask&>(task)));
             break;
         }
+        case Task::Type::TwoPhasesTaskType: { // TwoPhasesTask
+            task_.reset(new TwoPhasesTask(static_cast<const TwoPhasesTask&>(task)));
+            break;
+        }
         case Task::Type::PSTaskType: {  // PS Task
             task_.reset(new PSTask(static_cast<const PSTask&>(task)));
             break;
