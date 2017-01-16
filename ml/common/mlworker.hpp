@@ -40,6 +40,17 @@ class GenericMLWorker {
      */
     virtual void Put(int key, float val) { throw husky::base::HuskyException("Put Not implemented"); }
     virtual float Get(int key) { throw husky::base::HuskyException("Get Not implemented"); }
+
+    /*
+     * Version 2 APIs, under experiment
+     *
+     * These set of APIs is to avoid making a copy for Single/Hogwild!
+     */
+    // Caution: keys should be remained valid during update
+    virtual void Prepare_v2(std::vector<int>& keys) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual float Get_v2(int idx) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual void Update_v2(int idx, float val) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual void Update_v2(const std::vector<float>& vals) { throw husky::base::HuskyException("v2 Not implemented"); }
 };
 
 }  // namespace common

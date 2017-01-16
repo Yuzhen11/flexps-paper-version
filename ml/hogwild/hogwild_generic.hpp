@@ -185,6 +185,25 @@ class HogwildGenericWorker : public common::GenericMLWorker {
         }
     }
 
+
+    // For v2
+    virtual void Prepare_v2(std::vector<int>& keys) override {
+        keys_ = &keys;
+    }
+    virtual float Get_v2(int idx) override {
+        return (*model_)[(*keys_)[idx]];
+    }
+    virtual void Update_v2(int idx, float val) override {
+        (*model_)[(*keys_)[idx]] += val;
+    }
+    virtual void Update_v2(const std::vector<float>& vals) override {
+        assert(vals.size() == keys_->size());
+        for (int i = 0; i < keys_->size(); ++ i) {
+            assert((*keys_)[i] < model_->size());
+            (*model_)[(*keys_)[i]] += vals[i];
+        }
+    }
+
    private:
     /*
      * check whether all the threads are in the same machine
@@ -203,6 +222,10 @@ class HogwildGenericWorker : public common::GenericMLWorker {
     std::vector<float>* model_ = nullptr;
 
     int model_id_;
+
+    // For v2
+    // Pointer to keys
+    std::vector<int>* keys_;
 };
 
 }  // namespace hogwild

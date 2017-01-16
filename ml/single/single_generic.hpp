@@ -69,7 +69,7 @@ class SingleGenericWorker: public common::GenericMLWorker {
     virtual void Push(const std::vector<int>& keys, const std::vector<float>& vals) override {
         assert(keys.size() == vals.size());
         for (int i = 0; i < keys.size(); i++) {
-            assert(i < model_.size());
+            assert(keys[i] < model_.size());
             model_[keys[i]] += vals[i];
         }
     }
@@ -82,10 +82,32 @@ class SingleGenericWorker: public common::GenericMLWorker {
     }
     
 
+    // For v2
+    virtual void Prepare_v2(std::vector<int>& keys) override {
+        keys_ = &keys;
+    }
+    virtual float Get_v2(int idx) override {
+        return model_[(*keys_)[idx]];
+    }
+    virtual void Update_v2(int idx, float val) override {
+        model_[(*keys_)[idx]] += val;
+    }
+    virtual void Update_v2(const std::vector<float>& vals) override {
+        assert(vals.size() == keys_->size());
+        for (int i = 0; i < keys_->size(); ++ i) {
+            assert((*keys_)[i] < model_.size());
+            model_[(*keys_)[i]] += vals[i];
+        }
+    }
+
    private:
     std::vector<float> model_;
     int model_id_;
     int local_id_;
+
+    // For v2
+    // Pointer to keys
+    std::vector<int>* keys_;
 };
 
 }  // namespace single

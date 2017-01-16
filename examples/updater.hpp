@@ -39,10 +39,38 @@ void sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
     worker->Push(keys, delta);  // issue Push
 };
 
+// The SGD updater for v2 APIs
+void sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker, 
+        DataSampler<LabeledPointHObj<float, float, true>>& data_sampler, 
+        float alpha) {
+    auto& data = data_sampler.next();  // get next data
+    auto& x = data.x;
+    float y = data.y;
+    if (y < 0) y = 0;
+    std::vector<int> keys;
+    keys.reserve(x.get_feature_num()+1);
+    for (auto field : x) {  // set keys
+        keys.push_back(field.fea);
+    }
+    worker->Prepare_v2(keys);
+    float pred_y = 0.0;
+    int i = 0;
+    for (auto field : x) {
+        pred_y += worker->Get_v2(i++) * field.val;
+    }
+    pred_y = 1. / (1. + exp(-1 * pred_y)); 
+    i = 0;
+    for (auto field : x) {
+        worker->Update_v2(i, alpha * field.val * (y - pred_y));
+        i += 1;
+    }
+};
+
 // The mini-batch SGD updator
 void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
         BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha, 
         int batch_size) {
+    alpha /= batch_data_sampler.get_batch_size();
     std::vector<int> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
     std::vector<float> params;
     std::vector<float> delta;
@@ -65,10 +93,33 @@ void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker
             delta[i] += alpha * field.val * (y - pred_y);
         }
     }
-    for (int i = 0; i < delta.size(); ++ i) {
-        delta[i] /= batch_data_sampler.get_batch_size();
-    }
     worker->Push(keys, delta);  // issue Push
+};
+
+// The mini-batch SGD updator for v2
+void batch_sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
+        BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha, 
+        int batch_size) {
+    alpha /= batch_data_sampler.get_batch_size();
+    std::vector<int> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
+    worker->Prepare_v2(keys);
+    for (auto data : batch_data_sampler.get_data_ptrs()) {  // iterate over the data in the batch
+        auto& x = data->x;
+        float y = data->y;
+        if (y < 0) y = 0;
+        float pred_y = 0.0;
+        int i = 0;
+        for (auto field : x) {
+            while (keys[i] < field.fea) i += 1;
+            pred_y += worker->Get_v2(i) * field.val;
+        }
+        pred_y = 1. / (1. + exp(-1 * pred_y)); 
+        i = 0;
+        for (auto field : x) {
+            while (keys[i] < field.fea) i += 1;
+            worker->Update_v2(i, alpha * field.val * (y - pred_y));
+        }
+    }
 };
 
 float get_test_error(const std::unique_ptr<ml::common::GenericMLWorker>& worker, 

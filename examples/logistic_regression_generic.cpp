@@ -74,8 +74,8 @@ int main(int argc, char** argv) {
         BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, 100);
         batch_data_sampler.random_start_point();
         for (int iter = 0; iter < num_iters; ++ iter) {
-            // sgd_update(worker, data_sampler, alpha);
-            batch_sgd_update(worker, batch_data_sampler, alpha, 100);
+            // sgd_update_v2(worker, data_sampler, alpha);
+            batch_sgd_update_v2(worker, batch_data_sampler, alpha, 100);
             // test model
             if (info.get_cluster_id() == 0) {
                 DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
