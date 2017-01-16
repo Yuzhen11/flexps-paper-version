@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include <utility>
 
 #include "ml/common/mlworker.hpp"
@@ -27,17 +29,17 @@ class SingleGenericWorker: public common::GenericMLWorker {
      * Get parameters from global kvstore
      */
     virtual void Load() override {
-        husky::LOG_I << "[Single] loading";
-        husky::LOG_I << "[Single] model_id:" + std::to_string(model_id_) + " local_id:"+
-                             std::to_string(local_id_);
-
+        husky::LOG_I << "[Single] loading model_id:" + std::to_string(model_id_) + " local_id:"+
+                             std::to_string(local_id_) + "model_size: " + std::to_string(model_.size());
+        auto start_time = std::chrono::steady_clock::now();
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
-
         std::vector<int> keys(model_.size());
         for (int i = 0; i < keys.size(); ++i)
             keys[i] = i;
         int ts = kvworker->Pull(model_id_, keys, &model_);
         kvworker->Wait(model_id_, ts);
+        auto end_time = std::chrono::steady_clock::now();
+        husky::LOG_I << "[Single] Load done and Load time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time-start_time).count() << " ms";
         //print_model();
     }
     /*

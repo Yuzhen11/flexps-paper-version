@@ -115,11 +115,12 @@ class KVWorker {
             std::sort(v.begin(), v.end(),
                       [](const std::pair<int, Val>& p1, const std::pair<int, Val>& p2) { return p1.first < p2.first; });
             vals->resize(keys.size());
+            // Use the assumption that keys should be sorted
+            size_t idx = 0;
             for (int i = 0; i < keys.size(); ++i) {
-                int k = keys[i];
-                auto p = std::find_if(v.begin(), v.end(), [k](const std::pair<int, Val>& p) { return p.first == k; });
-                assert(p != v.end());
-                (*vals)[i] = p->second;
+                while (idx != v.size() && v[idx].first != keys[i]) idx += 1;
+                assert(idx != v.size());
+                (*vals)[i] = v[idx].second;
             }
             mu_.lock();
             delete recv_kvs_[{kv_id, ts}];
