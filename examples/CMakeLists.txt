@@ -133,3 +133,15 @@ add_executable(SingleLRGeneric logistic_regression_generic.cpp)
 target_link_libraries(SingleLRGeneric husky)
 target_link_libraries(SingleLRGeneric ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SingleLRGeneric PROPERTY CXX_STANDARD 14)
+
+# TestMigrate 
+add_executable(TestMigrate test_migrate.cpp)
+target_link_libraries(TestMigrate husky)
+target_link_libraries(TestMigrate ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestMigrate PROPERTY CXX_STANDARD 14)
+
+# TestGlobalize
+add_executable(TestGlobalize test_globalize.cpp)
+target_link_libraries(TestGlobalize husky)
+target_link_libraries(TestGlobalize ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestGlobalize PROPERTY CXX_STANDARD 14)
