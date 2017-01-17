@@ -64,6 +64,7 @@ void sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
         worker->Update_v2(i, alpha * field.val * (y - pred_y));
         i += 1;
     }
+    worker->Clock_v2();
 };
 
 // The mini-batch SGD updator
@@ -120,11 +121,13 @@ void batch_sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& wor
             worker->Update_v2(i, alpha * field.val * (y - pred_y));
         }
     }
+    worker->Clock_v2();
 };
 
 float get_test_error(const std::unique_ptr<ml::common::GenericMLWorker>& worker, 
         DataIterator<LabeledPointHObj<float, float, true>> data_iterator,
-        int num_params) {
+        int num_params, int test_samples = -1) {
+    test_samples = 1000;
     std::vector<int> all_keys;
     for (int i = 0; i < num_params; i++) all_keys.push_back(i);
     std::vector<float> test_params;
@@ -145,7 +148,42 @@ float get_test_error(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
         pred_y = 1. / (1. + exp(-pred_y));
         pred_y = (pred_y > 0.5) ? 1 : 0;
         if (int(pred_y) == int(y)) { c_count += 1;}
+
+        if (count == test_samples) break;
     }
+    // Push a dummy values, for PS, unnecessary for Single/Hogwild!
+    std::vector<float> dummy(all_keys.size());
+    worker->Push(all_keys, dummy);
+    return c_count/count;
+}
+
+float get_test_error_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker, 
+        DataIterator<LabeledPointHObj<float, float, true>> data_iterator,
+        int num_params, int test_samples = -1) {
+    test_samples = 1000;
+    std::vector<int> all_keys;
+    for (int i = 0; i < num_params; i++) all_keys.push_back(i);
+    worker->Prepare_v2(all_keys);
+    int count = 0;
+    float c_count = 0; //correct count
+    while (data_iterator.has_next()) {
+        auto& data = data_iterator.next();
+        count = count + 1;
+        auto& x = data.x;
+        float y = data.y;
+        if(y < 0) y = 0;
+        float pred_y = 0.0;
+        for (auto field : x) {
+            pred_y += worker->Get_v2(field.fea) * field.val;
+        }
+        // pred_y += test_params[num_params - 1];
+        pred_y = 1. / (1. + exp(-pred_y));
+        pred_y = (pred_y > 0.5) ? 1 : 0;
+        if (int(pred_y) == int(y)) { c_count += 1;}
+
+        if (count == test_samples) break;
+    }
+    worker->Clock_v2();
     return c_count/count;
 }
 

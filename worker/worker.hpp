@@ -49,7 +49,7 @@ class Worker {
             auto& socket = cluster_manager_connector.get_send_socket();
             zmq_sendmore_int32(&socket, constants::kClusterManagerInit);
             zmq_send_binstream(&socket, bin);
-            husky::LOG_I << "[Worker]: Totally " + std::to_string(buffered_tasks.size()) + " tasks sent";
+            husky::LOG_I << GREEN("[Worker]: " + std::to_string(buffered_tasks.size()) + " tasks sent");
             // clear buffered tasks
             task_store.clear_buffered_tasks();
         }
@@ -90,13 +90,13 @@ class Worker {
                 instance_runner.finish_thread(instance_id, thread_id);
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
-                    husky::LOG_I << BLUE("[Worker]: Instance id:" + std::to_string(instance_id) + " finished on Proc:"+
+                    husky::LOG_I << GREEN("[Worker]: Instance id:" + std::to_string(instance_id) + " finished on Proc:"+
                                   std::to_string(worker_info.get_process_id()));
                     auto bin = instance_runner.remove_instance(instance_id);
                     send_instance_finished(bin);
                 }
             } else if (type == constants::kClusterManagerFinished) {
-                husky::LOG_I << "[Worker]: worker exit";
+                husky::LOG_I << GREEN("[Worker]: Tasks finished");
                 break;
             } else {
                 throw base::HuskyException("[Worker] Worker Loop recv type error, type is: " + std::to_string(type));

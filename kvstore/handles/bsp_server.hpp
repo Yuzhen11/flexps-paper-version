@@ -21,7 +21,7 @@ namespace kvstore {
  * 
  * Note:
  * User code should like:
- * Push, Pull, Push, Pull, ...
+ * Pull, Push, Pull, Push ...
  *
  * If user code starts with Push, set the initial reply_phase to false.
  * If user code starts with Pull, set the initial reply_phase to true.

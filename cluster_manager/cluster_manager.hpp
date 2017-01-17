@@ -61,7 +61,7 @@ class ClusterManager {
         auto& recv_socket = cluster_manager_connection_->get_recv_socket();
         while (true) {
             int type = zmq_recv_int32(&recv_socket);
-            husky::LOG_I << "[ClusterManager]: Type: " + std::to_string(type);
+            // husky::LOG_I << "[ClusterManager]: Type: " + std::to_string(type);
             if (type == constants::kClusterManagerInit) {
                 // 1. Received tasks from Worker
                 recv_tasks_from_worker();
@@ -74,7 +74,7 @@ class ClusterManager {
                 int instance_id, proc_id;
                 bin >> instance_id >> proc_id;
                 task_scheduler_->finish_local_instance(instance_id, proc_id);
-                husky::LOG_I << "[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " + std::to_string(proc_id) + " done";
+                husky::LOG_I << CLAY("[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " + std::to_string(proc_id) + " done");
 
                 // 2. Extract instances
                 extract_instaces();
@@ -96,10 +96,10 @@ class ClusterManager {
         auto bin = zmq_recv_binstream(&socket);
         auto tasks = task::extract_tasks(bin);
         task_scheduler_->init_tasks(tasks);
-        for (auto& task : tasks) {
-            husky::LOG_I << "[ClusterManager]: Task: " + std::to_string(task->get_id()) + " added";
-        }
-        husky::LOG_I << "[ClusterManager]: Totally " + std::to_string(tasks.size()) + " tasks received";
+        // for (auto& task : tasks) {
+        //     husky::LOG_I << "[ClusterManager]: Task: " + std::to_string(task->get_id()) + " added";
+        // }
+        husky::LOG_I << BLUE("[ClusterManager]: " + std::to_string(tasks.size()) + " tasks received");
     }
 
     /*

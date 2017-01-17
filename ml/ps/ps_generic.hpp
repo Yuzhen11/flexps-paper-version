@@ -37,10 +37,6 @@ class PSGenericWorker : public common::GenericMLWorker {
     
     // For v2
     virtual void Prepare_v2(std::vector<int>& keys) override {
-        // Push before Pull
-        if (pull_count_ != 0) {
-            Push(*keys_, delta_);
-        }
         keys_ = &keys;
         Pull(keys, &vals_);
         delta_.clear();
@@ -59,6 +55,9 @@ class PSGenericWorker : public common::GenericMLWorker {
             vals_[i] += vals[i];
             delta_[i] += vals[i];
         }
+    }
+    virtual void Clock_v2() override {
+        Push(*keys_, delta_);
     }
     
    private:

@@ -126,7 +126,7 @@ class InstanceRunner {
         }
         instances_.insert({instance->get_id(), instance});  // store the instance
 
-        husky::LOG_I << BLUE("[InstanceRunner] Instance id " + std::to_string(instance->get_id()) + " " + std::to_string(local_threads.size())
+        husky::LOG_I << GREEN("[InstanceRunner] Instance id " + std::to_string(instance->get_id()) + " " + std::to_string(local_threads.size())
                 + "/" + std::to_string(instance->get_num_threads()) + " run on process " + std::to_string(worker_info_.get_process_id()));
         for (auto tid_cid : local_threads) {
             // worker threads

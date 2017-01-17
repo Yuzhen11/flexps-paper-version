@@ -14,6 +14,10 @@ namespace kvstore {
  *
  * Note that the maximun difference of parameter of each worker in the same iter (each time add 1)
  * should be at most staleness*num_workers*2-2.
+ *
+ * Note:
+ * User code should like:
+ * Pull, Push, Pull, Push ...
  */
 template<typename Val>
 struct KVServerSSPHandle {

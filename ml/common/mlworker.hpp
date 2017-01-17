@@ -51,6 +51,7 @@ class GenericMLWorker {
     virtual float Get_v2(int idx) { throw husky::base::HuskyException("v2 Not implemented"); }
     virtual void Update_v2(int idx, float val) { throw husky::base::HuskyException("v2 Not implemented"); }
     virtual void Update_v2(const std::vector<float>& vals) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual void Clock_v2() {};  // only for PS
 };
 
 }  // namespace common
