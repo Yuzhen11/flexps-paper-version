@@ -1,5 +1,6 @@
 #pragma once
 
+#include "available_workers.hpp"
 #include "task_scheduler.hpp"
 #include "task_scheduler_utils.hpp"
 
@@ -12,136 +13,51 @@ namespace husky {
  */
 class SequentialTaskScheduler : public TaskScheduler {
    public:
-    SequentialTaskScheduler(WorkerInfo& worker_info_) : TaskScheduler(worker_info_) {}
+    SequentialTaskScheduler(WorkerInfo& worker_info_) : TaskScheduler(worker_info_) {
+        num_processes_ = worker_info_.get_num_processes();
+        // initialize the available_workers_
+        auto tids = worker_info_.get_global_tids();
+        for (auto tid : tids) {
+            available_workers_.add_worker(worker_info_.get_process_id(tid), tid);
+        }
+    }
 
     virtual ~SequentialTaskScheduler() override {}
 
     virtual void init_tasks(const std::vector<std::shared_ptr<Task>>& tasks) override {
         for (auto& task : tasks) {
-            tasks_queue.push(task);
+            tasks_queue_.push(task);
         }
     }
     virtual void finish_local_instance(int instance_id, int proc_id) override {
-        tracker.erase(proc_id);     // Mark a process to finished
-        if (tracker.size() == 0) {  // If all the processes are done, the instance is done
-            auto& task = tasks_queue.front();
+        tracker_.erase(proc_id);     // Mark a process to finished
+        if (tracker_.size() == 0) {  // If all the processes are done, the instance is done
+            auto& task = tasks_queue_.front();
             task->inc_epoch();  // Trying to work on next epoch
             if (task->get_current_epoch() ==
                 task->get_total_epoch()) {  // If all the epochs are done, then task is done
-                tasks_queue.pop();
+                tasks_queue_.pop();
             }
         }
+        auto& tids = task_id_pid_tids_[{instance_id, proc_id}];
+        for (auto tid : tids) {
+            // add to available_workers_
+            available_workers_.add_worker(proc_id, tid);
+        }
+        // remove from task_id_pid_tids_
+        task_id_pid_tids_.erase({instance_id, proc_id});
     }
     virtual std::vector<std::shared_ptr<Instance>> extract_instances() override {
         // Assign no instance if 1. task_queue is empty or 2. current instance is still running
-        if (tasks_queue.empty() || !tracker.empty())
+        if (tasks_queue_.empty() || !tracker_.empty())
             return {};
-        auto& task = tasks_queue.front();
+        auto& task = tasks_queue_.front();
         auto instance = task_to_instance(*task);
-        init_tracker(instance);
         return {instance};
     }
-    virtual bool is_finished() override { return tasks_queue.empty(); }
-
-   protected:
-    std::queue<std::shared_ptr<Task>> tasks_queue;
-    std::unordered_set<int> tracker;
+    virtual bool is_finished() override { return tasks_queue_.empty(); }
 
    private:
-    void init_tracker(const std::shared_ptr<Instance>& instance) {
-        auto& cluster = instance->get_cluster();
-        for (auto kv : cluster) {
-            tracker.insert(kv.first);
-        }
-    }
-
-    /**
-     * Get workers globally
-     *
-     * select workers from each machine 
-     */
-    std::vector<int> get_thread_per_worker(int num_thread_per_worker) {
-        std::map<int, std::vector<int>> pid_tids_map; 
-        std::vector<int> tids;
-
-        int num_processes = worker_info.get_num_processes();
-        // classify all threads to each process
-        // in sequential case, all threads are available
-        // init map
-        for (int i = 0; i < num_processes; i++) {
-            pid_tids_map.emplace(i, tids);
-        }
-
-        auto global_tids = worker_info.get_global_tids();
-        for (auto global_tid : global_tids) {
-            pid_tids_map[worker_info.get_process_id(global_tid)].push_back(global_tid);
-        }
-
-        // guarantee at least thread_per_worker thread in each worker
-        int guarantee = 1;
-        for(auto pid_tid_map : pid_tids_map) {
-            if (pid_tid_map.second.size() < num_thread_per_worker) {
-                guarantee = 0;
-                break;
-            }
-        }
-
-        // if guarantee, select threads in each process
-        if (guarantee == 1) {
-            std::vector<int> selected_workers;
-            for(int j = 0; j < num_processes; j++) {
-                for(int k = 0; k < num_thread_per_worker; k++) {
-                    selected_workers.push_back(worker_info.local_to_global_id(j, k));
-                }
-            }
-
-            return selected_workers;
-        }
-
-        return {};
-    }
-
-    /*
-     * Get workers globally
-     *
-     * Randomly select workers globally
-     */
-    std::vector<int> get_workers(int required_num_workers) {
-        std::vector<int> selected_workers;
-        int num_workers = worker_info.get_num_workers();
-        assert(num_workers >= required_num_workers);
-        while (selected_workers.size() < required_num_workers) {
-            int tid = rand() % num_workers;
-            while (std::find(selected_workers.begin(), selected_workers.end(), tid) != selected_workers.end()) {
-                tid = rand() % num_workers;
-            }
-            selected_workers.push_back(tid);
-        }
-        return selected_workers;
-    }
-
-    /*
-     * Get workers locally, only used for Task::Type::HogwildTaskType
-     *
-     * Randomly select workers locally within one process
-     */
-    std::vector<int> get_local_workers(int required_num_workers) {
-        std::vector<int> selected_workers;
-        // To be simple, just randomly select a process
-        std::vector<int> pids = worker_info.get_pids();
-        int pid = rand() % pids.size();
-        int num_local_workers = worker_info.get_num_local_workers(pid);
-        assert(num_local_workers >= required_num_workers);
-        while (selected_workers.size() < required_num_workers) {
-            int tid = worker_info.local_to_global_id(pid, rand() % num_local_workers);
-            while (std::find(selected_workers.begin(), selected_workers.end(), tid) != selected_workers.end()) {
-                tid = worker_info.local_to_global_id(pid, rand() % num_local_workers);
-            }
-            selected_workers.push_back(tid);
-        }
-        return selected_workers;
-    }
-
     /*
      * Generate real running instance from task
      *
@@ -154,24 +70,40 @@ class SequentialTaskScheduler : public TaskScheduler {
         instance_basic_setup(instance, task);
 
         // randomly select threads
-        std::vector<int> selected_workers;
-        if (instance->get_type() == Task::Type::TwoPhasesTaskType)
-            if (instance->get_epoch() % 2 == 1 )
-                selected_workers = get_thread_per_worker(instance->get_num_workers());
-            else
-                selected_workers = get_workers(1);
+        std::vector<std::pair<int,int>> pid_tids;
+        if (instance->get_type() == Task::Type::TwoPhasesTaskType) {
+            if (instance->get_epoch() % 2 == 1 ) {
+                pid_tids = available_workers_.get_workers_per_process(instance->get_num_workers(), num_processes_);
+            }
+            else {
+                pid_tids = available_workers_.get_workers(1);
+            }
+        }
         else if (instance->get_type() == Task::Type::HogwildTaskType)
-            selected_workers = get_local_workers(instance->get_num_workers());
+            pid_tids = available_workers_.get_local_workers(instance->get_num_workers());
         else
-            selected_workers = get_workers(instance->get_num_workers());
+            pid_tids = available_workers_.get_workers(instance->get_num_workers());
 
-        // add threads to instance
-        for (int i = 0; i < selected_workers.size(); ++i) {
-            int proc_id = worker_info.get_process_id(selected_workers[i]);
-            instance->add_thread(proc_id, selected_workers[i], i);
+        // If requirement is satisfied, set the instance
+        if (!pid_tids.empty()) {
+            int j = 0;
+            for (auto pid_tid : pid_tids) {
+                instance->add_thread(pid_tid.first, pid_tid.second, j++);
+                tracker_.insert(pid_tid.first);
+                task_id_pid_tids_[{instance->get_id(), pid_tid.first}].push_back(pid_tid.second);
+            }
+        } else {
+            throw base::HuskyException("[Sequential Task Scheduler] Cannot assign next instance");
         }
         return instance;
     }
+
+   private:
+    std::queue<std::shared_ptr<Task>> tasks_queue_;
+    std::unordered_set<int> tracker_;
+    AvailableWorkers available_workers_;
+    int num_processes_;     // num of machines in cluster
+    std::unordered_map<std::pair<int,int>, std::vector<int>, PairHash> task_id_pid_tids_;   // <task_id, pid> : {tid1, tid2...}
 };
 
 }  // namespace husky
