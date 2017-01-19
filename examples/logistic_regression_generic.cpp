@@ -1,4 +1,5 @@
 #include <vector>
+#include <chrono>
 
 #include "datastore/datastore.hpp"
 #include "worker/engine.hpp"
@@ -67,7 +68,12 @@ int main(int argc, char** argv) {
         auto local_id = info.get_local_id();
         load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, num_features, local_id);
     });
+
+    auto start_time = std::chrono::steady_clock::now();
     engine.Submit();
+    auto end_time = std::chrono::steady_clock::now();
+    auto load_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time-start_time).count();
+    husky::LOG_I << YELLOW("Load time: "+std::to_string(load_time) + " ms");
 
 
     auto task1 = TaskFactory::Get().CreateTask<GenericMLTask>();
@@ -123,11 +129,11 @@ int main(int argc, char** argv) {
         data_sampler.random_start_point();
         // Create BatchDataSampler for mini-batch SGD
         int batch_size = 100;
-        BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, 100);
+        BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, batch_size);
         batch_data_sampler.random_start_point();
         for (int iter = 0; iter < num_iters; ++ iter) {
             // sgd_update_v2(worker, data_sampler, alpha);
-            batch_sgd_update(worker, batch_data_sampler, alpha, 100);
+            batch_sgd_update(worker, batch_data_sampler, alpha);
 
             if (iter % 10 == 0) {
                 // Testing, now all the threads need to run `get_test_error`, it is for PS.
@@ -140,7 +146,12 @@ int main(int argc, char** argv) {
             }
         }
     });
+    start_time = std::chrono::steady_clock::now();
     engine.Submit();
+    end_time = std::chrono::steady_clock::now();
+    auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time-start_time).count();
+    husky::LOG_I << YELLOW("Load time: "+std::to_string(train_time) + " ms");
+
     engine.Exit();
     kvstore::KVStore::Get().Stop();
 }

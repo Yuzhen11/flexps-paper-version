@@ -69,8 +69,8 @@ void sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
 
 // The mini-batch SGD updator
 void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-        BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha, 
-        int batch_size) {
+        BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, 
+        float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
     std::vector<int> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
     std::vector<float> params;
@@ -99,8 +99,8 @@ void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker
 
 // The mini-batch SGD updator for v2
 void batch_sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-        BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha, 
-        int batch_size) {
+        BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, 
+        float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
     std::vector<int> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
     worker->Prepare_v2(keys);
