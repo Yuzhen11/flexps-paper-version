@@ -56,11 +56,25 @@ class InstanceRunner {
             // husky::LOG_I << "type: " + std::to_string(static_cast<int>(instance->get_type()));
             switch (instance->get_type()) {
             case Task::Type::PSBSPTaskType:
-            case Task::Type::PSSSPTaskType:
             case Task::Type::PSASPTaskType: {
                 husky::LOG_I << CLAY("[run_instance] setting to PS generic");
                 info.set_mlworker(new ml::ps::PSGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id()));
+                break;
+            }
+            case Task::Type::PSSSPTaskType: {
+                if (static_cast<GenericMLTask*>(info.get_task())->get_worker_type() == "SSP") {
+                    husky::LOG_I << CLAY("[run_instance] setting to PSSSP");
+                    info.set_mlworker(new ml::ps::SSPWorker(
+                        static_cast<MLTask*>(info.get_task())->get_kvstore(), 
+                        info.get_local_id(),
+                        static_cast<GenericMLTask*>(info.get_task())->get_staleness())
+                            );
+                } else {
+                    husky::LOG_I << CLAY("[run_instance] setting to PS generic");
+                    info.set_mlworker(new ml::ps::PSGenericWorker(
+                        static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id()));
+                }
                 break;
             }
             case Task::Type::SingleTaskType: {
