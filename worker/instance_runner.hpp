@@ -56,7 +56,7 @@ class InstanceRunner {
         // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
         // cluster_manager
         if (info.get_task()->get_type() == Task::Type::MLTaskType) {
-            std::string hint = static_cast<MLTask*>(instance->get_task())->get_hint();
+            std::string hint = static_cast<const MLTask*>(instance->get_task())->get_hint();
             
             std::vector<std::string> instructions;
             boost::split(instructions, hint, boost::is_any_of(":"));
@@ -109,7 +109,7 @@ class InstanceRunner {
      */
     void postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
         if (info.get_task()->get_type() == Task::Type::MLTaskType) {
-            std::string hint = static_cast<MLTask*>(instance->get_task())->get_hint();
+            std::string hint = static_cast<const MLTask*>(instance->get_task())->get_hint();
             if (hint == "single" || hint == "hogwild") {  // some types need to do dump
                 info.get_mlworker()->Dump();
             }

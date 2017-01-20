@@ -24,9 +24,8 @@ class Task {
         BasicTaskType,
         MLTaskType,
         HuskyTaskType,
-        TwoPhasesTaskType,
-        FixedWorkersTaskType,
-        DummyType
+        DummyType,
+        ConfigurableWorkersTaskType
     };
 
     // For serialization usage only
@@ -119,31 +118,47 @@ class MLTask : public Task {
 };
 
 /*
- * TwoPhasesTask
+ * ConfigurableWorkersTask Task
+ *
  */
-class TwoPhasesTask : public Task {
+class ConfigurableWorkersTask : public Task {
    public:
     // For serialization usage only
-    TwoPhasesTask() = default;
-    TwoPhasesTask(int id) : Task(id, Type::TwoPhasesTaskType) {}
-    TwoPhasesTask(int id, int total_epoch, int num_workers)
-        : Task(id, total_epoch, num_workers, Type::TwoPhasesTaskType) {}
-    friend BinStream& operator<<(BinStream& bin, const TwoPhasesTask& task) { return task.serialize(bin); }
-    friend BinStream& operator>>(BinStream& bin, TwoPhasesTask& task) { return task.deserialize(bin); }
-};
+    ConfigurableWorkersTask() = default;
+    ConfigurableWorkersTask(int id) : Task(id, Type::ConfigurableWorkersTaskType) {}
+    ConfigurableWorkersTask(int id, int total_epoch, int num_workers)
+        : Task(id, total_epoch, num_workers, Type::ConfigurableWorkersTaskType) {}
 
-/*
- * FixedWokrersTaskType
- */
-class FixedWorkersTask : public Task {
-   public:
-    // For serialization usage only
-    FixedWorkersTask() = default;
-    FixedWorkersTask(int id) : Task(id, Type::FixedWorkersTaskType) {}
-    FixedWorkersTask(int id, int total_epoch, int num_workers)
-        : Task(id, total_epoch, num_workers, Type::FixedWorkersTaskType) {}
-    friend BinStream& operator<<(BinStream& bin, const FixedWorkersTask& task) { return task.serialize(bin); }
-    friend BinStream& operator>>(BinStream& bin, FixedWorkersTask& task) { return task.deserialize(bin); }
+    void set_worker_num(const std::vector<int>& worker_num) { worker_num_ = worker_num; }
+    void set_worker_num_type(const std::vector<std::string>& worker_num_type) { worker_num_type_ = worker_num_type; }
+
+    std::vector<int> get_worker_num() const { return worker_num_; }
+    std::vector<std::string> get_worker_num_type() const { return worker_num_type_; }
+
+    virtual BinStream& serialize(BinStream& bin) const {
+        Task::serialize(bin);
+        return bin << worker_num_ << worker_num_type_;
+    }
+    virtual BinStream& deserialize(BinStream& bin) {
+        Task::deserialize(bin);
+        return bin >> worker_num_ >> worker_num_type_;
+    }
+    friend BinStream& operator<<(BinStream& bin, const ConfigurableWorkersTask& task) { return task.serialize(bin); }
+    friend BinStream& operator>>(BinStream& bin, ConfigurableWorkersTask& task) { return task.deserialize(bin); }
+
+   private:
+     /**
+      * worker_num = [5]
+      */
+     std::vector<int> worker_num_;
+     /**
+      * worker_num_type equal "threads_per_worker", run 5 threads per worker
+      * worker_num_type equal "threads_per_cluster", run 5 threads per cluster
+      * worker_num_type equal "local_threads", run 5 local threads
+      * worker_num_type equal "threads_traverse_cluster", run 5 threads per worker by per worker
+      * worker_num_type equal "threads_on_worker:2", run 5 threads on worker 2
+      */
+     std::vector<std::string> worker_num_type_;
 };
 
 /*
@@ -186,17 +201,11 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
         ret.reset(task);
         break;
     }
-    case Task::Type::TwoPhasesTaskType: {
-        TwoPhasesTask* task = new TwoPhasesTask();
-        bin >> *task;
-        ret.reset(task);
-        break;
-    }
-    case Task::Type::FixedWorkersTaskType: {
-        FixedWorkersTask* task = new FixedWorkersTask();
-        bin >> *task;
-        ret.reset(task);
-        break;
+    case Task::Type::ConfigurableWorkersTaskType: {
+      ConfigurableWorkersTask* task = new ConfigurableWorkersTask();
+      bin >> *task;
+      ret.reset(task);
+      break;
     }
     default:
         throw base::HuskyException("Deserializing task error");

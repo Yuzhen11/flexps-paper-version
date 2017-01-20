@@ -7,6 +7,7 @@
 #include "cluster_manager/cluster_manager_connection.hpp"
 #include "cluster_manager/task_scheduler/greedy_task_scheduler.hpp"
 #include "cluster_manager/task_scheduler/sequential_task_scheduler.hpp"
+#include "cluster_manager/task_scheduler/history_manager.hpp"
 #include "core/constants.hpp"
 #include "core/instance.hpp"
 #include "husky/base/serialization.hpp"
