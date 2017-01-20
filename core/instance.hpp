@@ -31,6 +31,10 @@ class Instance {
             task_.reset(new TwoPhasesTask(static_cast<const TwoPhasesTask&>(task)));
             break;
         }
+        case Task::Type::FixedWorkersTaskType: { // TwoPhasesTask
+            task_.reset(new FixedWorkersTask(static_cast<const FixedWorkersTask&>(task)));
+            break;
+        }
         case Task::Type::PSTaskType: {  // PS Task
             task_.reset(new PSTask(static_cast<const PSTask&>(task)));
             break;

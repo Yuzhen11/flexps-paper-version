@@ -71,13 +71,12 @@ class SequentialTaskScheduler : public TaskScheduler {
 
         // randomly select threads
         std::vector<std::pair<int,int>> pid_tids;
-        if (instance->get_type() == Task::Type::TwoPhasesTaskType) {
-            if (instance->get_epoch() % 2 == 1 ) {
-                pid_tids = available_workers_.get_workers_per_process(instance->get_num_workers(), num_processes_);
-            }
-            else {
-                pid_tids = available_workers_.get_workers(1);
-            }
+        if ((instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 0)
+            || instance->get_type() == Task::Type::FixedWorkersTaskType) {
+            pid_tids = available_workers_.get_workers_per_process(instance->get_num_workers(), num_processes_);
+        }
+        else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
+            pid_tids = available_workers_.get_workers(1);
         }
         else if (instance->get_type() == Task::Type::HogwildTaskType)
             pid_tids = available_workers_.get_local_workers(instance->get_num_workers());

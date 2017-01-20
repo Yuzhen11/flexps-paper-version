@@ -22,16 +22,9 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
-    auto task = TaskFactory::Get().CreateTask<TwoPhasesTask>(5, 4);
+    auto task = TaskFactory::Get().CreateTask<FixedWorkersTask>(5, 4);
     engine.AddTask(task, [](const Info& info) {
-      const auto& current_task = static_cast<TwoPhasesTask*>(info.get_task());
-      husky::LOG_I << RED("current_epoch: " + std::to_string(info.get_current_epoch()));
-      if (info.get_current_epoch() % 2 == 0) {
-        husky::LOG_I << "--Running even epoch";
-      } else {
-        husky::LOG_I << "--Running odd epoch";
-      } 
-      
+      husky::LOG_I << "Running TwoFixedWorkersTask!";
     });
     engine.Submit();
 

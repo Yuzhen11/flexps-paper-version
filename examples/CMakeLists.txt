@@ -151,3 +151,9 @@ add_executable(TestSVRG test_svrg.cpp)
 target_link_libraries(TestSVRG husky)
 target_link_libraries(TestSVRG ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestSVRG PROPERTY CXX_STANDARD 14)
+
+# TestFixedWorkers
+add_executable(TestFixedWorkers test_fixedworkers.cpp)
+target_link_libraries(TestFixedWorkers husky)
+target_link_libraries(TestFixedWorkers ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestFixedWorkers PROPERTY CXX_STANDARD 14)
