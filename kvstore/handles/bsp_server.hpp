@@ -5,6 +5,7 @@
 
 #include "husky/base/serialization.hpp"
 #include "kvstore/kvmanager.hpp"
+#include "kvstore/handles/basic.hpp"
 
 namespace kvstore {
 
@@ -31,27 +32,6 @@ namespace kvstore {
  */
 template<typename Val>
 struct KVServerBSPHandle {
-    // update function for push
-    void update(husky::base::BinStream& bin) {
-        while (bin.size() > 0) {
-            int k;
-            Val v;
-            bin >> k >> v;
-            store_[k] += v;
-        }
-    }
-    // retrieve function for pull
-    KVPairs<Val> retrieve(husky::base::BinStream& bin) {
-        KVPairs<Val> res;
-        while (bin.size() > 0) {
-            int k;
-            bin >> k;
-            res.keys.push_back(k);
-            res.vals.push_back(store_[k]);
-        }
-        return res;
-    }
-
     // the callback function
     void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
         bool push;  // push or not
@@ -63,7 +43,7 @@ struct KVServerBSPHandle {
             } else {  // otherwise, directly update
                 int src;
                 bin >> src;
-                update(bin);
+                update(bin, store_);
                 server->Response(kv_id, ts, push, src, KVPairs<Val>(), customer);
             }
             // if all the push are collected, reply for the pull
@@ -73,7 +53,7 @@ struct KVServerBSPHandle {
                 for (auto& bin : pull_buffer_) {  // process the pull_buffer_
                     int src;
                     bin >> src;
-                    KVPairs<Val> res = retrieve(bin);
+                    KVPairs<Val> res = retrieve(bin, store_);
                     server->Response(kv_id, ts+1, 0, src, res, customer);
                 }
                 pull_buffer_.clear();
@@ -83,7 +63,7 @@ struct KVServerBSPHandle {
             if (reply_phase_) {  // if is now replying, directly reply
                 int src;
                 bin >> src;
-                KVPairs<Val> res = retrieve(bin);
+                KVPairs<Val> res = retrieve(bin, store_);
                 server->Response(kv_id, ts, push, src, res, customer);
             } else {  // otherwise, reply later
                 pull_buffer_.push_back(std::move(bin));
@@ -95,7 +75,7 @@ struct KVServerBSPHandle {
                 for (auto& bin : push_buffer_) {  // process the push_buffer_
                     int src;
                     bin >> src;
-                    update(bin);
+                    update(bin, store_);
                     server->Response(kv_id, ts+1, 1, src, KVPairs<Val>(), customer);
                 }
                 push_buffer_.clear();

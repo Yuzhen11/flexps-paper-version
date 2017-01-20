@@ -4,6 +4,10 @@
 
 #include "husky/base/serialization.hpp"
 #include "kvstore/kvmanager.hpp"
+#include "kvstore/ps_lite/sarray.h"
+#include "kvstore/handles/basic.hpp"
+
+#include "core/color.hpp"
 
 namespace kvstore {
 
@@ -16,26 +20,13 @@ struct KVServerDefaultAddHandle {
         bool push;  // push or not
         int src;
         bin >> push >> src;
-        KVPairs<Val> res;
         if (push == true) {  // if is push
-            while (bin.size() > 0) {
-                int k;
-                Val v;
-                bin >> k >> v;
-                // husky::base::log_msg("[Debug][KVServer] Adding k:"+std::to_string(k)+" v:"+std::to_string(v));
-                store_[k] += v;
-            }
+            update(bin, store_);
+            server->Response(kv_id, ts, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
-            while (bin.size() > 0) {
-                int k;
-                bin >> k;
-                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
-                // v:"+std::to_string(store_[k]));
-                res.keys.push_back(k);
-                res.vals.push_back(store_[k]);
-            }
+            KVPairs<Val> res = retrieve(bin, store_);
+            server->Response(kv_id, ts, push, src, res, customer);
         }
-        server->Response(kv_id, ts, push, src, res, customer);
     }
     // The real storeage
     std::unordered_map<int, Val> store_;
@@ -50,26 +41,13 @@ struct KVServerDefaultAssignHandle {
         bool push;  // push or not
         int src;
         bin >> push >> src;
-        KVPairs<Val> res;
         if (push == true) {  // if is push
-            while (bin.size() > 0) {
-                int k;
-                Val v;
-                bin >> k >> v;
-                // husky::base::log_msg("[Debug][KVServer] Assigning k:"+std::to_string(k)+" v:"+std::to_string(v));
-                store_[k] = v;
-            }
+            assign(bin, store_);
+            server->Response(kv_id, ts, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
-            while (bin.size() > 0) {
-                int k;
-                bin >> k;
-                // husky::base::log_msg("[Debug][KVServer] Getting k:"+std::to_string(k)+"
-                // v:"+std::to_string(store_[k]));
-                res.keys.push_back(k);
-                res.vals.push_back(store_[k]);
-            }
+            KVPairs<Val> res = retrieve(bin, store_);
+            server->Response(kv_id, ts, push, src, res, customer);
         }
-        server->Response(kv_id, ts, push, src, res, customer);
     }
     // The real storeage
     std::unordered_map<int, Val> store_;

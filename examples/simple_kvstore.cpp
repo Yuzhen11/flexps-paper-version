@@ -21,14 +21,14 @@ int main(int argc, char** argv) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<int> keys{0};
         std::vector<float> vals{2.0};
-        int ts = kvworker->PushLocal(kv1, info.get_proc_id(), keys, vals);
-        // int ts = kvworker->Push(kv1, keys, vals);
+        // int ts = kvworker->PushLocal(kv1, info.get_proc_id(), keys, vals);
+        int ts = kvworker->Push(kv1, keys, vals);
         kvworker->Wait(kv1, ts);
         husky::LOG_I << "Push Done!";
 
         std::vector<float> rets;
-        kvworker->Wait(kv1, kvworker->PullLocal(kv1, info.get_proc_id(), keys, &rets));
-        // kvworker->Wait(kv1, kvworker->Pull(kv1, keys, &rets));
+        // kvworker->Wait(kv1, kvworker->PullLocal(kv1, info.get_proc_id(), keys, &rets));
+        kvworker->Wait(kv1, kvworker->Pull(kv1, keys, &rets));
         husky::LOG_I << rets[0];
     });
     engine.Submit();
