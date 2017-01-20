@@ -73,16 +73,14 @@ class GreedyTaskScheduler : public TaskScheduler {
                 instance_basic_setup(instance, *tasks_[i]);
 
                 std::vector<std::pair<int,int>> pid_tids;
-                if (instance->get_type() == Task::Type::TwoPhasesTaskType) {
-                    if (instance->get_epoch() % 2 == 1) {
-                        //  make sure per worker has n threads available
-                        int thread_per_worker = instance->get_num_workers();
-                        pid_tids = available_workers_.get_workers_per_process(thread_per_worker, num_processes_);
-                    }
-                    else {
-                        // run even epoch with 1 thread default
-                        pid_tids = available_workers_.get_workers(1);
-                    }
+                if ((instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 0)
+                    || instance->get_type() == Task::Type::FixedWorkersTaskType) {
+                    int thread_per_worker = instance->get_num_workers();
+                    pid_tids = available_workers_.get_workers_per_process(thread_per_worker, num_processes_);
+                }
+                else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
+                    // run even epoch with 1 thread default
+                    pid_tids = available_workers_.get_workers(1);
                 }
                 else if (instance->get_type() == Task::Type::HogwildTaskType) {
                     // extract from local_workers

@@ -31,7 +31,8 @@ class Task {
         GenericMLTaskType,
         HuskyTaskType,
         DummyType,
-        TwoPhasesTaskType
+        TwoPhasesTaskType,
+        FixedWorkersTaskType
     };
 
     // For serialization usage only
@@ -224,6 +225,19 @@ class TwoPhasesTask : public Task {
 };
 
 /*
+ * FixedWokrersTaskType
+ */
+class FixedWorkersTask : public Task {
+   public:
+    // For serialization usage only
+    FixedWorkersTask() = default;
+    FixedWorkersTask(int id) : Task(id, Type::FixedWorkersTaskType) {}
+    FixedWorkersTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::FixedWorkersTaskType) {}
+    friend BinStream& operator<<(BinStream& bin, const FixedWorkersTask& task) { return task.serialize(bin); }
+    friend BinStream& operator>>(BinStream& bin, FixedWorkersTask& task) { return task.deserialize(bin); }
+};
+
+/*
  * Husky Task
  */
 class HuskyTask : public Task {
@@ -291,6 +305,12 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
     }
     case Task::Type::TwoPhasesTaskType: {
       TwoPhasesTask* task = new TwoPhasesTask();
+      bin >> *task;
+      ret.reset(task);
+      break;
+    }
+    case Task::Type::FixedWorkersTaskType: {
+      FixedWorkersTask* task = new FixedWorkersTask();
       bin >> *task;
       ret.reset(task);
       break;
