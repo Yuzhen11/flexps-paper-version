@@ -106,6 +106,9 @@ class KVWorker {
             }));  // push the function template in
     }
 
+    void SetMaxKey(int kv_id, husky::constants::Key max_key) {
+        GetServerKeyRanges(kv_id, max_key);
+    }
    private:
     /*
      * \brief UniqueProcess for every individual kvstore
@@ -221,7 +224,7 @@ class KVWorker {
     void Send(int kv_id, int ts, bool push, const KVPairs<Val>& kvs) {
         // slice the message
         SlicedKVs<Val> sliced;
-        Slice(kvs, GetServerKeyRanges(), &sliced);
+        Slice(kvs, GetServerKeyRanges(kv_id), &sliced);
 
         for (size_t i = 0; i < sliced.size(); ++ i) {
             husky::base::BinStream bin;
@@ -230,6 +233,7 @@ class KVWorker {
             bin << isRequest << kv_id << ts << push << src;
             auto& kvs = sliced[i].second;
             bin << kvs.keys << kvs.vals;
+            // husky::LOG_I << CLAY("sending to "+std::to_string(i)+" size: "+std::to_string(bin.size()));
             customer_->send(info_.get_tid(i), bin);
         }
     }
@@ -280,21 +284,23 @@ class KVWorker {
           kv.vals = send.vals.segment(pos[i]*k, pos[i+1]*k);
         }
     }
-    const std::vector<pslite::Range>& GetServerKeyRanges() {
-      if (server_key_ranges_.empty()) {
+    const std::vector<pslite::Range>& GetServerKeyRanges(int kv_id, 
+                                                         husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max()) {
+        if (kv_id >= server_key_ranges_.size())
+            server_key_ranges_.resize(kv_id+1);
+      if (server_key_ranges_[kv_id].empty()) {
         auto num_servers_ = info_.num_ps_servers;
         for (int i = 0; i < num_servers_; ++i) {
-          server_key_ranges_.push_back(pslite::Range(
-              max_key_ / num_servers_ * i,
-              max_key_ / num_servers_ * (i+1)));
+          server_key_ranges_[kv_id].push_back(pslite::Range(
+              max_key / num_servers_ * i,
+              max_key / num_servers_ * (i+1)));
         }
       }
-      return server_key_ranges_;
+      return server_key_ranges_[kv_id];
     }
-   private:
-    husky::constants::Key max_key_ = std::numeric_limits<husky::constants::Key>::max();
 
-    std::vector<pslite::Range> server_key_ranges_;
+   private:
+    std::vector<std::vector<pslite::Range>> server_key_ranges_;
 
     // storage for the kvs
     std::unordered_map<std::pair<int, int>, RecvKVPairsBase*> recv_kvs_;  // { <kv_id,ts>, recv_kvs_ }

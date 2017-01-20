@@ -121,6 +121,12 @@ class KVStore {
         return kv_id++;
     }
 
+    void SetMaxKey(int kv_id, husky::constants::Key max_key) {
+        for (auto* kvworker : kvworkers) {
+            kvworker->SetMaxKey(kv_id, max_key);
+        }
+    }
+
     /*
      * \brief function to return kvworker
      */
