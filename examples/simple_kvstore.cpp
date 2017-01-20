@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
     engine.AddTask(task, [kv1](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
-        std::vector<int> keys{0};
+        std::vector<husky::constants::Key> keys{0};
         std::vector<float> vals{2.0};
         // int ts = kvworker->PushLocal(kv1, info.get_proc_id(), keys, vals);
         int ts = kvworker->Push(kv1, keys, vals);
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         for (int i = 0; i < 10; ++ i) {
             std::vector<float> rets;
-            std::vector<int> keys{0};
+            std::vector<husky::constants::Key> keys{0};
             // pull
             kvworker->Wait(kv2, kvworker->Pull(kv2, keys, &rets));  // In BSP, expect to see all the update
             husky::LOG_I << BLUE("id:"+std::to_string(info.get_local_id())+" iter "+std::to_string(i)+": "+std::to_string(rets[0]));
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         for (int i = 0; i < 10; ++ i) {
             std::vector<float> rets;
-            std::vector<int> keys{0};
+            std::vector<husky::constants::Key> keys{0};
             // pull
             kvworker->Wait(kv3, kvworker->Pull(kv3, keys, &rets));  // In SSP, the difference of parameter in each worker in the same iter should be at most staleness*num_workers*2-2?
             husky::LOG_I << GREEN("id:"+std::to_string(info.get_local_id())+" iter "+std::to_string(i)+": "+std::to_string(rets[0]));
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         for (int i = 0; i < 10; ++ i) {
             std::vector<float> rets;
-            std::vector<int> keys{0};
+            std::vector<husky::constants::Key> keys{0};
             // pull
             kvworker->Wait(kv4, kvworker->Pull(kv4, keys, &rets));  // In BSP, expect to see all the update
             husky::LOG_I << BLUE("id:"+std::to_string(info.get_local_id())+" iter "+std::to_string(i)+": "+std::to_string(rets[0]));

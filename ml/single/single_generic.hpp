@@ -33,8 +33,8 @@ class SingleGenericWorker: public common::GenericMLWorker {
                              std::to_string(local_id_) + "model_size: " + std::to_string(model_.size());
         auto start_time = std::chrono::steady_clock::now();
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
-        std::vector<int> keys(model_.size());
-        for (int i = 0; i < keys.size(); ++i)
+        std::vector<husky::constants::Key> keys(model_.size());
+        for (size_t i = 0; i < keys.size(); ++i)
             keys[i] = i;
         int ts = kvworker->Pull(model_id_, keys, &model_);
         kvworker->Wait(model_id_, ts);
@@ -50,8 +50,8 @@ class SingleGenericWorker: public common::GenericMLWorker {
 
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
 
-        std::vector<int> keys(model_.size());
-        for (int i = 0; i < keys.size(); ++i)
+        std::vector<husky::constants::Key> keys(model_.size());
+        for (size_t i = 0; i < keys.size(); ++i)
             keys[i] = i;
         int ts = kvworker->Push(model_id_, keys, model_);
         kvworker->Wait(model_id_, ts);
@@ -59,25 +59,25 @@ class SingleGenericWorker: public common::GenericMLWorker {
     /*
      * Put/Get, Push/Pull APIs
      */
-    virtual void Put(int key, float val) override {
+    virtual void Put(husky::constants::Key key, float val) override {
         assert(key < model_.size());
         model_[key] = val;
     }
-    virtual float Get(int key) override {
+    virtual float Get(husky::constants::Key key) override {
         assert(key < model_.size());
         return model_[key];
     }
 
-    virtual void Push(const std::vector<int>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(keys.size() == vals.size());
-        for (int i = 0; i < keys.size(); i++) {
+        for (size_t i = 0; i < keys.size(); i++) {
             assert(keys[i] < model_.size());
             model_[keys[i]] += vals[i];
         }
     }
-    virtual void Pull(const std::vector<int>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
         vals->resize(keys.size());
-        for (int i = 0; i < keys.size(); i++) {
+        for (size_t i = 0; i < keys.size(); i++) {
             assert(i < model_.size());
             (*vals)[i] = model_[keys[i]];
         }
@@ -85,18 +85,18 @@ class SingleGenericWorker: public common::GenericMLWorker {
     
 
     // For v2
-    virtual void Prepare_v2(std::vector<int>& keys) override {
+    virtual void Prepare_v2(std::vector<husky::constants::Key>& keys) override {
         keys_ = &keys;
     }
-    virtual float Get_v2(int idx) override {
+    virtual float Get_v2(size_t idx) override {
         return model_[(*keys_)[idx]];
     }
-    virtual void Update_v2(int idx, float val) override {
+    virtual void Update_v2(size_t idx, float val) override {
         model_[(*keys_)[idx]] += val;
     }
     virtual void Update_v2(const std::vector<float>& vals) override {
         assert(vals.size() == keys_->size());
-        for (int i = 0; i < keys_->size(); ++ i) {
+        for (size_t i = 0; i < keys_->size(); ++ i) {
             assert((*keys_)[i] < model_.size());
             model_[(*keys_)[i]] += vals[i];
         }
@@ -109,7 +109,7 @@ class SingleGenericWorker: public common::GenericMLWorker {
 
     // For v2
     // Pointer to keys
-    std::vector<int>* keys_;
+    std::vector<husky::constants::Key>* keys_;
 };
 
 }  // namespace single

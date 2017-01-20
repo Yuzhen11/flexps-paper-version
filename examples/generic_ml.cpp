@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
         int num_iter = 1001;
         for (int i = 0; i < num_iter; ++ i) {
             std::vector<float> rets;
-            std::vector<int> keys{0};
+            std::vector<husky::constants::Key> keys{0};
             // pull
             worker->Pull(keys, &rets);
             if (i % 100 == 0)
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
         int num_iter = 1001;
         for (int i = 0; i < num_iter; ++ i) {
             std::vector<float> rets;
-            std::vector<int> keys{0};
+            std::vector<husky::constants::Key> keys{0};
             // pull
             worker->Pull(keys, &rets);
             if (i % 100 == 0)
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
         int num_iter = 1001;
         for (int i = 0; i < num_iter; ++ i) {
             std::vector<float> rets;
-            std::vector<int> keys{0};
+            std::vector<husky::constants::Key> keys{0};
             // pull
             worker->Pull(keys, &rets);
             if (i % 100 == 0)

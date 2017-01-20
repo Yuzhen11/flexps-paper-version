@@ -1,16 +1,16 @@
 #pragma once
 #include <vector>
 #include "kvstore/ps_lite/sarray.h"
+#include "core/constants.hpp"
 
 namespace kvstore {
 
 /*
  * Use std::vector first, may replaced by SArray
  */
-using Key = int;
 template <typename Val>
 struct KVPairs {
-    pslite::SArray<Key> keys;
+    pslite::SArray<husky::constants::Key> keys;
     pslite::SArray<Val> vals;
 };
 

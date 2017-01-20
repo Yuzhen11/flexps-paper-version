@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include "core/constants.hpp"
 #include "datastore/datastore.hpp"
 
 namespace husky {
@@ -71,8 +72,8 @@ class BatchDataSampler {
     void random_start_point() {
         data_sampler_.random_start_point();
     }
-    std::vector<int> prepare_next_batch() {
-        std::set<int> index_set;  // may use other data structure to de-duplicate
+    std::vector<husky::constants::Key> prepare_next_batch() {
+        std::set<husky::constants::Key> index_set;  // may use other data structure to de-duplicate
         for (int i = 0; i < batch_size_; ++ i) {
             auto& data = data_sampler_.next();
             batch_data_[i] = const_cast<T*>(&data);

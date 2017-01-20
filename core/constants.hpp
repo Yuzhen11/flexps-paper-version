@@ -7,6 +7,8 @@ namespace constants {
 
 namespace {
 
+using Key = uint64_t;
+
 // TODO: magic number: channel id reserved for kvstore
 const int kv_channel_id = 37;
 

@@ -21,12 +21,12 @@ class PSGenericWorker : public common::GenericMLWorker {
     PSGenericWorker(int model_id, int local_id): model_id_(model_id),
         kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)) {
     }
-    virtual void Push(const std::vector<int>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
         ts_ = kvworker_->Push(model_id_, keys, vals, nullptr);
     }
-    virtual void Pull(const std::vector<int>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         if (ts_ != -1)
@@ -36,22 +36,22 @@ class PSGenericWorker : public common::GenericMLWorker {
     }
     
     // For v2
-    virtual void Prepare_v2(std::vector<int>& keys) override {
+    virtual void Prepare_v2(std::vector<husky::constants::Key>& keys) override {
         keys_ = &keys;
         Pull(keys, &vals_);
         delta_.clear();
         delta_.resize(keys.size());
     }
-    virtual float Get_v2(int idx) override {
+    virtual float Get_v2(husky::constants::Key idx) override {
         return vals_[idx];
     }
-    virtual void Update_v2(int idx, float val) override {
+    virtual void Update_v2(husky::constants::Key idx, float val) override {
         delta_[idx] += val;
         vals_[idx] += val;
     }
     virtual void Update_v2(const std::vector<float>& vals) override {
         assert(vals.size() == vals_.size());
-        for (int i = 0; i < vals.size(); ++ i) {
+        for (size_t i = 0; i < vals.size(); ++ i) {
             vals_[i] += vals[i];
             delta_[i] += vals[i];
         }
@@ -72,7 +72,7 @@ class PSGenericWorker : public common::GenericMLWorker {
 
     // For v2
     // Pointer to keys
-    std::vector<int>* keys_;
+    std::vector<husky::constants::Key>* keys_;
     std::vector<float> vals_;
     std::vector<float> delta_;
 };

@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         if (training_data.empty())
             return;
         auto& worker = info.get_mlworker();
-        std::vector<int> all_keys;
+        std::vector<husky::constants::Key> all_keys;
         for (int i = 0; i < num_params; i++) all_keys.push_back(i);
         std::vector<float> params;
         for(int iter = 0; iter < num_iters; iter++) {

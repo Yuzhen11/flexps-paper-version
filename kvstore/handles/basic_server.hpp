@@ -29,7 +29,7 @@ struct KVServerDefaultAddHandle {
         }
     }
     // The real storeage
-    std::unordered_map<int, Val> store_;
+    std::unordered_map<husky::constants::Key, Val> store_;
 };
 
 /*
@@ -50,7 +50,7 @@ struct KVServerDefaultAssignHandle {
         }
     }
     // The real storeage
-    std::unordered_map<int, Val> store_;
+    std::unordered_map<husky::constants::Key, Val> store_;
 };
 
 }  // namespace kvstore

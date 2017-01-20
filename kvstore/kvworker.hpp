@@ -44,11 +44,11 @@ class KVWorker {
      */
     template <typename Val>
     int Push(int kv_id,
-            const std::vector<Key>& keys,
+            const std::vector<husky::constants::Key>& keys,
             const std::vector<Val>& vals,
             const Callback& cb = nullptr) {
         return ZPush(
-            kv_id, pslite::SArray<Key>(keys), pslite::SArray<Val>(vals), cb);
+            kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), cb);
     }
 
     /*
@@ -56,7 +56,7 @@ class KVWorker {
      */
     template <typename Val>
     int ZPush(int kv_id,
-             const pslite::SArray<Key>& keys,
+             const pslite::SArray<husky::constants::Key>& keys,
              const pslite::SArray<Val>& vals,
              const Callback& cb = nullptr) {
         int ts = customer_->NewRequest(kv_id, info_.num_ps_servers);
@@ -72,17 +72,17 @@ class KVWorker {
      */
     template<typename Val>
     int Pull(int kv_id, 
-           const std::vector<Key>& keys,
+           const std::vector<husky::constants::Key>& keys,
            std::vector<Val>* vals,
            const Callback& cb = nullptr) {
-        return Pull_<Val>(kv_id, pslite::SArray<Key>(keys), vals, cb);
+        return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, cb);
     }
     /*
      * zero-copy pull
      */
     template<typename Val>
     int ZPull(int kv_id,
-              const pslite::SArray<Key>& keys,
+              const pslite::SArray<husky::constants::Key>& keys,
               pslite::SArray<Val>* vals,
               const Callback& cb = nullptr) {
         return Pull_<Val>(kv_id, keys, vals, cb);
@@ -172,7 +172,7 @@ class KVWorker {
     }
 
     template<typename Val, typename C>
-    int Pull_(int kv_id, const pslite::SArray<Key>& keys, C* vals, const Callback& cb) {
+    int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, const Callback& cb) {
         auto num_servers = info_.num_ps_servers;
         int ts = customer_->NewRequest(kv_id, num_servers);
         AddCallback(kv_id, ts, [this, kv_id, ts, keys, vals, cb, num_servers]() mutable {
@@ -247,8 +247,8 @@ class KVWorker {
         // find the positions in msg.key
         size_t n = ranges.size();
         std::vector<size_t> pos(n+1);
-        const Key* begin = send.keys.begin();
-        const Key* end = send.keys.end();
+        const husky::constants::Key* begin = send.keys.begin();
+        const husky::constants::Key* end = send.keys.end();
         for (size_t i = 0; i < n; ++i) {
           if (i == 0) {
             pos[0] = std::lower_bound(begin, end, ranges[0].begin()) - begin;
@@ -292,7 +292,7 @@ class KVWorker {
       return server_key_ranges_;
     }
    private:
-    int max_key_ = std::numeric_limits<int>::max();
+    husky::constants::Key max_key_ = std::numeric_limits<husky::constants::Key>::max();
 
     std::vector<pslite::Range> server_key_ranges_;
 

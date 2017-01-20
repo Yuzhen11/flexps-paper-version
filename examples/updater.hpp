@@ -16,7 +16,7 @@ void sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
     auto& x = data.x;
     float y = data.y;
     if (y < 0) y = 0;
-    std::vector<int> keys;
+    std::vector<husky::constants::Key> keys;
     std::vector<float> params;
     std::vector<float> delta;
     keys.reserve(x.get_feature_num()+1);
@@ -47,7 +47,7 @@ void sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
     auto& x = data.x;
     float y = data.y;
     if (y < 0) y = 0;
-    std::vector<int> keys;
+    std::vector<husky::constants::Key> keys;
     keys.reserve(x.get_feature_num()+1);
     for (auto field : x) {  // set keys
         keys.push_back(field.fea);
@@ -72,7 +72,7 @@ void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker
         BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, 
         float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
-    std::vector<int> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
+    std::vector<husky::constants::Key> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
     std::vector<float> params;
     std::vector<float> delta;
     delta.resize(keys.size(), 0.0);
@@ -102,7 +102,7 @@ void batch_sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& wor
         BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, 
         float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
-    std::vector<int> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
+    std::vector<husky::constants::Key> keys = batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
     worker->Prepare_v2(keys);
     for (auto data : batch_data_sampler.get_data_ptrs()) {  // iterate over the data in the batch
         auto& x = data->x;
@@ -128,7 +128,7 @@ float get_test_error(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
         DataIterator<LabeledPointHObj<float, float, true>> data_iterator,
         int num_params, int test_samples = -1) {
     test_samples = 1000;
-    std::vector<int> all_keys;
+    std::vector<husky::constants::Key> all_keys;
     for (int i = 0; i < num_params; i++) all_keys.push_back(i);
     std::vector<float> test_params;
     worker->Pull(all_keys, &test_params);
@@ -161,7 +161,7 @@ float get_test_error_v2(const std::unique_ptr<ml::common::GenericMLWorker>& work
         DataIterator<LabeledPointHObj<float, float, true>> data_iterator,
         int num_params, int test_samples = -1) {
     test_samples = 1000;
-    std::vector<int> all_keys;
+    std::vector<husky::constants::Key> all_keys;
     for (int i = 0; i < num_params; i++) all_keys.push_back(i);
     worker->Prepare_v2(all_keys);
     int count = 0;

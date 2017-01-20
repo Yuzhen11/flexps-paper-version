@@ -73,7 +73,7 @@ struct KVServerSSPHandle {
     int staleness_ = 0;
     std::vector<std::vector<std::tuple<int, int, husky::base::BinStream>>> blocked_pulls_;
     // The real storeage
-    std::unordered_map<int, Val> store_;
+    std::unordered_map<husky::constants::Key, Val> store_;
 };
 
 }  // namespace kvstore
