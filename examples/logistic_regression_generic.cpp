@@ -102,6 +102,8 @@ int main(int argc, char** argv) {
     } else if (model == "PSSSP") {
         int staleness = 2;
         int kv1 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerSSPHandle<float>(num_train_workers, staleness));
+        task1.set_staleness(staleness);
+        task1.set_worker_type("SSP");
         task1.set_num_workers(num_train_workers);
         task1.set_running_type(Task::Type::PSSSPTaskType);
         task1.set_kvstore(kv1);

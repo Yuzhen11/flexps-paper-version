@@ -193,8 +193,12 @@ class GenericMLTask : public MLTask {
         : MLTask(id, total_epoch, num_workers, Type::GenericMLTaskType) {}
 
     void set_running_type(Type type) { running_type_ = type; }
+    void set_staleness(int staleness) { staleness_ = staleness; }
+    void set_worker_type(const std::string& worker_type) { worker_type_ = worker_type; }
 
     Type get_running_type() const { return running_type_; }
+    int get_staleness() const { return staleness_; }
+    std::string get_worker_type() const { return worker_type_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
         Task::serialize(bin);
@@ -209,6 +213,8 @@ class GenericMLTask : public MLTask {
 
    private:
     Type running_type_ = Type::DummyType;
+    int staleness_ = -1;
+    std::string worker_type_;
 };
 
 /*
