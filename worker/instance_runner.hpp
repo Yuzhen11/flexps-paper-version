@@ -51,29 +51,28 @@ class InstanceRunner {
         Info info = utility::instance_to_info(*instance, worker_info_, tid_cid);
         info.set_task(task_store_.get_task(instance->get_id()).get());
 
-        // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by cluster_manager
+        // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
+        // cluster_manager
         if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
             // husky::LOG_I << "type: " + std::to_string(static_cast<int>(instance->get_type()));
             switch (instance->get_type()) {
             case Task::Type::PSBSPTaskType:
             case Task::Type::PSASPTaskType: {
                 husky::LOG_I << CLAY("[run_instance] setting to PS generic");
-                info.set_mlworker(new ml::ps::PSGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id()));
+                info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
+                                                              info.get_local_id()));
                 break;
             }
             case Task::Type::PSSSPTaskType: {
                 if (static_cast<GenericMLTask*>(info.get_task())->get_worker_type() == "SSP") {
                     husky::LOG_I << CLAY("[run_instance] setting to PSSSP");
-                    info.set_mlworker(new ml::ps::SSPWorker(
-                        static_cast<MLTask*>(info.get_task())->get_kvstore(), 
-                        info.get_local_id(),
-                        static_cast<GenericMLTask*>(info.get_task())->get_staleness())
-                            );
+                    info.set_mlworker(
+                        new ml::ps::SSPWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
+                                              static_cast<GenericMLTask*>(info.get_task())->get_staleness()));
                 } else {
                     husky::LOG_I << CLAY("[run_instance] setting to PS generic");
-                    info.set_mlworker(new ml::ps::PSGenericWorker(
-                        static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id()));
+                    info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
+                                                                  info.get_local_id()));
                 }
                 break;
             }
@@ -88,8 +87,8 @@ class InstanceRunner {
             case Task::Type::HogwildTaskType: {
                 husky::LOG_I << CLAY("[run_instance] setting to Hogwild! generic");
                 info.set_mlworker(new ml::hogwild::HogwildGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(), info,
-                    static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
+                    info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
                 break;
             }
@@ -140,8 +139,9 @@ class InstanceRunner {
         }
         instances_.insert({instance->get_id(), instance});  // store the instance
 
-        husky::LOG_I << GREEN("[InstanceRunner] Instance id " + std::to_string(instance->get_id()) + " " + std::to_string(local_threads.size())
-                + "/" + std::to_string(instance->get_num_threads()) + " run on process " + std::to_string(worker_info_.get_process_id()));
+        husky::LOG_I << GREEN("[InstanceRunner] Instance id " + std::to_string(instance->get_id()) + " " +
+                              std::to_string(local_threads.size()) + "/" + std::to_string(instance->get_num_threads()) +
+                              " run on process " + std::to_string(worker_info_.get_process_id()));
         for (auto tid_cid : local_threads) {
             // worker threads
             units_[tid_cid.first] = std::move(Unit([this, instance, tid_cid] {
@@ -149,7 +149,8 @@ class InstanceRunner {
                 Info info = info_factory(instance, tid_cid);
 
                 // if (info.get_cluster_id() == 0)
-                //     husky::LOG_I << "[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + " starts!";
+                //     husky::LOG_I << "[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + "
+                //     starts!";
 
                 // run the UDF!!!
                 task_store_.get_func(instance->get_id())(info);
@@ -160,7 +161,8 @@ class InstanceRunner {
                 info.get_mlworker().reset();
 
                 // if (info.get_cluster_id() == 0)
-                //     husky::LOG_I << "[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + " finishes!";
+                //     husky::LOG_I << "[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + "
+                //     finishes!";
 
                 // tell worker when I finish
                 zmq::socket_t socket = cluster_manager_connector_.get_socket_to_recv();

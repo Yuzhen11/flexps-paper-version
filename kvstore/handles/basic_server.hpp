@@ -3,9 +3,9 @@
 #include <unordered_map>
 
 #include "husky/base/serialization.hpp"
+#include "kvstore/handles/basic.hpp"
 #include "kvstore/kvmanager.hpp"
 #include "kvstore/ps_lite/sarray.h"
-#include "kvstore/handles/basic.hpp"
 
 #include "core/color.hpp"
 
@@ -14,7 +14,7 @@ namespace kvstore {
 /*
  * The default functor for add operation
  */
-template<typename Val>
+template <typename Val>
 struct KVServerDefaultAddHandle {
     void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
         bool push;  // push or not
@@ -35,7 +35,7 @@ struct KVServerDefaultAddHandle {
 /*
  * The default functor for assign operation
  */
-template<typename Val>
+template <typename Val>
 struct KVServerDefaultAssignHandle {
     void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
         bool push;  // push or not

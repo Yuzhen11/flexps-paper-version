@@ -11,15 +11,16 @@ int main(int argc, char** argv) {
         return 1;
 
     std::string bind_addr = "tcp://*:" + Context::get_param("worker_port");
-    std::string cluster_manager_addr = "tcp://" + Context::get_param("cluster_manager_host") + ":" +
-                              Context::get_param("clsuter_manager_port");
+    std::string cluster_manager_addr =
+        "tcp://" + Context::get_param("cluster_manager_host") + ":" + Context::get_param("clsuter_manager_port");
     std::string host_name = Context::get_param("hostname");
 
     // worker info
     WorkerInfo worker_info = Context::get_worker_info();
 
     // cluster_manager connector
-    ClusterManagerConnector cluster_manager_connector(Context::get_zmq_context(), bind_addr, cluster_manager_addr, host_name);
+    ClusterManagerConnector cluster_manager_connector(Context::get_zmq_context(), bind_addr, cluster_manager_addr,
+                                                      host_name);
 
     // Create mailbox
     Context::create_mailbox_env();
@@ -28,11 +29,10 @@ int main(int argc, char** argv) {
     husky::Worker worker(std::move(worker_info), std::move(cluster_manager_connector));
 
     // add tasks
-    auto task1 =
-        TaskFactory::Get().CreateTask<Task>(1, 2);  // id: 0, total_epoch: 1, num_workers: 2
+    auto task1 = TaskFactory::Get().CreateTask<Task>(1, 2);  // id: 0, total_epoch: 1, num_workers: 2
     worker.add_task(task1, [](const Info& info) {
         LOG_I << "local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
-                      std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id());
+                     std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id());
         std::this_thread::sleep_for(std::chrono::seconds(1));
         LOG_I << "task1 is running";
 
@@ -71,11 +71,10 @@ int main(int argc, char** argv) {
         }
     });
 
-    auto task2 =
-        TaskFactory::Get().CreateTask<Task>(2, 1);  // id: 1, total_epoch: 2, num_workers: 1
+    auto task2 = TaskFactory::Get().CreateTask<Task>(2, 1);  // id: 1, total_epoch: 2, num_workers: 1
     worker.add_task(task2, [](const Info& info) {
         LOG_I << "local_id:" + std::to_string(info.get_local_id()) + " global_id:" +
-                      std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id());
+                     std::to_string(info.get_global_id()) + " cluster_id:" + std::to_string(info.get_cluster_id());
         std::this_thread::sleep_for(std::chrono::seconds(1));
         LOG_I << "task2 is running";
     });

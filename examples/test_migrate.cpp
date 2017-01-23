@@ -5,8 +5,8 @@
 #include "husky/core/objlist.hpp"
 #include "husky/core/worker_info.hpp"
 
-#include "worker/engine.hpp" 
 #include "core/color.hpp"
+#include "worker/engine.hpp"
 
 using namespace husky;
 
@@ -14,7 +14,7 @@ class Object {
    public:
     using KeyT = int;
     int key;
-    Object(){this->key = 0;}
+    Object() { this->key = 0; }
     explicit Object(KeyT key) { this->key = key; }
     const int& id() const { return key; }
 };
@@ -39,9 +39,9 @@ int main(int argc, char** argv) {
         if (info.get_cluster_id() == 1) {
             // migrate one obj to thread with cluster id 0
             int dst_global_id = info.get_cluster_global().at(0);
-            husky::LOG_I<<"dst global id is:" << dst_global_id;
+            husky::LOG_I << "dst global id is:" << dst_global_id;
             Object* p = src_list.find(1);
-            husky::LOG_I<<"object id stored on 1 is :"<<(*p).id();
+            husky::LOG_I << "object id stored on 1 is :" << (*p).id();
             migrate_channel.migrate(*p, dst_global_id);
             src_list.deletion_finalize();
         }
@@ -51,12 +51,13 @@ int main(int argc, char** argv) {
 
         if (info.get_cluster_id() == 1) {
             if (src_list.find(1) == nullptr)
-                husky::LOG_I << "This is cluster id 1." << " Object already disapear";
+                husky::LOG_I << "This is cluster id 1."
+                             << " Object already disapear";
         }
-       
-        if (dst_list.get_data().size() != 0){
+
+        if (dst_list.get_data().size() != 0) {
             Object& obj = dst_list.get_data()[0];
-            husky::LOG_I << "This is cluster id "<<info.get_cluster_id() << " Received object id:" << obj.id();
+            husky::LOG_I << "This is cluster id " << info.get_cluster_id() << " Received object id:" << obj.id();
         }
 
     });

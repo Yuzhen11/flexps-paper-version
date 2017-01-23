@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
-#include "kvstore/ps_lite/sarray.h"
 #include "core/constants.hpp"
+#include "kvstore/ps_lite/sarray.h"
 
 namespace kvstore {
 

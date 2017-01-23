@@ -2,10 +2,10 @@
 
 #include <sstream>
 
+#include "core/color.hpp"
 #include "core/task.hpp"
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
-#include "core/color.hpp"
 
 namespace husky {
 
@@ -27,11 +27,11 @@ class Instance {
             task_.reset(new HuskyTask(static_cast<const HuskyTask&>(task)));
             break;
         }
-        case Task::Type::TwoPhasesTaskType: { // TwoPhasesTask
+        case Task::Type::TwoPhasesTaskType: {  // TwoPhasesTask
             task_.reset(new TwoPhasesTask(static_cast<const TwoPhasesTask&>(task)));
             break;
         }
-        case Task::Type::FixedWorkersTaskType: { // TwoPhasesTask
+        case Task::Type::FixedWorkersTaskType: {  // TwoPhasesTask
             task_.reset(new FixedWorkersTask(static_cast<const FixedWorkersTask&>(task)));
             break;
         }
@@ -95,8 +95,8 @@ class Instance {
         for (auto& kv : cluster_)
             num_threads += kv.second.size();
         husky::LOG_I << GREEN("[Instance]: Task id:" + std::to_string(task_->get_id()) + " Epoch:" +
-                      std::to_string(task_->get_current_epoch()) + " Proc Num:" + std::to_string(cluster_.size()) +
-                      " Thread Num:" + std::to_string(num_threads));
+                              std::to_string(task_->get_current_epoch()) + " Proc Num:" +
+                              std::to_string(cluster_.size()) + " Thread Num:" + std::to_string(num_threads));
         for (auto& kv : cluster_) {
             std::stringstream ss;
             ss << "Proc id: " << kv.first << ": { ";
@@ -135,7 +135,7 @@ class Instance {
         auto it = cluster_.find(proc_id);
         if (it == cluster_.end())
             return {};
-        else 
+        else
             return it->second;
     }
     int get_num_threads() const {

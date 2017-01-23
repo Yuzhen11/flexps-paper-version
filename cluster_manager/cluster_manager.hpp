@@ -4,12 +4,12 @@
 #include "husky/base/log.hpp"
 #include "husky/core/worker_info.hpp"
 
+#include "cluster_manager/cluster_manager_connection.hpp"
+#include "cluster_manager/task_scheduler/greedy_task_scheduler.hpp"
+#include "cluster_manager/task_scheduler/sequential_task_scheduler.hpp"
 #include "core/constants.hpp"
 #include "core/instance.hpp"
 #include "husky/base/serialization.hpp"
-#include "cluster_manager/cluster_manager_connection.hpp"
-#include "cluster_manager/task_scheduler/sequential_task_scheduler.hpp"
-#include "cluster_manager/task_scheduler/greedy_task_scheduler.hpp"
 
 namespace husky {
 
@@ -23,15 +23,17 @@ namespace husky {
 class ClusterManager {
    public:
     ClusterManager() = default;
-    ClusterManager(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection, const std::string& hint = "")
+    ClusterManager(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection,
+                   const std::string& hint = "")
         : worker_info_(std::move(worker_info)),
           cluster_manager_connection_(new ClusterManagerConnection(std::move(cluster_manager_connection))) {
-            setup_task_scheduler(hint);
-            is_setup = true;
-        }
+        setup_task_scheduler(hint);
+        is_setup = true;
+    }
 
     // setup
-    void setup(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection, const std::string& hint = "") {
+    void setup(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection,
+               const std::string& hint = "") {
         worker_info_ = std::move(worker_info);
         cluster_manager_connection_.reset(new ClusterManagerConnection(std::move(cluster_manager_connection)));
         setup_task_scheduler(hint);
@@ -49,7 +51,7 @@ class ClusterManager {
             task_scheduler_.reset(new SequentialTaskScheduler(worker_info_));
             husky::LOG_I << "[ClusterManager]: TaskScheduler set to Sequential";
         } else {
-            throw base::HuskyException("[ClusterManager] setup_task_scheduler failed, unknown hint: "+hint);
+            throw base::HuskyException("[ClusterManager] setup_task_scheduler failed, unknown hint: " + hint);
         }
     }
 
@@ -74,14 +76,16 @@ class ClusterManager {
                 int instance_id, proc_id;
                 bin >> instance_id >> proc_id;
                 task_scheduler_->finish_local_instance(instance_id, proc_id);
-                husky::LOG_I << CLAY("[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " + std::to_string(proc_id) + " done");
+                husky::LOG_I << CLAY("[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " +
+                                     std::to_string(proc_id) + " done");
 
                 // 2. Extract instances
                 extract_instaces();
             } else if (type == constants::kClusterManagerExit) {
                 break;
             } else {
-                throw base::HuskyException("[ClusterManager] ClusterManager Loop recv type error, type is: " + std::to_string(type));
+                throw base::HuskyException("[ClusterManager] ClusterManager Loop recv type error, type is: " +
+                                           std::to_string(type));
             }
         }
     }
@@ -123,7 +127,7 @@ class ClusterManager {
      * Send instances to Workers
      */
     void send_instances(const std::vector<std::shared_ptr<Instance>>& instances) {
-        husky::LOG_I << "[ClusterManager]: Assigning next instances, size is "+std::to_string(instances.size());
+        husky::LOG_I << "[ClusterManager]: Assigning next instances, size is " + std::to_string(instances.size());
         auto& sockets = cluster_manager_connection_->get_send_sockets();
         for (auto& instance : instances) {
             instance->show_instance();
@@ -131,7 +135,7 @@ class ClusterManager {
             // TODO Support different types of instance in hierarchy
             instance->serialize(bin);
             auto& proc_sockets = cluster_manager_connection_->get_send_sockets();
-            for (auto& socket : proc_sockets) { // send to all processes
+            for (auto& socket : proc_sockets) {  // send to all processes
                 zmq_sendmore_int32(&socket.second, constants::kTaskType);
                 zmq_send_binstream(&socket.second, bin);
             }

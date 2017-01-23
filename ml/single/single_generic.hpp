@@ -11,7 +11,7 @@
 namespace ml {
 namespace single {
 
-class SingleGenericWorker: public common::GenericMLWorker {
+class SingleGenericWorker : public common::GenericMLWorker {
    public:
     SingleGenericWorker() = default;
 
@@ -29,8 +29,8 @@ class SingleGenericWorker: public common::GenericMLWorker {
      * Get parameters from global kvstore
      */
     virtual void Load() override {
-        husky::LOG_I << "[Single] loading model_id:" + std::to_string(model_id_) + " local_id:"+
-                             std::to_string(local_id_) + "model_size: " + std::to_string(model_.size());
+        husky::LOG_I << "[Single] loading model_id:" + std::to_string(model_id_) + " local_id:" +
+                            std::to_string(local_id_) + "model_size: " + std::to_string(model_.size());
         auto start_time = std::chrono::steady_clock::now();
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
         std::vector<husky::constants::Key> keys(model_.size());
@@ -39,8 +39,9 @@ class SingleGenericWorker: public common::GenericMLWorker {
         int ts = kvworker->Pull(model_id_, keys, &model_);
         kvworker->Wait(model_id_, ts);
         auto end_time = std::chrono::steady_clock::now();
-        husky::LOG_I << "[Single] Load done and Load time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time-start_time).count() << " ms";
-        //print_model();
+        husky::LOG_I << "[Single] Load done and Load time: "
+                     << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() << " ms";
+        // print_model();
     }
     /*
      * Put the parameters to global kvstore
@@ -82,21 +83,16 @@ class SingleGenericWorker: public common::GenericMLWorker {
             (*vals)[i] = model_[keys[i]];
         }
     }
-    
 
     // For v2
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
     }
-    virtual float Get_v2(size_t idx) override {
-        return model_[(*keys_)[idx]];
-    }
-    virtual void Update_v2(size_t idx, float val) override {
-        model_[(*keys_)[idx]] += val;
-    }
+    virtual float Get_v2(size_t idx) override { return model_[(*keys_)[idx]]; }
+    virtual void Update_v2(size_t idx, float val) override { model_[(*keys_)[idx]] += val; }
     virtual void Update_v2(const std::vector<float>& vals) override {
         assert(vals.size() == keys_->size());
-        for (size_t i = 0; i < keys_->size(); ++ i) {
+        for (size_t i = 0; i < keys_->size(); ++i) {
             assert((*keys_)[i] < model_.size());
             model_[(*keys_)[i]] += vals[i];
         }

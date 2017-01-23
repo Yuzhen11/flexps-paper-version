@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "husky/base/serialization.hpp"
-#include "kvstore/kvmanager.hpp"
 #include "kvstore/handles/basic.hpp"
+#include "kvstore/kvmanager.hpp"
 
 namespace kvstore {
 
@@ -14,12 +14,12 @@ namespace kvstore {
  *
  * In mode reply_phase == 0:
  * Process push requests, Buffer pull requests when push are not complete.
- * When push complete, switch to reply_phase, reply the buffered pull. 
+ * When push complete, switch to reply_phase, reply the buffered pull.
  *
  * In mode reply_phase == 1:
  * Process pull requests, Buffer push requests when pull are not complete.
  * When pull complete, switch to non reply_phase, process the buffered push.
- * 
+ *
  * Note:
  * User code should like:
  * Pull, Push, Pull, Push ...
@@ -30,7 +30,7 @@ namespace kvstore {
  * Need to wait for the Push request at least before the next Pull.
  * Otherwise fast worker may issue two consecutive Pull.
  */
-template<typename Val>
+template <typename Val>
 struct KVServerBSPHandle {
     // the callback function
     void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
@@ -54,7 +54,7 @@ struct KVServerBSPHandle {
                     int src;
                     bin >> src;
                     KVPairs<Val> res = retrieve(bin, store_);
-                    server->Response(kv_id, ts+1, 0, src, res, customer);
+                    server->Response(kv_id, ts + 1, 0, src, res, customer);
                 }
                 pull_buffer_.clear();
             }
@@ -76,18 +76,18 @@ struct KVServerBSPHandle {
                     int src;
                     bin >> src;
                     update(bin, store_);
-                    server->Response(kv_id, ts+1, 1, src, KVPairs<Val>(), customer);
+                    server->Response(kv_id, ts + 1, 1, src, KVPairs<Val>(), customer);
                 }
                 push_buffer_.clear();
             }
         }
     }
 
-
     KVServerBSPHandle() = delete;
-    KVServerBSPHandle(int num_workers): num_workers_(num_workers) {}
-    KVServerBSPHandle(int num_workers, bool reply_phase): num_workers_(num_workers), reply_phase_(reply_phase) {}
-private:
+    KVServerBSPHandle(int num_workers) : num_workers_(num_workers) {}
+    KVServerBSPHandle(int num_workers, bool reply_phase) : num_workers_(num_workers), reply_phase_(reply_phase) {}
+
+   private:
     int num_workers_;
     int push_count_ = 0;
     int pull_count_ = 0;

@@ -11,16 +11,15 @@ namespace ps {
  * Just a wraper for kvstore::KVWorker, so users doesn't need to care about wait and timestamp
  *
  * ASP/BSP/SSP may all use this worker
- * SSP may have other workers 
+ * SSP may have other workers
  *
  * Assume that in each epoch, Pull will be invoked first and then the Push.
  */
 class PSGenericWorker : public common::GenericMLWorker {
    public:
     PSGenericWorker() = delete;
-    PSGenericWorker(int model_id, int local_id): model_id_(model_id),
-        kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)) {
-    }
+    PSGenericWorker(int model_id, int local_id)
+        : model_id_(model_id), kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)) {}
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
@@ -34,7 +33,7 @@ class PSGenericWorker : public common::GenericMLWorker {
         ts_ = kvworker_->Pull(model_id_, keys, vals, nullptr);
         kvworker_->Wait(model_id_, ts_);  // Wait for this Pull
     }
-    
+
     // For v2
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
@@ -42,24 +41,20 @@ class PSGenericWorker : public common::GenericMLWorker {
         delta_.clear();
         delta_.resize(keys.size());
     }
-    virtual float Get_v2(husky::constants::Key idx) override {
-        return vals_[idx];
-    }
+    virtual float Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
     virtual void Update_v2(husky::constants::Key idx, float val) override {
         delta_[idx] += val;
         vals_[idx] += val;
     }
     virtual void Update_v2(const std::vector<float>& vals) override {
         assert(vals.size() == vals_.size());
-        for (size_t i = 0; i < vals.size(); ++ i) {
+        for (size_t i = 0; i < vals.size(); ++i) {
             vals_[i] += vals[i];
             delta_[i] += vals[i];
         }
     }
-    virtual void Clock_v2() override {
-        Push(*keys_, delta_);
-    }
-    
+    virtual void Clock_v2() override { Push(*keys_, delta_); }
+
    private:
     int model_id_;
     kvstore::KVWorker* kvworker_ = nullptr;
@@ -80,9 +75,8 @@ class PSGenericWorker : public common::GenericMLWorker {
 class SSPWorker : public common::GenericMLWorker {
    public:
     SSPWorker() = delete;
-    SSPWorker(int model_id, int local_id, int staleness): model_id_(model_id),
-        kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)), staleness_(staleness) {
-    }
+    SSPWorker(int model_id, int local_id, int staleness)
+        : model_id_(model_id), kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)), staleness_(staleness) {}
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
@@ -107,7 +101,7 @@ class SSPWorker : public common::GenericMLWorker {
         // 2. Cache is non-empty and not too old but miss some keys: only update those missed;
         // 3. Cache is non-empty and not too old and contains all keys required.
 
-        // find uncached_keys 
+        // find uncached_keys
         std::vector<husky::constants::Key> uncached_keys;
         if (pull_count_ - cache_ts_ < staleness_ || cached_kv_.size() == 0) {
             uncached_keys = keys;
@@ -116,11 +110,11 @@ class SSPWorker : public common::GenericMLWorker {
                 if (cached_kv_.find(key) == cached_kv_.end()) {
                     uncached_keys.push_back(key);
                 }
-            } 
+            }
         }
 
         if (uncached_keys.size() > 0) {
-            ts_ = kvworker_->Pull(model_id_, uncached_keys, vals, nullptr); 
+            ts_ = kvworker_->Pull(model_id_, uncached_keys, vals, nullptr);
             kvworker_->Wait(model_id_, ts_);
 
             // Clear cache and update cache_ts_
@@ -129,11 +123,11 @@ class SSPWorker : public common::GenericMLWorker {
                     cached_kv_.clear();
                 }
                 cache_ts_ = pull_count_;
-            } 
+            }
             for (int i = 0; i < uncached_keys.size(); i++) {
                 cached_kv_.insert(std::make_pair(uncached_keys[i], (*vals)[uncached_keys[i]]));
             }
-        } 
+        }
 
         // update all vals using cache
         vals->resize(keys.size());
@@ -141,7 +135,7 @@ class SSPWorker : public common::GenericMLWorker {
             (*vals)[i] = cached_kv_[keys[i]];
         }
     }
-    
+
     // For v2
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
@@ -149,31 +143,27 @@ class SSPWorker : public common::GenericMLWorker {
         delta_.clear();
         delta_.resize(keys.size());
     }
-    virtual float Get_v2(husky::constants::Key idx) override {
-        return vals_[idx];
-    }
+    virtual float Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
     virtual void Update_v2(husky::constants::Key idx, float val) override {
         delta_[idx] += val;
         vals_[idx] += val;
     }
     virtual void Update_v2(const std::vector<float>& vals) override {
         assert(vals.size() == vals_.size());
-        for (int i = 0; i < vals.size(); ++ i) {
+        for (int i = 0; i < vals.size(); ++i) {
             vals_[i] += vals[i];
             delta_[i] += vals[i];
         }
     }
-    virtual void Clock_v2() override {
-        Push(*keys_, delta_);
-    }
-    
+    virtual void Clock_v2() override { Push(*keys_, delta_); }
+
    private:
     int model_id_;
-    //TODO: Repaleced with user-defined staleness
+    // TODO: Repaleced with user-defined staleness
     int staleness_ = -1;
     int cache_ts_;
     kvstore::KVWorker* kvworker_ = nullptr;
-    std::unordered_map<husky::constants::Key, float> cached_kv_;// timestamp, key_val dictionary
+    std::unordered_map<husky::constants::Key, float> cached_kv_;  // timestamp, key_val dictionary
 
     // Just to restrict the usage of the Push/Pull APIs,
     // The correct usage should be Pull, Push, Pull, Push...

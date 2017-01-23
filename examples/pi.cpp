@@ -1,7 +1,7 @@
+#include "core/color.hpp"
 #include "husky/core/channel/push_channel.hpp"
 #include "husky/core/objlist.hpp"
 #include "worker/engine.hpp"
-#include "core/color.hpp"
 
 #include <random>
 

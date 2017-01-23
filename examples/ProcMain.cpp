@@ -25,15 +25,13 @@ int main() {
     husky::Worker worker(std::move(worker_info), std::move(cluster_manager_connector));
 
     // add tasks
-    auto task1 =
-        TaskFactory::Get().CreateTask<Task>(1, 2);  // id: 0, total_epoch: 1, num_workers: 2
+    auto task1 = TaskFactory::Get().CreateTask<Task>(1, 2);  // id: 0, total_epoch: 1, num_workers: 2
     worker.add_task(task1, [](const Info& info) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         husky::LOG_I << "task1 is running";
     });
 
-    auto task2 =
-        TaskFactory::Get().CreateTask<Task>(2, 1);  // id: 1, total_epoch: 2, num_workers: 1
+    auto task2 = TaskFactory::Get().CreateTask<Task>(2, 1);  // id: 1, total_epoch: 2, num_workers: 1
     worker.add_task(task2, [](const Info& info) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         husky::LOG_I << "task2 is running";

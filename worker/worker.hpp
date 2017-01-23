@@ -10,8 +10,8 @@
 #include "husky/base/serialization.hpp"
 #include "husky/core/zmq_helpers.hpp"
 #include "worker/basic.hpp"
-#include "worker/instance_runner.hpp"
 #include "worker/cluster_manager_connector.hpp"
+#include "worker/instance_runner.hpp"
 #include "worker/task_store.hpp"
 
 namespace husky {
@@ -30,8 +30,10 @@ class Worker {
           instance_runner(worker_info, cluster_manager_connector, task_store) {}
 
     // User need to add task to taskstore
-    template<typename TaskT>
-    void add_task(const TaskT& task, const FuncT& func) { task_store.add_task(task, func); }
+    template <typename TaskT>
+    void add_task(const TaskT& task, const FuncT& func) {
+        task_store.add_task(task, func);
+    }
 
     void send_tasks_to_cluster_manager() {
         // Only Proc 0 need to send tasks to cluster_manager
@@ -90,8 +92,8 @@ class Worker {
                 instance_runner.finish_thread(instance_id, thread_id);
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
-                    husky::LOG_I << GREEN("[Worker]: Instance id:" + std::to_string(instance_id) + " finished on Proc:"+
-                                  std::to_string(worker_info.get_process_id()));
+                    husky::LOG_I << GREEN("[Worker]: Instance id:" + std::to_string(instance_id) +
+                                          " finished on Proc:" + std::to_string(worker_info.get_process_id()));
                     auto bin = instance_runner.remove_instance(instance_id);
                     send_instance_finished(bin);
                 }

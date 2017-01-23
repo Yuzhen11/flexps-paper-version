@@ -1,7 +1,7 @@
+#include "core/color.hpp"
 #include "husky/core/channel/push_channel.hpp"
 #include "husky/core/objlist.hpp"
 #include "worker/engine.hpp"
-#include "core/color.hpp"
 
 #include <random>
 
@@ -24,14 +24,14 @@ int main(int argc, char** argv) {
 
     auto task = TaskFactory::Get().CreateTask<TwoPhasesTask>(5, 4);
     engine.AddTask(task, [](const Info& info) {
-      const auto& current_task = static_cast<TwoPhasesTask*>(info.get_task());
-      husky::LOG_I << RED("current_epoch: " + std::to_string(info.get_current_epoch()));
-      if (info.get_current_epoch() % 2 == 0) {
-        husky::LOG_I << "--Running even epoch";
-      } else {
-        husky::LOG_I << "--Running odd epoch";
-      } 
-      
+        const auto& current_task = static_cast<TwoPhasesTask*>(info.get_task());
+        husky::LOG_I << RED("current_epoch: " + std::to_string(info.get_current_epoch()));
+        if (info.get_current_epoch() % 2 == 0) {
+            husky::LOG_I << "--Running even epoch";
+        } else {
+            husky::LOG_I << "--Running odd epoch";
+        }
+
     });
     engine.Submit();
 

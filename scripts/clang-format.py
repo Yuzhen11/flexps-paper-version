@@ -9,7 +9,7 @@ import sys
 cpp_suffix = '*.[cht]pp'
 default_dirs = [
     'core',
-    'master',
+    'cluster_manager',
     'worker',
     'ml',
     'kvstore',

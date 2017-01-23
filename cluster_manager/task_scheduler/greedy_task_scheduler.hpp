@@ -9,7 +9,6 @@
 
 #include "core/color.hpp"
 
-
 namespace husky {
 
 /*
@@ -42,7 +41,7 @@ class GreedyTaskScheduler : public TaskScheduler {
         if (tracker_[instance_id].empty()) {  // all the proc_id are done
             tracker_.erase(instance_id);
             // linear search to find the task_id
-            auto p = std::find_if(tasks_.begin(), tasks_.end(), [instance_id](const std::shared_ptr<Task>& task){
+            auto p = std::find_if(tasks_.begin(), tasks_.end(), [instance_id](const std::shared_ptr<Task>& task) {
                 return task->get_id() == instance_id;
             });
             auto& task = *p;
@@ -66,27 +65,24 @@ class GreedyTaskScheduler : public TaskScheduler {
     virtual std::vector<std::shared_ptr<Instance>> extract_instances() override {
         std::vector<std::shared_ptr<Instance>> instances;
         // Go through the tasks list once and assign as much as possible
-        for (int i = 0; i < tasks_.size(); ++ i) {
+        for (int i = 0; i < tasks_.size(); ++i) {
             if (task_status_.at(i) == 0) {  // ready to run
                 // create the instance
                 std::shared_ptr<Instance> instance(new Instance);
                 instance_basic_setup(instance, *tasks_[i]);
 
-                std::vector<std::pair<int,int>> pid_tids;
-                if ((instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 0)
-                    || instance->get_type() == Task::Type::FixedWorkersTaskType) {
+                std::vector<std::pair<int, int>> pid_tids;
+                if ((instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 0) ||
+                    instance->get_type() == Task::Type::FixedWorkersTaskType) {
                     int thread_per_worker = instance->get_num_workers();
                     pid_tids = available_workers_.get_workers_per_process(thread_per_worker, num_processes_);
-                }
-                else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
+                } else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
                     // run even epoch with 1 thread default
                     pid_tids = available_workers_.get_workers(1);
-                }
-                else if (instance->get_type() == Task::Type::HogwildTaskType) {
+                } else if (instance->get_type() == Task::Type::HogwildTaskType) {
                     // extract from local_workers
                     pid_tids = available_workers_.get_local_workers(instance->get_num_workers());
-                }
-                else {
+                } else {
                     // extract from global workers
                     pid_tids = available_workers_.get_workers(instance->get_num_workers());
                 }
@@ -113,6 +109,7 @@ class GreedyTaskScheduler : public TaskScheduler {
         }
         return true;
     }
+
    private:
     // for debug
     void print_available_workers() {
@@ -125,15 +122,15 @@ class GreedyTaskScheduler : public TaskScheduler {
         }
         std::cout << std::endl;
     }
+
    private:
-    int num_processes_;     // num of machines in cluster
+    int num_processes_;  // num of machines in cluster
     std::vector<std::shared_ptr<Task>> tasks_;
     std::vector<int> task_status_;  // 0: ready to run, 1: running, 2: done
     AvailableWorkers available_workers_;
-    std::unordered_map<int, std::unordered_set<int>> tracker_;   // { task_id1:{pid1...}, { task_id2:{..}}, ...}
-    std::unordered_map<std::pair<int,int>, std::vector<int>, PairHash> task_id_pid_tids_;   // <task_id, pid> : {tid1, tid2...}
-
+    std::unordered_map<int, std::unordered_set<int>> tracker_;  // { task_id1:{pid1...}, { task_id2:{..}}, ...}
+    std::unordered_map<std::pair<int, int>, std::vector<int>, PairHash>
+        task_id_pid_tids_;  // <task_id, pid> : {tid1, tid2...}
 };
-
 
 }  // namespace husky

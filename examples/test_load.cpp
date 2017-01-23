@@ -1,12 +1,12 @@
 #include "datastore/datastore.hpp"
-#include "worker/engine.hpp"
 #include "husky/io/input/line_inputformat.hpp"
+#include "worker/engine.hpp"
 
 using namespace husky;
 
-
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input", "hdfs_namenode", "hdfs_namenode_port"});
+    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input",
+                                          "hdfs_namenode", "hdfs_namenode_port"});
     if (!rt)
         return 1;
 

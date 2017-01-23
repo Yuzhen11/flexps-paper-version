@@ -1,7 +1,7 @@
+#include "core/color.hpp"
 #include "husky/core/channel/push_channel.hpp"
 #include "husky/core/objlist.hpp"
 #include "worker/engine.hpp"
-#include "core/color.hpp"
 
 #include <random>
 
@@ -23,9 +23,7 @@ int main(int argc, char** argv) {
     auto& engine = Engine::Get();
 
     auto task = TaskFactory::Get().CreateTask<FixedWorkersTask>(5, 4);
-    engine.AddTask(task, [](const Info& info) {
-      husky::LOG_I << "Running TwoFixedWorkersTask!";
-    });
+    engine.AddTask(task, [](const Info& info) { husky::LOG_I << "Running TwoFixedWorkersTask!"; });
     engine.Submit();
 
     engine.Exit();

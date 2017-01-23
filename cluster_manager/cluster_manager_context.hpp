@@ -20,9 +20,7 @@ class ClusterManagerContext {
         return cluster_manager_context;
     }
 
-    void serve() {
-        cluster_manager_.serve();
-    }
+    void serve() { cluster_manager_.serve(); }
 
    private:
     /*

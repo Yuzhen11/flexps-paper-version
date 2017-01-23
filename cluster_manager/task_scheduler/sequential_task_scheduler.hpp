@@ -70,15 +70,13 @@ class SequentialTaskScheduler : public TaskScheduler {
         instance_basic_setup(instance, task);
 
         // randomly select threads
-        std::vector<std::pair<int,int>> pid_tids;
-        if ((instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 0)
-            || instance->get_type() == Task::Type::FixedWorkersTaskType) {
+        std::vector<std::pair<int, int>> pid_tids;
+        if ((instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 0) ||
+            instance->get_type() == Task::Type::FixedWorkersTaskType) {
             pid_tids = available_workers_.get_workers_per_process(instance->get_num_workers(), num_processes_);
-        }
-        else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
+        } else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
             pid_tids = available_workers_.get_workers(1);
-        }
-        else if (instance->get_type() == Task::Type::HogwildTaskType)
+        } else if (instance->get_type() == Task::Type::HogwildTaskType)
             pid_tids = available_workers_.get_local_workers(instance->get_num_workers());
         else
             pid_tids = available_workers_.get_workers(instance->get_num_workers());
@@ -101,8 +99,9 @@ class SequentialTaskScheduler : public TaskScheduler {
     std::queue<std::shared_ptr<Task>> tasks_queue_;
     std::unordered_set<int> tracker_;
     AvailableWorkers available_workers_;
-    int num_processes_;     // num of machines in cluster
-    std::unordered_map<std::pair<int,int>, std::vector<int>, PairHash> task_id_pid_tids_;   // <task_id, pid> : {tid1, tid2...}
+    int num_processes_;  // num of machines in cluster
+    std::unordered_map<std::pair<int, int>, std::vector<int>, PairHash>
+        task_id_pid_tids_;  // <task_id, pid> : {tid1, tid2...}
 };
 
 }  // namespace husky

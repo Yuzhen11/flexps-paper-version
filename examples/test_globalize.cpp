@@ -4,8 +4,8 @@
 #include "husky/core/hash_ring.hpp"
 #include "husky/core/objlist.hpp"
 
-#include "worker/engine.hpp" 
 #include "core/color.hpp"
+#include "worker/engine.hpp"
 
 using namespace husky;
 
@@ -13,7 +13,7 @@ class IntObject {
    public:
     using KeyT = int;
     int key;
-    IntObject(){this->key = 0;}
+    IntObject() { this->key = 0; }
     explicit IntObject(KeyT key) { this->key = key; }
     const int& id() const { return key; }
 };
@@ -24,7 +24,7 @@ void globalize(ObjList<ObjT>& obj_list, const Info& info) {
     auto* mailbox = Context::get_mailbox(info.get_local_id());
     migrate_channel.setup(info.get_local_id(), info.get_global_id(), info.get_worker_info(), mailbox);
 
-    for(auto&obj : obj_list.get_data()) {
+    for (auto& obj : obj_list.get_data()) {
         int dst_thread_id = info.get_worker_info().get_hash_ring().hash_lookup(obj.id());
         migrate_channel.migrate(obj, dst_thread_id);
     }
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
         globalize(obj_list, info);
         auto& list_content = obj_list.get_data();
-        husky::LOG_I<<list_content.size();
+        husky::LOG_I << list_content.size();
     });
     engine.Submit();
     engine.Exit();

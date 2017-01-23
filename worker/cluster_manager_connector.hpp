@@ -8,8 +8,8 @@ namespace husky {
 class ClusterManagerConnector {
    public:
     ClusterManagerConnector() = delete;
-    ClusterManagerConnector(zmq::context_t* context_, const std::string& bind_addr, const std::string& cluster_manager_addr,
-                    const std::string& host_name)
+    ClusterManagerConnector(zmq::context_t* context_, const std::string& bind_addr,
+                            const std::string& cluster_manager_addr, const std::string& host_name)
         : context_(context_),
           recv_socket_(*context_, ZMQ_PULL),
           send_socket_(*context_, ZMQ_PUSH),

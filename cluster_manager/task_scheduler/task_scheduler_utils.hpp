@@ -1,13 +1,13 @@
 #pragma once
 
-#include "core/task.hpp"
 #include "core/instance.hpp"
+#include "core/task.hpp"
 
 namespace husky {
 namespace {
 
 void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task) {
-    // TODO If the task type is GenericMLTaskType and the running type is unset, 
+    // TODO If the task type is GenericMLTaskType and the running type is unset,
     // need to decide it's real running type now
     if (task.get_type() == Task::Type::GenericMLTaskType &&
         static_cast<const GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {

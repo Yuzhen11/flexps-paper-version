@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     engine.AddTask(task, [&data_store1](const Info& info) {
         // load
         // write to datastore
-        data_store1.Push(info.get_local_id(), "hello world from "+std::to_string(info.get_local_id()));
+        data_store1.Push(info.get_local_id(), "hello world from " + std::to_string(info.get_local_id()));
     });
     engine.Submit();
 

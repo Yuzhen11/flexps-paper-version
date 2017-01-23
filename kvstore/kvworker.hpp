@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <unordered_map>
 #include <vector>
-#include <limits>
 
 #include "kvpairs.hpp"
 #include "workercustomer.hpp"
@@ -27,7 +27,7 @@ struct RecvKVPairs : public RecvKVPairsBase {
 class KVWorker {
    public:
     using Callback = std::function<void()>;
-    template<typename Val>
+    template <typename Val>
     using SlicedKVs = std::vector<std::pair<bool, KVPairs<Val>>>;
 
     KVWorker(const PSInfo& info, husky::LocalMailbox& mailbox)
@@ -43,22 +43,17 @@ class KVWorker {
      * Pushes a list of kv pairs to all server nodes
      */
     template <typename Val>
-    int Push(int kv_id,
-            const std::vector<husky::constants::Key>& keys,
-            const std::vector<Val>& vals,
-            const Callback& cb = nullptr) {
-        return ZPush(
-            kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), cb);
+    int Push(int kv_id, const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals,
+             const Callback& cb = nullptr) {
+        return ZPush(kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), cb);
     }
 
     /*
      * zero-copy push
      */
     template <typename Val>
-    int ZPush(int kv_id,
-             const pslite::SArray<husky::constants::Key>& keys,
-             const pslite::SArray<Val>& vals,
-             const Callback& cb = nullptr) {
+    int ZPush(int kv_id, const pslite::SArray<husky::constants::Key>& keys, const pslite::SArray<Val>& vals,
+              const Callback& cb = nullptr) {
         int ts = customer_->NewRequest(kv_id, info_.num_ps_servers);
         KVPairs<Val> kvs;
         kvs.keys = keys;
@@ -70,24 +65,19 @@ class KVWorker {
     /*
      * Pulls the values associated with the keys from the server nodes
      */
-    template<typename Val>
-    int Pull(int kv_id, 
-           const std::vector<husky::constants::Key>& keys,
-           std::vector<Val>* vals,
-           const Callback& cb = nullptr) {
+    template <typename Val>
+    int Pull(int kv_id, const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals,
+             const Callback& cb = nullptr) {
         return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, cb);
     }
     /*
      * zero-copy pull
      */
-    template<typename Val>
-    int ZPull(int kv_id,
-              const pslite::SArray<husky::constants::Key>& keys,
-              pslite::SArray<Val>* vals,
+    template <typename Val>
+    int ZPull(int kv_id, const pslite::SArray<husky::constants::Key>& keys, pslite::SArray<Val>* vals,
               const Callback& cb = nullptr) {
         return Pull_<Val>(kv_id, keys, vals, cb);
     }
-
 
     /*
      * \brief Waits until a push or pull has been finished
@@ -106,9 +96,8 @@ class KVWorker {
             }));  // push the function template in
     }
 
-    void SetMaxKey(int kv_id, husky::constants::Key max_key) {
-        GetServerKeyRanges(kv_id, max_key);
-    }
+    void SetMaxKey(int kv_id, husky::constants::Key max_key) { GetServerKeyRanges(kv_id, max_key); }
+
    private:
     /*
      * \brief UniqueProcess for every individual kvstore
@@ -178,7 +167,7 @@ class KVWorker {
         mu_.unlock();
     }
 
-    template<typename Val, typename C>
+    template <typename Val, typename C>
     int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, const Callback& cb) {
         auto num_servers = info_.num_ps_servers;
         int ts = customer_->NewRequest(kv_id, num_servers);
@@ -190,31 +179,31 @@ class KVWorker {
             // do check
             size_t total_key = 0, total_val = 0;
             for (const auto& s : kvs) {
-              pslite::Range range = pslite::FindRange(keys, s.keys.front(), s.keys.back()+1);
-              total_key += s.keys.size();
-              total_val += s.vals.size();
+                pslite::Range range = pslite::FindRange(keys, s.keys.front(), s.keys.back() + 1);
+                total_key += s.keys.size();
+                total_val += s.vals.size();
             }
 
             // fill vals and lens
-            std::sort(kvs.begin(), kvs.end(), [](
-                const KVPairs<Val>& a, const KVPairs<Val>& b) {
-                        return a.keys.front() < b.keys.front();
-              });
+            std::sort(kvs.begin(), kvs.end(),
+                      [](const KVPairs<Val>& a, const KVPairs<Val>& b) { return a.keys.front() < b.keys.front(); });
             // resize, do we need to really free the memory?
             vals->resize(total_val);
             Val* p_vals = vals->data();
             for (const auto& s : kvs) {
-              memcpy(p_vals, s.vals.data(), s.vals.size() * sizeof(Val));
-              p_vals += s.vals.size();
+                memcpy(p_vals, s.vals.data(), s.vals.size() * sizeof(Val));
+                p_vals += s.vals.size();
             }
 
             mu_.lock();
             delete recv_kvs_[{kv_id, ts}];
             recv_kvs_.erase({kv_id, ts});
             mu_.unlock();
-            if (cb) cb();
+            if (cb)
+                cb();
         });
-        KVPairs<Val> kvs; kvs.keys = keys;
+        KVPairs<Val> kvs;
+        kvs.keys = keys;
         Send(kv_id, ts, false, kvs);
         return ts;
     }
@@ -222,13 +211,13 @@ class KVWorker {
     /*
      * The Send function to send out Push/Pull request
      */
-    template<typename Val>
+    template <typename Val>
     void Send(int kv_id, int ts, bool push, const KVPairs<Val>& kvs) {
         // slice the message
         SlicedKVs<Val> sliced;
         Slice(kvs, GetServerKeyRanges(kv_id), &sliced);
 
-        for (size_t i = 0; i < sliced.size(); ++ i) {
+        for (size_t i = 0; i < sliced.size(); ++i) {
             husky::base::BinStream bin;
             bool isRequest = true;
             int src = info_.global_id;
@@ -240,70 +229,65 @@ class KVWorker {
         }
     }
 
-
     /*
      * The Slice function to slice the parameters
      */
-    template<typename Val>
-    void Slice(
-        const KVPairs<Val>& send, const std::vector<pslite::Range>& ranges,
-        SlicedKVs<Val>* sliced) {
+    template <typename Val>
+    void Slice(const KVPairs<Val>& send, const std::vector<pslite::Range>& ranges, SlicedKVs<Val>* sliced) {
         sliced->resize(ranges.size());
-  
+
         // find the positions in msg.key
         size_t n = ranges.size();
-        std::vector<size_t> pos(n+1);
+        std::vector<size_t> pos(n + 1);
         const husky::constants::Key* begin = send.keys.begin();
         const husky::constants::Key* end = send.keys.end();
         for (size_t i = 0; i < n; ++i) {
-          if (i == 0) {
-            pos[0] = std::lower_bound(begin, end, ranges[0].begin()) - begin;
-            begin += pos[0];
-          } else {
-          }
-          size_t len = std::lower_bound(begin, end, ranges[i].end()) - begin;
-          begin += len;
-          pos[i+1] = pos[i] + len;
-  
-          // don't send it to severs for empty kv
-          sliced->at(i).first = (len != 0);
+            if (i == 0) {
+                pos[0] = std::lower_bound(begin, end, ranges[0].begin()) - begin;
+                begin += pos[0];
+            } else {
+            }
+            size_t len = std::lower_bound(begin, end, ranges[i].end()) - begin;
+            begin += len;
+            pos[i + 1] = pos[i] + len;
+
+            // don't send it to severs for empty kv
+            sliced->at(i).first = (len != 0);
         }
-        if (send.keys.empty()) return;
-  
+        if (send.keys.empty())
+            return;
+
         // the length of value
         size_t k = 0, val_begin = 0, val_end = 0;
         k = send.vals.size() / send.keys.size();
-  
+
         // slice
         for (size_t i = 0; i < n; ++i) {
-          if (pos[i+1] == pos[i]) {
-            sliced->at(i).first = false;
-            continue;
-          }
-          sliced->at(i).first = true;
-          auto& kv = sliced->at(i).second;
-          kv.keys = send.keys.segment(pos[i], pos[i+1]);
-          kv.vals = send.vals.segment(pos[i]*k, pos[i+1]*k);
+            if (pos[i + 1] == pos[i]) {
+                sliced->at(i).first = false;
+                continue;
+            }
+            sliced->at(i).first = true;
+            auto& kv = sliced->at(i).second;
+            kv.keys = send.keys.segment(pos[i], pos[i + 1]);
+            kv.vals = send.vals.segment(pos[i] * k, pos[i + 1] * k);
         }
     }
-    const std::vector<pslite::Range>& GetServerKeyRanges(int kv_id, 
-                                                         husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max()) {
+    const std::vector<pslite::Range>& GetServerKeyRanges(
+        int kv_id, husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max()) {
         if (kv_id >= server_key_ranges_.size())
-            server_key_ranges_.resize(kv_id+1);
-      if (server_key_ranges_[kv_id].empty()) {
-        auto num_servers_ = info_.num_ps_servers;
-        for (int i = 0; i < num_servers_-1; ++i) {
-          server_key_ranges_[kv_id].push_back(pslite::Range(
-              max_key / num_servers_ * i,
-              max_key / num_servers_ * (i+1)));
+            server_key_ranges_.resize(kv_id + 1);
+        if (server_key_ranges_[kv_id].empty()) {
+            auto num_servers_ = info_.num_ps_servers;
+            for (int i = 0; i < num_servers_ - 1; ++i) {
+                server_key_ranges_[kv_id].push_back(
+                    pslite::Range(max_key / num_servers_ * i, max_key / num_servers_ * (i + 1)));
+            }
+            // the last range should contain all
+            server_key_ranges_[kv_id].push_back(
+                pslite::Range(max_key / num_servers_ * (num_servers_ - 1), max_key));
         }
-        // the last range should contain all
-        server_key_ranges_[kv_id].push_back(pslite::Range(
-                    max_key / num_servers_ * (num_servers_-1),
-                    max_key+1
-                    ));
-      }
-      return server_key_ranges_[kv_id];
+        return server_key_ranges_[kv_id];
     }
 
    private:

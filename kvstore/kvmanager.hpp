@@ -67,12 +67,11 @@ class ServerCustomer {
     int channel_id_;
 };
 
-
 // forward declaration
 template <typename Val>
 class KVServer;
 // template alias
-template<typename Val>
+template <typename Val>
 using ReqHandle = std::function<void(int, int, husky::base::BinStream&, ServerCustomer*, KVServer<Val>*)>;
 
 /*
@@ -85,9 +84,8 @@ class KVServerBase {
 template <typename Val>
 class KVServer : public KVServerBase {
    public:
-
     KVServer() = delete;
-    KVServer(const ReqHandle<Val>& request_handler): request_handler_(request_handler){}
+    KVServer(const ReqHandle<Val>& request_handler) : request_handler_(request_handler) {}
     ~KVServer() = default;
 
     /*
@@ -114,7 +112,6 @@ class KVServer : public KVServerBase {
 
    private:
     ReqHandle<Val> request_handler_;
-
 };
 
 /*

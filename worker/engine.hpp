@@ -8,8 +8,8 @@
 #include "worker/worker.hpp"
 
 #include "husky/core/constants.hpp"
-#include "husky/core/job_runner.hpp"
 #include "husky/core/coordinator.hpp"
+#include "husky/core/job_runner.hpp"
 
 namespace husky {
 
@@ -26,8 +26,10 @@ class Engine {
     /*
      * Add a new task to the buffer
      */
-    template<typename TaskT>
-    void AddTask(const TaskT& task, const FuncT& func) { worker->add_task(task, func); }
+    template <typename TaskT>
+    void AddTask(const TaskT& task, const FuncT& func) {
+        worker->add_task(task, func);
+    }
 
     /*
      * Submit the buffered tasks to cluster_manager
@@ -43,16 +45,15 @@ class Engine {
      *
      * It means that no more tasks will submit. Basically the end of the process
      */
-    void Exit() { 
+    void Exit() {
         StopWorker();
         StopCoordinator();
     }
 
    private:
-
     // The constructor
-    Engine() { 
-        StartWorker(); 
+    Engine() {
+        StartWorker();
         StartCoordinator();
     }
 
@@ -61,15 +62,16 @@ class Engine {
      */
     void StartWorker() {
         std::string bind_addr = "tcp://*:" + Context::get_param("worker_port");
-        std::string cluster_manager_addr = "tcp://" + Context::get_param("cluster_manager_host") + ":" +
-                                  Context::get_param("cluster_manager_port");
+        std::string cluster_manager_addr =
+            "tcp://" + Context::get_param("cluster_manager_host") + ":" + Context::get_param("cluster_manager_port");
         std::string host_name = Context::get_param("hostname");
 
         // worker info
         WorkerInfo worker_info = Context::get_worker_info();
 
         // cluster_manager connector
-        ClusterManagerConnector cluster_manager_connector(Context::get_zmq_context(), bind_addr, cluster_manager_addr, host_name);
+        ClusterManagerConnector cluster_manager_connector(Context::get_zmq_context(), bind_addr, cluster_manager_addr,
+                                                          host_name);
 
         // Create mailboxes
         Context::create_mailbox_env();
@@ -78,14 +80,10 @@ class Engine {
         worker.reset(new Worker(std::move(worker_info), std::move(cluster_manager_connector)));
     }
 
-    void StartCoordinator() {
-        Context::get_coordinator()->serve();
-    }
+    void StartCoordinator() { Context::get_coordinator()->serve(); }
 
     // Function to stop the worker
-    void StopWorker() {
-        worker->send_exit(); 
-    }
+    void StopWorker() { worker->send_exit(); }
 
     // Function to stop the coordinator
     void StopCoordinator() {

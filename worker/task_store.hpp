@@ -17,7 +17,7 @@ class TaskStore {
     /*
      * Add a task into the task_map, the task added should be derived from Task
      */
-    template<typename TaskT>
+    template <typename TaskT>
     void add_task(const TaskT& task, const FuncT& func) {
         std::unique_ptr<Task> ptask(new TaskT(task));
         int tid = ptask->get_id();

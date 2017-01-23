@@ -225,7 +225,8 @@ class TwoPhasesTask : public Task {
     // For serialization usage only
     TwoPhasesTask() = default;
     TwoPhasesTask(int id) : Task(id, Type::TwoPhasesTaskType) {}
-    TwoPhasesTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::TwoPhasesTaskType) {}
+    TwoPhasesTask(int id, int total_epoch, int num_workers)
+        : Task(id, total_epoch, num_workers, Type::TwoPhasesTaskType) {}
     friend BinStream& operator<<(BinStream& bin, const TwoPhasesTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, TwoPhasesTask& task) { return task.deserialize(bin); }
 };
@@ -238,7 +239,8 @@ class FixedWorkersTask : public Task {
     // For serialization usage only
     FixedWorkersTask() = default;
     FixedWorkersTask(int id) : Task(id, Type::FixedWorkersTaskType) {}
-    FixedWorkersTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::FixedWorkersTaskType) {}
+    FixedWorkersTask(int id, int total_epoch, int num_workers)
+        : Task(id, total_epoch, num_workers, Type::FixedWorkersTaskType) {}
     friend BinStream& operator<<(BinStream& bin, const FixedWorkersTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, FixedWorkersTask& task) { return task.deserialize(bin); }
 };
@@ -310,16 +312,16 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
         break;
     }
     case Task::Type::TwoPhasesTaskType: {
-      TwoPhasesTask* task = new TwoPhasesTask();
-      bin >> *task;
-      ret.reset(task);
-      break;
+        TwoPhasesTask* task = new TwoPhasesTask();
+        bin >> *task;
+        ret.reset(task);
+        break;
     }
     case Task::Type::FixedWorkersTaskType: {
-      FixedWorkersTask* task = new FixedWorkersTask();
-      bin >> *task;
-      ret.reset(task);
-      break;
+        FixedWorkersTask* task = new FixedWorkersTask();
+        bin >> *task;
+        ret.reset(task);
+        break;
     }
     default:
         throw base::HuskyException("Deserializing task error");

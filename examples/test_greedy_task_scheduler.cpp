@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
-    // round 1: 
+    // round 1:
     // worker_nums: 2,2,3
     auto task1 = TaskFactory::Get().CreateTask<Task>(1, 2);
     engine.AddTask(task1, [](const Info& info) { husky::LOG_I << std::to_string(info.get_task_id()) + " is running"; });
