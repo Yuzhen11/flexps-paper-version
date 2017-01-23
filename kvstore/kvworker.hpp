@@ -129,7 +129,11 @@ class KVWorker {
             if (recv_kvs_.find({kv_id, ts}) == recv_kvs_.end()) {
                 recv_kvs_[{kv_id, ts}] = new RecvKVPairs<Val>();
             }
-            static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs.push_back(kvs);
+            // only push non-empty size
+            // husky::LOG_I << RED("pull size: "+std::to_string(kvs.keys.size()));
+            if (kvs.keys.size() != 0) {
+                static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs.push_back(kvs);
+            }
             mu_.unlock();
         }
         // If all the servers response, run the callback
@@ -288,11 +292,16 @@ class KVWorker {
             server_key_ranges_.resize(kv_id+1);
       if (server_key_ranges_[kv_id].empty()) {
         auto num_servers_ = info_.num_ps_servers;
-        for (int i = 0; i < num_servers_; ++i) {
+        for (int i = 0; i < num_servers_-1; ++i) {
           server_key_ranges_[kv_id].push_back(pslite::Range(
               max_key / num_servers_ * i,
               max_key / num_servers_ * (i+1)));
         }
+        // the last range should contain all
+        server_key_ranges_[kv_id].push_back(pslite::Range(
+                    max_key / num_servers_ * (num_servers_-1),
+                    max_key+1
+                    ));
       }
       return server_key_ranges_[kv_id];
     }
