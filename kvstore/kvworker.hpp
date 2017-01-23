@@ -196,10 +196,8 @@ class KVWorker {
                 const KVPairs<Val>& a, const KVPairs<Val>& b) {
                         return a.keys.front() < b.keys.front();
               });
-            if (vals->empty()) {
-              vals->resize(total_val);
-            } else {
-            }
+            // resize, do we need to really free the memory?
+            vals->resize(total_val);
             Val* p_vals = vals->data();
             for (const auto& s : kvs) {
               memcpy(p_vals, s.vals.data(), s.vals.size() * sizeof(Val));

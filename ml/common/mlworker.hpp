@@ -48,7 +48,7 @@ class GenericMLWorker {
      * These set of APIs is to avoid making a copy for Single/Hogwild!
      */
     // Caution: keys should be remained valid during update
-    virtual void Prepare_v2(std::vector<husky::constants::Key>& keys) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) { throw husky::base::HuskyException("v2 Not implemented"); }
     virtual float Get_v2(size_t idx) { throw husky::base::HuskyException("v2 Not implemented"); }
     virtual void Update_v2(size_t idx, float val) { throw husky::base::HuskyException("v2 Not implemented"); }
     virtual void Update_v2(const std::vector<float>& vals) { throw husky::base::HuskyException("v2 Not implemented"); }

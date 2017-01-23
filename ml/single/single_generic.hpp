@@ -85,8 +85,8 @@ class SingleGenericWorker: public common::GenericMLWorker {
     
 
     // For v2
-    virtual void Prepare_v2(std::vector<husky::constants::Key>& keys) override {
-        keys_ = &keys;
+    virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
+        keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
     }
     virtual float Get_v2(size_t idx) override {
         return model_[(*keys_)[idx]];

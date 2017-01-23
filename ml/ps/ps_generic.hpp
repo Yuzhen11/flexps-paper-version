@@ -36,8 +36,8 @@ class PSGenericWorker : public common::GenericMLWorker {
     }
     
     // For v2
-    virtual void Prepare_v2(std::vector<husky::constants::Key>& keys) override {
-        keys_ = &keys;
+    virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
+        keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
         Pull(keys, &vals_);
         delta_.clear();
         delta_.resize(keys.size());
@@ -143,8 +143,8 @@ class SSPWorker : public common::GenericMLWorker {
     }
     
     // For v2
-    virtual void Prepare_v2(std::vector<husky::constants::Key>& keys) override {
-        keys_ = &keys;
+    virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
+        keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
         Pull(keys, &vals_);
         delta_.clear();
         delta_.resize(keys.size());
