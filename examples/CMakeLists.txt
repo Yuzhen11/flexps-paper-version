@@ -157,3 +157,15 @@ add_executable(TestFixedWorkers test_fixedworkers.cpp)
 target_link_libraries(TestFixedWorkers husky)
 target_link_libraries(TestFixedWorkers ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestFixedWorkers PROPERTY CXX_STANDARD 14)
+
+# TestSampleReader
+add_executable(TestSampleReader sample_reader.cpp)
+target_link_libraries(TestSampleReader husky)
+target_link_libraries(TestSampleReader ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestSampleReader PROPERTY CXX_STANDARD 14)
+
+# LRSampleReader
+add_executable(LRSampleReader logistic_regression_samplereader.cpp)
+target_link_libraries(LRSampleReader husky)
+target_link_libraries(LRSampleReader ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET LRSampleReader PROPERTY CXX_STANDARD 14)
