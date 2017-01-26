@@ -30,12 +30,13 @@ class KVStore {
      * \brief kvstore start function
      *
      * Create new mailboxes and add them to el
+     * The last parameter is to set the number of server threads in each process
      */
-    void Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoop* const el, zmq::context_t* zmq_context) {
+    void Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoop* const el, zmq::context_t* zmq_context, int num_servers_per_process = 1) {
         is_started_ = true;
         int num_workers = worker_info.get_num_workers();
         int num_processes = worker_info.get_num_processes();
-        // The following mailboxes [num_workers - 2*num_workers) are for kvworkers
+        // The following mailboxes [num_workers, 2*num_workers) are for kvworkers
         for (int i = 0; i < num_workers; i++) {
             if (worker_info.get_process_id(i) != worker_info.get_process_id()) {
                 el->register_peer_thread(worker_info.get_process_id(i), num_workers + i);  // {proc(i), num_workers+i}
@@ -47,30 +48,32 @@ class KVStore {
             }
         }
 
-        // The following mailboxes [2*num_workers - 2*num_workers+num_processes) are for kvservers
-        // Each process has one kvmanager by default
-        for (int i = 0; i < num_processes; ++i) {
-            int tid = 2 * num_workers + i;
-            if (i != worker_info.get_process_id()) {
-                el->register_peer_thread(i, tid);
-            } else {
-                auto* mailbox = new husky::LocalMailbox(zmq_context);
-                mailbox->set_thread_id(tid);
-                el->register_mailbox(*mailbox);
-                kvserver_mailbox = mailbox;
+        // The following mailboxes [2*num_workers, 2*num_workers + num_processes*num_servers_per_process) are for kvservers
+        for (int i = 0; i < num_processes; ++ i) {
+            for (int j = 0; j < num_servers_per_process; ++ j) {
+                int tid = 2 * num_workers + j * num_processes + i;
+                if (i != worker_info.get_process_id()) {
+                    el->register_peer_thread(i, tid);
+                } else {
+                    auto* mailbox = new husky::LocalMailbox(zmq_context);
+                    mailbox->set_thread_id(tid);
+                    el->register_mailbox(*mailbox);
+                    kvserver_mailboxes.push_back(mailbox);
+                }
             }
         }
 
-        // Create kvmanager
-        kvmanager.reset(new kvstore::KVManager(*kvserver_mailbox, husky::constants::kv_channel_id));
+        // Create Servers
+        for (int i = 0; i < num_servers_per_process; ++ i) {
+            kvservers.push_back(new kvstore::KVManager(*kvserver_mailboxes[i], husky::constants::kv_channel_id));
+        }
 
         // Create kvworkers
-        std::unordered_map<int, int> cluster2global;
-        for (int i = 0; i < num_processes; ++i) {
-            cluster2global.insert({i, i + 2 * num_workers});
-        }
-        for (int i = 0; i < num_workers; ++i) {
-            cluster2global.insert({i + num_processes, i + num_workers});
+        std::unordered_map<int, int> server2global;  // Generate the server id to global id map
+        for (int i = 0; i < num_processes; ++ i) {
+            for (int j = 0; j < num_servers_per_process; ++ j) {
+                server2global.insert({i + j * num_processes, 2*num_workers + j * num_processes + i});
+            }
         }
         int k = 0;
         for (int i = 0; i < num_workers; ++i) {
@@ -78,9 +81,8 @@ class KVStore {
                 kvstore::PSInfo info;
                 info.channel_id = husky::constants::kv_channel_id;
                 info.global_id = num_workers + i;
-                info.num_global_threads = num_workers + num_processes;  // workers + servers
-                info.num_ps_servers = num_processes;                    // TODO: local_kvstore only need one server
-                info.cluster_id_to_global_id = cluster2global;
+                info.num_ps_servers = num_processes * num_servers_per_process;
+                info.server_id_to_global_id= server2global;
                 kvworkers.push_back(new kvstore::KVWorker(info, *kvworker_mailboxes[k]));
                 k += 1;
             }
@@ -99,10 +101,14 @@ class KVStore {
         for (auto* p : kvworker_mailboxes) {
             delete p;
         }
-        // 2. delete the kvmanager
-        kvmanager.reset();
+        // 2. delete the kvservers
+        for (auto* p : kvservers) {
+            delete p;
+        }
         // destroy the mailbox
-        delete kvserver_mailbox;
+        for (auto* p : kvserver_mailboxes) {
+            delete p;
+        }
     }
 
     /*
@@ -114,7 +120,9 @@ class KVStore {
     template <typename Val>
     int CreateKVStore(const ReqHandle<Val>& request_handler = KVServerDefaultAssignHandle<Val>()) {
         assert(is_started_);
-        kvmanager->CreateKVManager<Val>(kv_id, request_handler);
+        for (auto* kvserver : kvservers) {
+            kvserver->CreateKVManager<Val>(kv_id, request_handler);
+        }
         for (auto* kvworker : kvworkers) {
             kvworker->AddProcessFunc<Val>(kv_id);
         }
@@ -144,8 +152,8 @@ class KVStore {
     std::vector<husky::LocalMailbox*> kvworker_mailboxes;
     std::vector<KVWorker*> kvworkers;
     // mailbox for kvserver
-    husky::LocalMailbox* kvserver_mailbox;
-    std::unique_ptr<KVManager> kvmanager;
+    std::vector<husky::LocalMailbox*> kvserver_mailboxes;
+    std::vector<KVManager*> kvservers;
 
     bool is_started_ = false;
 };

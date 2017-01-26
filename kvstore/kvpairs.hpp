@@ -17,11 +17,10 @@ struct KVPairs {
 struct PSInfo {
     int channel_id;
     int global_id;
-    int num_global_threads;
     int num_ps_servers;
-    std::unordered_map<int, int> cluster_id_to_global_id;  // {cluster_id, global_id}
+    std::unordered_map<int, int> server_id_to_global_id;  // {server_id, global_id}
 
-    int get_tid(int cluster_id) { return cluster_id_to_global_id[cluster_id]; }
+    int get_tid(int server_id) { return server_id_to_global_id[server_id]; }
 };
 
 }  // namespace kvstore
