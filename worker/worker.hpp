@@ -68,11 +68,15 @@ class Worker {
         }
     }
 
-    void send_instance_finished(base::BinStream& bin) {
+    void send_thread_finished(int instance_id, int thread_id) {
+        int global_thread_id = worker_info.local_to_global_id(thread_id);
+        base::BinStream bin;
+        bin << instance_id << global_thread_id;
         auto& socket = cluster_manager_connector.get_send_socket();
-        zmq_sendmore_int32(&socket, constants::kClusterManagerInstanceFinished);
-        zmq_send_binstream(&socket, bin);  // {instance_id, proc_id}
+        zmq_sendmore_int32(&socket, constants::kClusterManagerThreadFinished);
+        zmq_send_binstream(&socket, bin);  // {instance_id, global_thread_id}
     }
+
 
     void main_loop() {
         auto& socket = cluster_manager_connector.get_recv_socket();
@@ -90,12 +94,13 @@ class Worker {
                 int instance_id = zmq_recv_int32(&socket);
                 int thread_id = zmq_recv_int32(&socket);
                 instance_runner.finish_thread(instance_id, thread_id);
+                // tell master
+                send_thread_finished(instance_id, thread_id);
                 bool is_instance_done = instance_runner.is_instance_done(instance_id);
                 if (is_instance_done) {
                     husky::LOG_I << GREEN("[Worker]: Instance id:" + std::to_string(instance_id) +
                                           " finished on Proc:" + std::to_string(worker_info.get_process_id()));
-                    auto bin = instance_runner.remove_instance(instance_id);
-                    send_instance_finished(bin);
+                    instance_runner.remove_instance(instance_id);
                 }
             } else if (type == constants::kClusterManagerFinished) {
                 husky::LOG_I << GREEN("[Worker]: Tasks finished");

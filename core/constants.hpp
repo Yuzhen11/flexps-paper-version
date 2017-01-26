@@ -13,7 +13,7 @@ using Key = uint64_t;
 const int kv_channel_id = 37;
 
 const uint32_t kClusterManagerInit = 200;
-const uint32_t kClusterManagerInstanceFinished = 201;
+const uint32_t kClusterManagerThreadFinished = 201;
 const uint32_t kClusterManagerExit = 202;
 
 const uint32_t kTaskType = 100;

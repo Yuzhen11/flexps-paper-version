@@ -35,31 +35,30 @@ class GreedyTaskScheduler : public TaskScheduler {
         task_status_.resize(tasks_.size(), 0);
     }
 
-    virtual void finish_local_instance(int instance_id, int proc_id) override {
-        // remove from tracker_
-        tracker_[instance_id].erase(proc_id);
-        if (tracker_[instance_id].empty()) {  // all the proc_id are done
-            tracker_.erase(instance_id);
-            // linear search to find the task_id
-            auto p = std::find_if(tasks_.begin(), tasks_.end(), [instance_id](const std::shared_ptr<Task>& task) {
-                return task->get_id() == instance_id;
-            });
-            auto& task = *p;
-            task->inc_epoch();
-            int idx = distance(tasks_.begin(), p);
-            if (task->get_current_epoch() == task->get_total_epoch()) {
-                task_status_.at(idx) = 2;  // mark it as finished
-            } else {
-                task_status_.at(idx) = 0;  // mark it as ready
+    virtual void finish_thread(int instance_id, int global_thread_id) override {
+        int proc_id = worker_info.get_process_id(global_thread_id);
+        auto& threads = task_id_pid_tids_[instance_id][proc_id];
+        threads.erase(global_thread_id);
+        available_workers_.add_worker(proc_id, global_thread_id);
+        if (threads.empty()) {  // a process is done
+            task_id_pid_tids_[instance_id].erase(proc_id);
+            if (task_id_pid_tids_[instance_id].size() == 0) {  // All the processes are done
+                task_id_pid_tids_.erase(instance_id);
+
+                // linear search to find the task_id
+                auto p = std::find_if(tasks_.begin(), tasks_.end(), [instance_id](const std::shared_ptr<Task>& task) {
+                    return task->get_id() == instance_id;
+                });
+                auto& task = *p;
+                task->inc_epoch();
+                int idx = distance(tasks_.begin(), p);
+                if (task->get_current_epoch() == task->get_total_epoch()) {
+                    task_status_.at(idx) = 2;  // mark it as finished
+                } else {
+                    task_status_.at(idx) = 0;  // mark it as ready
+                }
             }
         }
-        auto& tids = task_id_pid_tids_[{instance_id, proc_id}];
-        for (auto tid : tids) {
-            // add to available_workers_
-            available_workers_.add_worker(proc_id, tid);
-        }
-        // remove from task_id_pid_tids_
-        task_id_pid_tids_.erase({instance_id, proc_id});
     }
 
     virtual std::vector<std::shared_ptr<Instance>> extract_instances() override {
@@ -91,8 +90,7 @@ class GreedyTaskScheduler : public TaskScheduler {
                     int j = 0;
                     for (auto pid_tid : pid_tids) {
                         instance->add_thread(pid_tid.first, pid_tid.second, j++);
-                        tracker_[instance->get_id()].insert(pid_tid.first);
-                        task_id_pid_tids_[{instance->get_id(), pid_tid.first}].push_back(pid_tid.second);
+                        task_id_pid_tids_[instance->get_id()][pid_tid.first].insert(pid_tid.second);
                     }
                     instances.push_back(std::move(instance));
                     task_status_.at(i) = 1;
@@ -128,9 +126,8 @@ class GreedyTaskScheduler : public TaskScheduler {
     std::vector<std::shared_ptr<Task>> tasks_;
     std::vector<int> task_status_;  // 0: ready to run, 1: running, 2: done
     AvailableWorkers available_workers_;
-    std::unordered_map<int, std::unordered_set<int>> tracker_;  // { task_id1:{pid1...}, { task_id2:{..}}, ...}
-    std::unordered_map<std::pair<int, int>, std::vector<int>, PairHash>
-        task_id_pid_tids_;  // <task_id, pid> : {tid1, tid2...}
+    std::unordered_map<int, std::unordered_map<int, std::unordered_set<int>>>
+        task_id_pid_tids_;  // task_id : pid : {tid1, tid2...}
 };
 
 }  // namespace husky

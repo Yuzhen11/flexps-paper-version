@@ -70,14 +70,14 @@ class ClusterManager {
 
                 // 2. Extract instances
                 extract_instaces();
-            } else if (type == constants::kClusterManagerInstanceFinished) {
-                // 1. Receive finished instances
+            } else if (type == constants::kClusterManagerThreadFinished) {
+                // 1. Receive finished thread
                 auto bin = zmq_recv_binstream(&recv_socket);
-                int instance_id, proc_id;
-                bin >> instance_id >> proc_id;
-                task_scheduler_->finish_local_instance(instance_id, proc_id);
-                husky::LOG_I << CLAY("[ClusterManager]: task id: " + std::to_string(instance_id) + " proc id: " +
-                                     std::to_string(proc_id) + " done");
+                int instance_id, global_thread_id;
+                bin >> instance_id >> global_thread_id;
+                task_scheduler_->finish_thread(instance_id, global_thread_id);
+                husky::LOG_I << CLAY("[ClusterManager]: task id: " + std::to_string(instance_id) + " thread id: " +
+                                     std::to_string(global_thread_id) + " done");
 
                 // 2. Extract instances
                 extract_instaces();

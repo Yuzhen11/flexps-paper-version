@@ -29,27 +29,29 @@ class SequentialTaskScheduler : public TaskScheduler {
             tasks_queue_.push(task);
         }
     }
-    virtual void finish_local_instance(int instance_id, int proc_id) override {
-        tracker_.erase(proc_id);     // Mark a process to finished
-        if (tracker_.size() == 0) {  // If all the processes are done, the instance is done
-            auto& task = tasks_queue_.front();
-            task->inc_epoch();  // Trying to work on next epoch
-            if (task->get_current_epoch() ==
-                task->get_total_epoch()) {  // If all the epochs are done, then task is done
-                tasks_queue_.pop();
+    virtual void finish_thread(int instance_id, int global_thread_id) override {
+        int proc_id = worker_info.get_process_id(global_thread_id);
+        auto& threads = task_id_pid_tids_[instance_id][proc_id];
+        // remove from task_id_pid_tids_
+        threads.erase(global_thread_id);
+        available_workers_.add_worker(proc_id, global_thread_id);
+        if (threads.empty()) {
+            task_id_pid_tids_[instance_id].erase(proc_id);
+            if (task_id_pid_tids_[instance_id].size() == 0) {  // If all the processes are done, the instance is done
+                task_id_pid_tids_.erase(instance_id);
+
+                auto& task = tasks_queue_.front();
+                task->inc_epoch();  // Trying to work on next epoch
+                if (task->get_current_epoch() ==
+                    task->get_total_epoch()) {  // If all the epochs are done, then task is done
+                    tasks_queue_.pop();
+                }
             }
         }
-        auto& tids = task_id_pid_tids_[{instance_id, proc_id}];
-        for (auto tid : tids) {
-            // add to available_workers_
-            available_workers_.add_worker(proc_id, tid);
-        }
-        // remove from task_id_pid_tids_
-        task_id_pid_tids_.erase({instance_id, proc_id});
     }
     virtual std::vector<std::shared_ptr<Instance>> extract_instances() override {
         // Assign no instance if 1. task_queue is empty or 2. current instance is still running
-        if (tasks_queue_.empty() || !tracker_.empty())
+        if (tasks_queue_.empty() || !task_id_pid_tids_.empty())
             return {};
         auto& task = tasks_queue_.front();
         auto instance = task_to_instance(*task);
@@ -86,8 +88,7 @@ class SequentialTaskScheduler : public TaskScheduler {
             int j = 0;
             for (auto pid_tid : pid_tids) {
                 instance->add_thread(pid_tid.first, pid_tid.second, j++);
-                tracker_.insert(pid_tid.first);
-                task_id_pid_tids_[{instance->get_id(), pid_tid.first}].push_back(pid_tid.second);
+                task_id_pid_tids_[instance->get_id()][pid_tid.first].insert(pid_tid.second);
             }
         } else {
             throw base::HuskyException("[Sequential Task Scheduler] Cannot assign next instance");
@@ -97,11 +98,10 @@ class SequentialTaskScheduler : public TaskScheduler {
 
    private:
     std::queue<std::shared_ptr<Task>> tasks_queue_;
-    std::unordered_set<int> tracker_;
     AvailableWorkers available_workers_;
     int num_processes_;  // num of machines in cluster
-    std::unordered_map<std::pair<int, int>, std::vector<int>, PairHash>
-        task_id_pid_tids_;  // <task_id, pid> : {tid1, tid2...}
+    std::unordered_map<int, std::unordered_map<int, std::unordered_set<int>>> 
+        task_id_pid_tids_;  // task_id : pid : {tid1, tid2...}
 };
 
 }  // namespace husky

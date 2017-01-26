@@ -23,12 +23,9 @@ class TaskScheduler {
      */
     virtual void init_tasks(const std::vector<std::shared_ptr<Task>>&) = 0;
     /*
-     * Invoke the function when some instances are finished
-     *
-     * TODO need to think about whether (instance_id, proc_id) pair is good enough
-     * What about the parameter is a list of freed worker_id?
+     * Invoke the function when some threads are finished
      */
-    virtual void finish_local_instance(int instance_id, int proc_id) = 0;
+    virtual void finish_thread(int instance_id, int global_thread_id) = 0;
     /*
      * Return a vector of new instances if there is any
      */

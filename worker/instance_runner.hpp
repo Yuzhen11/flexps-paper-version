@@ -188,17 +188,10 @@ class InstanceRunner {
         units_[tid] = std::move(Unit());  // join the unit
     }
     bool is_instance_done(int instance_id) { return instance_keeper_[instance_id].empty(); }
-    base::BinStream remove_instance(int instance_id) {
+    void remove_instance(int instance_id) {
         assert(instance_keeper_[instance_id].empty());
         instances_.erase(instance_id);
         instance_keeper_.erase(instance_id);
-
-        // generate the bin to cluster_manager
-        auto proc_id = worker_info_.get_process_id();
-        base::BinStream bin;
-        bin << instance_id;
-        bin << proc_id;
-        return bin;
     }
 
    private:
