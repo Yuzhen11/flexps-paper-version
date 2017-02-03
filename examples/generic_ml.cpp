@@ -7,6 +7,23 @@
 
 using namespace husky;
 
+auto test_mlworker_lambda = [](const Info& info) {
+    auto& worker = info.get_mlworker();
+    int num_iter = 1001;
+    for (int i = 0; i < num_iter; ++ i) {
+        std::vector<float> rets;
+        std::vector<husky::constants::Key> keys{0};
+        // pull
+        worker->Pull(keys, &rets);
+        if (i % 100 == 0)
+            husky::LOG_I << BLUE("id:" + std::to_string(info.get_local_id()) + " iter " + std::to_string(i) + ": " +
+                                 std::to_string(rets[0]));
+        // push
+        std::vector<float> vals{1.0};
+        worker->Push(keys, vals);
+    }
+};
+
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port"});
     if (!rt)
@@ -73,20 +90,7 @@ int main(int argc, char** argv) {
     engine.AddTask(task3, [](const Info& info) {
         if (info.get_cluster_id() == 0)
             husky::LOG_I << "PS BSP Model running";
-        auto& worker = info.get_mlworker();
-        int num_iter = 1001;
-        for (int i = 0; i < num_iter; ++i) {
-            std::vector<float> rets;
-            std::vector<husky::constants::Key> keys{0};
-            // pull
-            worker->Pull(keys, &rets);
-            if (i % 100 == 0)
-                husky::LOG_I << BLUE("id:" + std::to_string(info.get_local_id()) + " iter " + std::to_string(i) + ": " +
-                                     std::to_string(rets[0]));
-            // push
-            std::vector<float> vals{1.0};
-            worker->Push(keys, vals);
-        }
+        test_mlworker_lambda(info);
     });
 
     // SSP
@@ -99,20 +103,7 @@ int main(int argc, char** argv) {
     engine.AddTask(task4, [](const Info& info) {
         if (info.get_cluster_id() == 0)
             husky::LOG_I << "PS SSP Model running";
-        auto& worker = info.get_mlworker();
-        int num_iter = 1001;
-        for (int i = 0; i < num_iter; ++i) {
-            std::vector<float> rets;
-            std::vector<husky::constants::Key> keys{0};
-            // pull
-            worker->Pull(keys, &rets);
-            if (i % 100 == 0)
-                husky::LOG_I << BLUE("id:" + std::to_string(info.get_local_id()) + " iter " + std::to_string(i) + ": " +
-                                     std::to_string(rets[0]));
-            // push
-            std::vector<float> vals{1.0};
-            worker->Push(keys, vals);
-        }
+        test_mlworker_lambda(info);
     });
 
     // ASP
@@ -126,20 +117,18 @@ int main(int argc, char** argv) {
     engine.AddTask(task5, [](const Info& info) {
         if (info.get_cluster_id() == 0)
             husky::LOG_I << "PS ASP Model running";
-        auto& worker = info.get_mlworker();
-        int num_iter = 1001;
-        for (int i = 0; i < num_iter; ++i) {
-            std::vector<float> rets;
-            std::vector<husky::constants::Key> keys{0};
-            // pull
-            worker->Pull(keys, &rets);
-            if (i % 100 == 0)
-                husky::LOG_I << BLUE("id:" + std::to_string(info.get_local_id()) + " iter " + std::to_string(i) + ": " +
-                                     std::to_string(rets[0]));
-            // push
-            std::vector<float> vals{1.0};
-            worker->Push(keys, vals);
-        }
+        test_mlworker_lambda(info);
+    });
+
+    //  A SPMT Task
+    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>();
+    auto task6 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    task6.set_dimensions(10);
+    task6.set_kvstore(kv6);
+    task6.set_running_type(Task::Type::SPMTTaskType);  // set the running type explicitly
+    task6.set_num_workers(4);                             // 4 workers
+    engine.AddTask(task6, [](const Info& info) {
+        test_mlworker_lambda(info);
     });
 
     engine.Submit();

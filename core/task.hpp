@@ -27,6 +27,7 @@ class Task {
         PSSSPTaskType,
         PSBSPTaskType,
         HogwildTaskType,
+        SPMTTaskType,
         SingleTaskType,
         GenericMLTaskType,
         HuskyTaskType,
@@ -180,6 +181,20 @@ class HogwildTask : public MLTask {
 };
 
 /*
+ * Single Process Multiple Threads Model Task
+ */
+class SPMTTask : public MLTask {
+   public:
+    // For serialization usage only
+    SPMTTask() = default;
+    SPMTTask(int id) : MLTask(id, Type::SPMTTaskType) {}
+    SPMTTask(int id, int total_epoch, int num_workers)
+        : MLTask(id, total_epoch, num_workers, Type::SPMTTaskType) {}
+    friend BinStream& operator<<(BinStream& bin, const SPMTTask& task) { return task.serialize(bin); }
+    friend BinStream& operator>>(BinStream& bin, SPMTTask& task) { return task.deserialize(bin); }
+};
+
+/*
  * GenericML Task
  *
  * Can be PS, Hogwild! and Single
@@ -295,6 +310,12 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
     }
     case Task::Type::HogwildTaskType: {  // Hogwild Task
         HogwildTask* task = new HogwildTask();
+        bin >> *task;
+        ret.reset(task);
+        break;
+    }
+    case Task::Type::SPMTTaskType: {  // SPMT Task
+        SPMTTask* task = new SPMTTask();
         bin >> *task;
         ret.reset(task);
         break;

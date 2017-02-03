@@ -92,6 +92,14 @@ class InstanceRunner {
                 info.get_mlworker()->Load();
                 break;
             }
+            case Task::Type::SPMTTaskType: {
+                husky::LOG_I << CLAY("[run_instance] setting to SPMT generic");
+                info.set_mlworker(new ml::spmt::SPMTGenericWorker(
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
+                    info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                info.get_mlworker()->Load();
+                break;
+            }
             default:
                 throw base::HuskyException("GenericMLTaskType error");
             }
@@ -119,6 +127,11 @@ class InstanceRunner {
             case Task::Type::HogwildTaskType: {
                 info.get_mlworker()->Dump();
                 // husky::LOG_I << "[run_instance] Hogwild generic done";
+                break;
+            }
+            case Task::Type::SPMTTaskType: {
+                info.get_mlworker()->Dump();
+                // husky::LOG_I << "[run_instance] SPMT generic done";
                 break;
             }
             default:
