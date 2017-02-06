@@ -43,6 +43,7 @@ class Instance {
             task_.reset(new HogwildTask(static_cast<const HogwildTask&>(task)));
             break;
         }
+        case Task::Type::SPMTASPTaskType:
         case Task::Type::SPMTBSPTaskType:
         case Task::Type::SPMTSSPTaskType: {  // SPMT Task
             task_.reset(new SPMTTask(static_cast<const SPMTTask&>(task)));
@@ -78,6 +79,10 @@ class Instance {
             }
             case Task::Type::SPMTSSPTaskType: {  // SPMT SSP
                 task_.reset(new SPMTTask(task.get_id(), Task::Type::SPMTSSPTaskType));
+                break;
+            }
+            case Task::Type::SPMTASPTaskType: {  // SPMT ASP
+                task_.reset(new SPMTTask(task.get_id(), Task::Type::SPMTASPTaskType));
                 break;
             }
             case Task::Type::SingleTaskType: {  // Single

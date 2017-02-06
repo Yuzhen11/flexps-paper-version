@@ -108,6 +108,14 @@ class InstanceRunner {
                 info.get_mlworker()->Load();
                 break;
             }
+            case Task::Type::SPMTASPTaskType: {
+                husky::LOG_I << CLAY("[run_instance] setting to SPMT ASP");
+                info.set_mlworker(new ml::spmt::SPMTGenericWorker(
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
+                    info, "ASP", static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                info.get_mlworker()->Load();
+                break;
+            }
             default:
                 throw base::HuskyException("GenericMLTaskType error");
             }
@@ -138,7 +146,8 @@ class InstanceRunner {
                 break;
             }
             case Task::Type::SPMTBSPTaskType:
-            case Task::Type::SPMTSSPTaskType: {
+            case Task::Type::SPMTSSPTaskType:
+            case Task::Type::SPMTASPTaskType: {
                 info.get_mlworker()->Dump();
                 // husky::LOG_I << "[run_instance] SPMT generic done";
                 break;

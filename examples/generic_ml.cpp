@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     auto task6 = TaskFactory::Get().CreateTask<GenericMLTask>();
     task6.set_dimensions(10);
     task6.set_kvstore(kv6);
-    task6.set_running_type(Task::Type::SPMTSSPTaskType);  // set the running type explicitly
+    task6.set_running_type(Task::Type::SPMTASPTaskType);  // set the running type explicitly
     task6.set_num_workers(4);                             // 4 workers
     engine.AddTask(task6, [](const Info& info) {
         test_mlworker_lambda(info);

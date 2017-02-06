@@ -80,7 +80,8 @@ class GreedyTaskScheduler : public TaskScheduler {
                     pid_tids = available_workers_.get_workers(1);
                 } else if (instance->get_type() == Task::Type::HogwildTaskType || 
                         instance->get_type() == Task::Type::SPMTBSPTaskType ||
-                        instance->get_type() == Task::Type::SPMTSSPTaskType) {
+                        instance->get_type() == Task::Type::SPMTSSPTaskType ||
+                        instance->get_type() == Task::Type::SPMTASPTaskType) {
                     // extract from local_workers
                     pid_tids = available_workers_.get_local_workers(instance->get_num_workers());
                 } else {

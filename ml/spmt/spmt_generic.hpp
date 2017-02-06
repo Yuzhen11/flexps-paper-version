@@ -11,6 +11,7 @@
 
 #include "ml/common/mlworker.hpp"
 #include "ml/spmt/consistency_controller.hpp"
+#include "ml/spmt/asp_consistency_controller.hpp"
 #include "ml/spmt/ssp_consistency_controller.hpp"
 #include "ml/spmt/bsp_consistency_controller.hpp"
 
@@ -57,6 +58,8 @@ class SPMTGenericWorker : public common::GenericMLWorker {
                 p_controller_  = new BSPConsistencyController;
             } else if (type == "SSP") {
                 p_controller_ = new SSPConsistencyController;
+            } else if (type == "ASP") {
+                p_controller_ = new ASPConsistencyController;
             } else {
                 assert(false);
             }

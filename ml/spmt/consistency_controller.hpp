@@ -7,7 +7,7 @@ namespace ml {
 namespace spmt {
 
 enum class ConsistencyProtocol {
-    BSP, SSP
+    BSP, SSP, ASP
 };
 
 class AbstractConsistencyController {
