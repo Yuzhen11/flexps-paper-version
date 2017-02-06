@@ -96,7 +96,7 @@ class InstanceRunner {
                 husky::LOG_I << CLAY("[run_instance] setting to SPMT generic");
                 info.set_mlworker(new ml::spmt::SPMTGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                    info, 1, static_cast<MLTask*>(info.get_task())->get_dimensions()));  // to be fixed
                 info.get_mlworker()->Load();
                 break;
             }

@@ -10,6 +10,9 @@
 #include "husky/core/zmq_helpers.hpp"
 
 #include "ml/common/mlworker.hpp"
+#include "ml/spmt/consistency_controller.hpp"
+#include "ml/spmt/ssp_consistency_controller.hpp"
+#include "ml/spmt/bsp_consistency_controller.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -18,21 +21,20 @@
 namespace ml {
 namespace spmt {
 
-struct Controller {
+struct Model {
     std::mutex mtx;
-    std::condition_variable cv;
-    std::vector<int> worker_progress;
-    std::vector<int> clock_count;
-    int staleness = 1;
-    int min_clock = 0;
+    std::vector<float> params;
 };
 
 class SPMTGenericWorker : public common::GenericMLWorker {
    public:
     SPMTGenericWorker() = delete;
 
+    /*
+     * @param type: 0 for ssp, 1 for bsp
+     */
     template <typename... Args>
-    SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, Args&&... args)
+    SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, int type, Args&&... args)
         : info_(info),
           model_id_(model_id),
           context_(context),
@@ -51,9 +53,17 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         }
 
         if (info_.get_cluster_id() == 0) {
-            p_controller_ = new Controller;
-            p_controller_->worker_progress.resize(info_.get_num_local_workers(), 0);
-            model_ = new std::vector<float>(std::forward<Args>(args)...);
+            if (type == 1) {
+                p_controller_  = new BSPConsistencyController;
+            } else if (type == 0) {
+                p_controller_ = new SSPConsistencyController;
+            } else {
+                assert(false);
+            }
+            p_controller_->Init(info.get_num_local_workers());
+
+            model_ = new Model;
+            model_->params.resize(std::forward<Args>(args)...);
         }
         if (info_.get_cluster_id() == 0) {
             std::vector<std::string> identity_store;
@@ -76,61 +86,41 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             husky::zmq_send_int32(&socket_, int());
             auto ptr = husky::zmq_recv_int64(&socket_);
             auto ptr2 = husky::zmq_recv_int64(&socket_);
-            p_controller_ = reinterpret_cast<Controller*>(ptr);
-            model_ = reinterpret_cast<std::vector<float>*>(ptr2);
+            p_controller_ = reinterpret_cast<AbstractConsistencyController*>(ptr);
+            model_ = reinterpret_cast<Model*>(ptr2);
         }
     }
 
     virtual void Load() override {}
     virtual void Dump() override {}
 
-    Controller& get_controller() {
-        return *p_controller_;
-    }
-
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
-        // Acquire lock
-        std::unique_lock<std::mutex> lck(p_controller_->mtx);
-
-        // Directly update the model
-        assert(keys.size() == vals.size());
-        for (size_t i = 0; i < keys.size(); i++) {
-            assert(i < model_->size());
-            (*model_)[keys[i]] += vals[i];
+        p_controller_->BeforePush(info_.get_cluster_id());
+        {
+            // Acquire lock
+            std::lock_guard<std::mutex> lck(model_->mtx);
+            // Directly update the model
+            assert(keys.size() == vals.size());
+            for (size_t i = 0; i < keys.size(); i++) {
+                assert(i < model_->params.size());
+                model_->params[keys[i]] += vals[i];
+            }
         }
-
-        int src = info_.get_cluster_id();
-        if (src > p_controller_->worker_progress.size())
-            p_controller_->worker_progress.resize(src + 1);
-        int progress = p_controller_->worker_progress[src];
-        if (progress >= p_controller_->clock_count.size())
-            p_controller_->clock_count.resize(progress + 1);
-        p_controller_->clock_count[progress] += 1;
-        if (progress == p_controller_->min_clock && p_controller_->clock_count[p_controller_->min_clock] == info_.get_num_workers()) {
-            p_controller_->min_clock += 1;
-            // release all pull blocked at min_clock
-            p_controller_->cv.notify_all();
-        }
-        p_controller_->worker_progress[src] += 1;
+        p_controller_->AfterPush(info_.get_cluster_id());
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
-        // Acquire lock
-        std::unique_lock<std::mutex> lck(p_controller_->mtx);
-
-        int src = info_.get_cluster_id();
-        if (src >= p_controller_->worker_progress.size())
-            p_controller_->worker_progress.resize(src + 1);
-        int expected_min_lock = p_controller_->worker_progress[src] - p_controller_->staleness;
-        while (expected_min_lock > p_controller_->min_clock) {
-            p_controller_->cv.wait(lck);
+        p_controller_->BeforePull(info_.get_cluster_id());
+        {
+            // Acquire lock
+            std::lock_guard<std::mutex> lck(model_->mtx);
+            // Directly access the model
+            vals->resize(keys.size());
+            for (size_t i = 0; i < keys.size(); i++) {
+                assert(keys[i] < model_->params.size());
+                (*vals)[i] = model_->params[keys[i]];
+            }
         }
-
-        // Directly access the model
-        vals->resize(keys.size());
-        for (size_t i = 0; i < keys.size(); i++) {
-            assert(keys[i] < model_->size());
-            (*vals)[i] = (*model_)[keys[i]];
-        }
+        p_controller_->AfterPull(info_.get_cluster_id());
     }
 
    private:
@@ -144,14 +134,14 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     }
 
     // pointer to the real model
-    std::vector<float>* model_ = nullptr;
+    Model* model_ = nullptr;
 
     const husky::Info& info_;
     zmq::context_t& context_;
     zmq::socket_t socket_;
     int model_id_;
 
-    Controller* p_controller_;
+    AbstractConsistencyController* p_controller_;
 };
 
 }  // namespace spmt
