@@ -34,7 +34,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
      * @param type: 0 for ssp, 1 for bsp
      */
     template <typename... Args>
-    SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, int type, Args&&... args)
+    SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, const std::string& type, Args&&... args)
         : info_(info),
           model_id_(model_id),
           context_(context),
@@ -53,9 +53,9 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         }
 
         if (info_.get_cluster_id() == 0) {
-            if (type == 1) {
+            if (type == "BSP") {
                 p_controller_  = new BSPConsistencyController;
-            } else if (type == 0) {
+            } else if (type == "SSP") {
                 p_controller_ = new SSPConsistencyController;
             } else {
                 assert(false);

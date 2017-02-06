@@ -78,7 +78,9 @@ class GreedyTaskScheduler : public TaskScheduler {
                 } else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
                     // run even epoch with 1 thread default
                     pid_tids = available_workers_.get_workers(1);
-                } else if (instance->get_type() == Task::Type::HogwildTaskType || instance->get_type() == Task::Type::SPMTTaskType) {
+                } else if (instance->get_type() == Task::Type::HogwildTaskType || 
+                        instance->get_type() == Task::Type::SPMTBSPTaskType ||
+                        instance->get_type() == Task::Type::SPMTSSPTaskType) {
                     // extract from local_workers
                     pid_tids = available_workers_.get_local_workers(instance->get_num_workers());
                 } else {

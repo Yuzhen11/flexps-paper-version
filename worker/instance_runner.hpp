@@ -92,11 +92,19 @@ class InstanceRunner {
                 info.get_mlworker()->Load();
                 break;
             }
-            case Task::Type::SPMTTaskType: {
-                husky::LOG_I << CLAY("[run_instance] setting to SPMT generic");
+            case Task::Type::SPMTBSPTaskType: {
+                husky::LOG_I << CLAY("[run_instance] setting to SPMT BSP");
                 info.set_mlworker(new ml::spmt::SPMTGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, 1, static_cast<MLTask*>(info.get_task())->get_dimensions()));  // to be fixed
+                    info, "BSP", static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                info.get_mlworker()->Load();
+                break;
+            }
+            case Task::Type::SPMTSSPTaskType: {
+                husky::LOG_I << CLAY("[run_instance] setting to SPMT SSP");
+                info.set_mlworker(new ml::spmt::SPMTGenericWorker(
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
+                    info, "SSP", static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
                 break;
             }
@@ -129,7 +137,8 @@ class InstanceRunner {
                 // husky::LOG_I << "[run_instance] Hogwild generic done";
                 break;
             }
-            case Task::Type::SPMTTaskType: {
+            case Task::Type::SPMTBSPTaskType:
+            case Task::Type::SPMTSSPTaskType: {
                 info.get_mlworker()->Dump();
                 // husky::LOG_I << "[run_instance] SPMT generic done";
                 break;

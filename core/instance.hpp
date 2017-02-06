@@ -43,7 +43,8 @@ class Instance {
             task_.reset(new HogwildTask(static_cast<const HogwildTask&>(task)));
             break;
         }
-        case Task::Type::SPMTTaskType: {  // SPMT Task
+        case Task::Type::SPMTBSPTaskType:
+        case Task::Type::SPMTSSPTaskType: {  // SPMT Task
             task_.reset(new SPMTTask(static_cast<const SPMTTask&>(task)));
             break;
         }
@@ -52,12 +53,7 @@ class Instance {
             break;
         }
         case Task::Type::GenericMLTaskType: {  // GenericML Task
-            if (static_cast<const GenericMLTask&>(task).get_running_type() != Task::Type::DummyType) {
-                // if there's a running task, set it
-                newtype = static_cast<const GenericMLTask&>(task).get_running_type();
-            } else {
-                // if still generic, set it according to newtype
-            }
+            // newtype must be provided
             assert(newtype != Task::Type::DummyType);
             switch (newtype) {
             case Task::Type::PSBSPTaskType: {  // PS BSP
@@ -76,8 +72,12 @@ class Instance {
                 task_.reset(new HogwildTask(task.get_id()));
                 break;
             }
-            case Task::Type::SPMTTaskType: {  // SPMT
-                task_.reset(new SPMTTask(task.get_id()));
+            case Task::Type::SPMTBSPTaskType: {  // SPMT BSP
+                task_.reset(new SPMTTask(task.get_id(), Task::Type::SPMTBSPTaskType));
+                break;
+            }
+            case Task::Type::SPMTSSPTaskType: {  // SPMT SSP
+                task_.reset(new SPMTTask(task.get_id(), Task::Type::SPMTSSPTaskType));
                 break;
             }
             case Task::Type::SingleTaskType: {  // Single

@@ -78,7 +78,9 @@ class SequentialTaskScheduler : public TaskScheduler {
             pid_tids = available_workers_.get_workers_per_process(instance->get_num_workers(), num_processes_);
         } else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
             pid_tids = available_workers_.get_workers(1);
-        } else if (instance->get_type() == Task::Type::HogwildTaskType || instance->get_type() == Task::Type::SPMTTaskType)
+        } else if (instance->get_type() == Task::Type::HogwildTaskType || 
+                instance->get_type() == Task::Type::SPMTBSPTaskType || 
+                instance->get_type() == Task::Type::SPMTSSPTaskType)
             pid_tids = available_workers_.get_local_workers(instance->get_num_workers());
         else
             pid_tids = available_workers_.get_workers(instance->get_num_workers());
