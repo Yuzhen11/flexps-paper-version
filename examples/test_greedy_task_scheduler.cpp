@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
     // round 3
     // worker_nums: 2, 2: hogwild!
-    auto task6 = TaskFactory::Get().CreateTask<HogwildTask>(2, 4);
+    auto task6 = TaskFactory::Get().CreateTask<Task>(2, 2);  // TODO make it SPMT
     engine.AddTask(task6, [](const Info& info) { husky::LOG_I << std::to_string(info.get_task_id()) + " is running"; });
 
     auto task7 = TaskFactory::Get().CreateTask<Task>(2, 2);

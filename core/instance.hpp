@@ -15,9 +15,9 @@ class Instance {
    public:
     Instance() = default;
 
-    Instance(const Task& task, Task::Type newtype = Task::Type::DummyType) { set_task(task, newtype); }
+    Instance(const Task& task) { set_task(task); }
 
-    void set_task(const Task& task, Task::Type newtype = Task::Type::DummyType) {
+    void set_task(const Task& task, const std::string& hint = "") {
         switch (task.get_type()) {
         case Task::Type::BasicTaskType: {  // Basic Task
             task_.reset(new Task(task));
@@ -35,66 +35,8 @@ class Instance {
             task_.reset(new FixedWorkersTask(static_cast<const FixedWorkersTask&>(task)));
             break;
         }
-        case Task::Type::PSTaskType: {  // PS Task
-            task_.reset(new PSTask(static_cast<const PSTask&>(task)));
-            break;
-        }
-        case Task::Type::HogwildTaskType: {  // Hogwild Task
-            task_.reset(new HogwildTask(static_cast<const HogwildTask&>(task)));
-            break;
-        }
-        case Task::Type::SPMTASPTaskType:
-        case Task::Type::SPMTBSPTaskType:
-        case Task::Type::SPMTSSPTaskType: {  // SPMT Task
-            task_.reset(new SPMTTask(static_cast<const SPMTTask&>(task)));
-            break;
-        }
-        case Task::Type::SingleTaskType: {  // Single Task
-            task_.reset(new SingleTask(static_cast<const SingleTask&>(task)));
-            break;
-        }
-        case Task::Type::GenericMLTaskType: {  // GenericML Task
-            // newtype must be provided
-            assert(newtype != Task::Type::DummyType);
-            switch (newtype) {
-            case Task::Type::PSBSPTaskType: {  // PS BSP
-                task_.reset(new PSGenericTask(task.get_id(), Task::Type::PSBSPTaskType));
-                break;
-            }
-            case Task::Type::PSSSPTaskType: {  // PS SSP
-                task_.reset(new PSGenericTask(task.get_id(), Task::Type::PSSSPTaskType));
-                break;
-            }
-            case Task::Type::PSASPTaskType: {  // PS ASP
-                task_.reset(new PSGenericTask(task.get_id(), Task::Type::PSASPTaskType));
-                break;
-            }
-            case Task::Type::HogwildTaskType: {  // Hogwild!
-                task_.reset(new HogwildTask(task.get_id()));
-                break;
-            }
-            case Task::Type::SPMTBSPTaskType: {  // SPMT BSP
-                task_.reset(new SPMTTask(task.get_id(), Task::Type::SPMTBSPTaskType));
-                break;
-            }
-            case Task::Type::SPMTSSPTaskType: {  // SPMT SSP
-                task_.reset(new SPMTTask(task.get_id(), Task::Type::SPMTSSPTaskType));
-                break;
-            }
-            case Task::Type::SPMTASPTaskType: {  // SPMT ASP
-                task_.reset(new SPMTTask(task.get_id(), Task::Type::SPMTASPTaskType));
-                break;
-            }
-            case Task::Type::SingleTaskType: {  // Single
-                task_.reset(new SingleTask(task.get_id()));
-                break;
-            }
-            default:
-                throw base::HuskyException("Constructing instance error");
-            }
-            task_->set_total_epoch(task.get_total_epoch());
-            task_->set_current_epoch(task.get_current_epoch());
-            task_->set_num_workers(task.get_num_workers());
+        case Task::Type::MLTaskType: {  // ML Task
+            task_.reset(new MLTask(static_cast<const MLTask&>(task)));
             break;
         }
         default:
@@ -142,6 +84,7 @@ class Instance {
     inline int get_epoch() const { return task_->get_current_epoch(); }
     inline int get_num_workers() const { return task_->get_num_workers(); }
     inline Task::Type get_type() const { return task_->get_type(); }
+    inline Task* get_task() const { return task_.get(); }
     auto& get_cluster() { return cluster_; }
     const auto& get_cluster() const { return cluster_; }
     std::vector<std::pair<int, int>> get_threads(int proc_id) const {

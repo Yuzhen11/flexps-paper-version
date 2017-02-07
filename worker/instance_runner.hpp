@@ -2,6 +2,8 @@
 
 #include <thread>
 
+#include <boost/algorithm/string.hpp>
+
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
 #include "husky/core/worker_info.hpp"
@@ -53,73 +55,52 @@ class InstanceRunner {
 
         // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
         // cluster_manager
-        if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
-            // husky::LOG_I << "type: " + std::to_string(static_cast<int>(instance->get_type()));
-            switch (instance->get_type()) {
-            case Task::Type::PSBSPTaskType:
-            case Task::Type::PSASPTaskType: {
-                husky::LOG_I << CLAY("[run_instance] setting to PS generic");
-                info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
-                                                              info.get_local_id()));
-                break;
-            }
-            case Task::Type::PSSSPTaskType: {
-                if (static_cast<GenericMLTask*>(info.get_task())->get_worker_type() == "SSP") {
-                    husky::LOG_I << CLAY("[run_instance] setting to PSSSP");
-                    info.set_mlworker(
-                        new ml::ps::SSPWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
-                                              static_cast<GenericMLTask*>(info.get_task())->get_staleness()));
+        if (info.get_task()->get_type() == Task::Type::MLTaskType) {
+            std::string hint = static_cast<MLTask*>(instance->get_task())->get_hint();
+            
+            std::vector<std::string> instructions;
+            boost::split(instructions, hint, boost::is_any_of("#"));
+
+            try {
+                std::string& first = instructions.at(0);
+                if (first == "PS") {
+                    std::string& second = instructions.at(1);
+                    if (instructions.size() == 2) {
+                        info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
+                                                                      info.get_local_id()));
+                    } else if (instructions.at(2) == "SSPWorker") {  // use special SSPWorker to enable thread-cache, e.g. PS#SSP#SSPWorker#2
+                        int staleness = std::stoi(instructions.at(3));
+                        info.set_mlworker(new ml::ps::SSPWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(), 
+                                                                info.get_local_id(),
+                                                                staleness));
+                    } else {
+                        throw;
+                    }
+                } else if (first == "hogwild") {
+                    info.set_mlworker(new ml::hogwild::HogwildGenericWorker(
+                        static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
+                        info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                    info.get_mlworker()->Load();
+                } else if (first == "single") {
+                    info.set_mlworker(new ml::single::SingleGenericWorker(
+                        static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
+                        static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                    info.get_mlworker()->Load();
+                } else if (first == "SPMT") {
+                    std::string& second = instructions.at(1);
+                    info.set_mlworker(new ml::spmt::SPMTGenericWorker(
+                        static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
+                        info, second, static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                    info.get_mlworker()->Load();
                 } else {
-                    husky::LOG_I << CLAY("[run_instance] setting to PS generic");
-                    info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
-                                                                  info.get_local_id()));
+                    throw;
                 }
-                break;
+            } catch(...) {
+                throw base::HuskyException("Unknown hint: " + hint);
             }
-            case Task::Type::SingleTaskType: {
-                husky::LOG_I << CLAY("[run_instance] setting to Single generic");
-                info.set_mlworker(new ml::single::SingleGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
-                    static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
-                break;
-            }
-            case Task::Type::HogwildTaskType: {
-                husky::LOG_I << CLAY("[run_instance] setting to Hogwild! generic");
-                info.set_mlworker(new ml::hogwild::HogwildGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
-                break;
-            }
-            case Task::Type::SPMTBSPTaskType: {
-                husky::LOG_I << CLAY("[run_instance] setting to SPMT BSP");
-                info.set_mlworker(new ml::spmt::SPMTGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, "BSP", static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
-                break;
-            }
-            case Task::Type::SPMTSSPTaskType: {
-                husky::LOG_I << CLAY("[run_instance] setting to SPMT SSP");
-                info.set_mlworker(new ml::spmt::SPMTGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, "SSP", static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
-                break;
-            }
-            case Task::Type::SPMTASPTaskType: {
-                husky::LOG_I << CLAY("[run_instance] setting to SPMT ASP");
-                info.set_mlworker(new ml::spmt::SPMTGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, "ASP", static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
-                break;
-            }
-            default:
-                throw base::HuskyException("GenericMLTaskType error");
-            }
+            husky::LOG_I << CLAY("[run_instance] set to " + hint);
         }
+
         return info;
     }
 
@@ -127,33 +108,10 @@ class InstanceRunner {
      * postprocess function
      */
     void postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
-        if (info.get_task()->get_type() == Task::Type::GenericMLTaskType) {
-            switch (instance->get_type()) {
-            case Task::Type::PSBSPTaskType:
-            case Task::Type::PSSSPTaskType:
-            case Task::Type::PSASPTaskType: {
-                // husky::LOG_I << "[run_instance] PS generic done";
-                break;
-            }
-            case Task::Type::SingleTaskType: {
+        if (info.get_task()->get_type() == Task::Type::MLTaskType) {
+            std::string hint = static_cast<MLTask*>(instance->get_task())->get_hint();
+            if (hint == "single" || hint == "hogwild") {  // some types need to do dump
                 info.get_mlworker()->Dump();
-                // husky::LOG_I << "[run_instance] Single generic done";
-                break;
-            }
-            case Task::Type::HogwildTaskType: {
-                info.get_mlworker()->Dump();
-                // husky::LOG_I << "[run_instance] Hogwild generic done";
-                break;
-            }
-            case Task::Type::SPMTBSPTaskType:
-            case Task::Type::SPMTSSPTaskType:
-            case Task::Type::SPMTASPTaskType: {
-                info.get_mlworker()->Dump();
-                // husky::LOG_I << "[run_instance] SPMT generic done";
-                break;
-            }
-            default:
-                throw base::HuskyException("GenericMLTaskType error");
             }
         }
     }

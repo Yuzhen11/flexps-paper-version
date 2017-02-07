@@ -44,13 +44,13 @@ int main(int argc, char** argv) {
     });
 
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task1 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(num_params);
     task1.set_kvstore(kv1);
     task1.set_total_epoch(train_epoch);
-    // task1.set_running_type(Task::Type::HogwildTaskType);
-    // task1.set_running_type(Task::Type::PSTaskType);
-    task1.set_running_type(Task::Type::SingleTaskType);
+    task1.set_hint("single");
+    task1.set_total_epoch(1);
+    task1.set_num_workers(1);
     engine.AddTask(std::move(task1), [&data_store, num_iters, alpha, num_params](const Info& info) {
         auto& training_data = data_store.Pull(info.get_local_id());  // since this is a single thread task
         if (training_data.empty())

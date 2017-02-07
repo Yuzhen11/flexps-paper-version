@@ -37,10 +37,10 @@ int main(int argc, char** argv) {
 
     //  A Hogwild! Task
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task1 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(10);
     task1.set_kvstore(kv1);
-    task1.set_running_type(Task::Type::HogwildTaskType);  // set the running type explicitly
+    task1.set_hint("hogwild");  // set the running type explicitly
     task1.set_total_epoch(2);                             // 2 epochs
     task1.set_num_workers(4);                             // 4 workers
     engine.AddTask(task1, [](const Info& info) {
@@ -59,10 +59,10 @@ int main(int argc, char** argv) {
 
     // A Single Task
     int kv2 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task2 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task2 = TaskFactory::Get().CreateTask<MLTask>();
     task2.set_dimensions(5);
     task2.set_kvstore(kv2);
-    task2.set_running_type(Task::Type::SingleTaskType);  // set the running type explicitly
+    task2.set_hint("single");  // set the running type explicitly
     engine.AddTask(task2, [](const Info& info) {
         auto& worker = info.get_mlworker();
         // int k = 3;
@@ -82,10 +82,10 @@ int main(int argc, char** argv) {
     // BSP
     int kv3 =
         kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(4, true));  // for bsp server
-    auto task3 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task3 = TaskFactory::Get().CreateTask<MLTask>();
     task3.set_dimensions(5);
     task3.set_kvstore(kv3);
-    task3.set_running_type(Task::Type::PSBSPTaskType);  // set the running type explicitly
+    task3.set_hint("PS#BSP");  // set the running type explicitly
     task3.set_num_workers(4);                           // 4 workers
     engine.AddTask(task3, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -95,10 +95,10 @@ int main(int argc, char** argv) {
 
     // SSP
     int kv4 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerSSPHandle<float>(4, 1));  // staleness: 1
-    auto task4 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task4 = TaskFactory::Get().CreateTask<MLTask>();
     task4.set_dimensions(5);
     task4.set_kvstore(kv4);
-    task4.set_running_type(Task::Type::PSSSPTaskType);  // set the running type explicitly
+    task4.set_hint("PS#SSP");  // set the running type explicitly
     task4.set_num_workers(4);                           // 4 workers
     engine.AddTask(task4, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -109,10 +109,10 @@ int main(int argc, char** argv) {
     // ASP
     int kv5 = kvstore::KVStore::Get().CreateKVStore<float>(
         kvstore::KVServerDefaultAddHandle<float>());  // use the default add handle
-    auto task5 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task5 = TaskFactory::Get().CreateTask<MLTask>();
     task5.set_dimensions(5);
     task5.set_kvstore(kv5);
-    task5.set_running_type(Task::Type::PSASPTaskType);  // set the running type explicitly
+    task5.set_hint("PS#ASP");  // set the running type explicitly
     task5.set_num_workers(4);                           // 4 workers
     engine.AddTask(task5, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -122,10 +122,10 @@ int main(int argc, char** argv) {
 
     //  A SPMT Task
     int kv6 = kvstore::KVStore::Get().CreateKVStore<float>();
-    auto task6 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task6 = TaskFactory::Get().CreateTask<MLTask>();
     task6.set_dimensions(10);
     task6.set_kvstore(kv6);
-    task6.set_running_type(Task::Type::SPMTASPTaskType);  // set the running type explicitly
+    task6.set_hint("SPMT#ASP");  // set the running type explicitly
     task6.set_num_workers(4);                             // 4 workers
     engine.AddTask(task6, [](const Info& info) {
         test_mlworker_lambda(info);

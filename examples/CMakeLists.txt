@@ -68,24 +68,6 @@ target_link_libraries(TestPI husky)
 target_link_libraries(TestPI ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestPI PROPERTY CXX_STANDARD 14)
 
-# SimpleKVApp
-add_executable(SimpleKVApp simple_kv_app.cpp)
-target_link_libraries(SimpleKVApp husky)
-target_link_libraries(SimpleKVApp ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET SimpleKVApp PROPERTY CXX_STANDARD 14)
-
-# TestKVApp
-add_executable(TestKVApp test_kv_app.cpp)
-target_link_libraries(TestKVApp husky)
-target_link_libraries(TestKVApp ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET TestKVApp PROPERTY CXX_STANDARD 14)
-
-# SimpleHogwild
-add_executable(SimpleHogwild simple_hogwild.cpp)
-target_link_libraries(SimpleHogwild husky)
-target_link_libraries(SimpleHogwild ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET SimpleHogwild PROPERTY CXX_STANDARD 14)
-
 # SimpleKVStore
 add_executable(SimpleKVStore simple_kvstore.cpp)
 target_link_libraries(SimpleKVStore husky)

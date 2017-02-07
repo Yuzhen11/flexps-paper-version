@@ -70,24 +70,9 @@ class GreedyTaskScheduler : public TaskScheduler {
                 std::shared_ptr<Instance> instance(new Instance);
                 instance_basic_setup(instance, *tasks_[i]);
 
-                std::vector<std::pair<int, int>> pid_tids;
-                if ((instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 0) ||
-                    instance->get_type() == Task::Type::FixedWorkersTaskType) {
-                    int thread_per_worker = instance->get_num_workers();
-                    pid_tids = available_workers_.get_workers_per_process(thread_per_worker, num_processes_);
-                } else if (instance->get_type() == Task::Type::TwoPhasesTaskType && instance->get_epoch() % 2 == 1) {
-                    // run even epoch with 1 thread default
-                    pid_tids = available_workers_.get_workers(1);
-                } else if (instance->get_type() == Task::Type::HogwildTaskType || 
-                        instance->get_type() == Task::Type::SPMTBSPTaskType ||
-                        instance->get_type() == Task::Type::SPMTSSPTaskType ||
-                        instance->get_type() == Task::Type::SPMTASPTaskType) {
-                    // extract from local_workers
-                    pid_tids = available_workers_.get_local_workers(instance->get_num_workers());
-                } else {
-                    // extract from global workers
-                    pid_tids = available_workers_.get_workers(instance->get_num_workers());
-                }
+                // select threads according to the instance
+                std::vector<std::pair<int,int>> pid_tids = select_threads(instance, available_workers_, num_processes_);
+
                 // If requirement is satisfied, add the instance
                 if (!pid_tids.empty()) {
                     int j = 0;

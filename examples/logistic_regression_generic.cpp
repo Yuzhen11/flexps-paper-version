@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
     auto load_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
-    auto task1 = TaskFactory::Get().CreateTask<GenericMLTask>();
+    auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(num_params);
     task1.set_total_epoch(train_epoch);  // set epoch number
 
@@ -84,29 +84,27 @@ int main(int argc, char** argv) {
         assert(num_train_workers == 1);
         kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
         task1.set_num_workers(num_train_workers);
-        task1.set_running_type(Task::Type::SingleTaskType);
+        task1.set_hint("single");
         task1.set_kvstore(kv1);
         husky::LOG_I << GREEN("Setting to Single, threads: " + std::to_string(num_train_workers));
     } else if (model == "Hogwild") {
         kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
         task1.set_num_workers(4);
-        task1.set_running_type(Task::Type::HogwildTaskType);
+        task1.set_hint("hogwild");
         husky::LOG_I << GREEN("Setting to Hogwild, threads: " + std::to_string(num_train_workers));
         task1.set_kvstore(kv1);
     } else if (model == "PSBSP") {
         kv1 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(num_train_workers));
         task1.set_num_workers(num_train_workers);
-        task1.set_running_type(Task::Type::PSBSPTaskType);
+        task1.set_hint("PS#BSP");
         task1.set_kvstore(kv1);
         husky::LOG_I << GREEN("Setting to PSBSP, threads: " + std::to_string(num_train_workers));
     } else if (model == "PSSSP") {
         int staleness = 2;
         kv1 = kvstore::KVStore::Get().CreateKVStore<float>(
             kvstore::KVServerSSPHandle<float>(num_train_workers, staleness));
-        task1.set_staleness(staleness);
-        // task1.set_worker_type("SSP");
-        task1.set_num_workers(num_train_workers);
-        task1.set_running_type(Task::Type::PSSSPTaskType);
+        // task1.set_hint("PS#SSP");
+        task1.set_hint("PS#SSP#SSPWorker#2");  // to use the SSPWorker
         task1.set_kvstore(kv1);
         husky::LOG_I << GREEN("Setting to PSSSP, threads: " + std::to_string(num_train_workers) + " Staleness: " +
                               std::to_string(staleness));
@@ -114,7 +112,7 @@ int main(int argc, char** argv) {
         kv1 = kvstore::KVStore::Get().CreateKVStore<float>(
             kvstore::KVServerDefaultAddHandle<float>());  // use the default add handle
         task1.set_num_workers(num_train_workers);
-        task1.set_running_type(Task::Type::PSASPTaskType);
+        task1.set_hint("PS#ASP");
         task1.set_kvstore(kv1);
         husky::LOG_I << GREEN("Setting to PSASP, threads: " + std::to_string(num_train_workers));
     } else {
