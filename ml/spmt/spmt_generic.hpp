@@ -105,7 +105,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             // Directly update the model
             assert(keys.size() == vals.size());
             for (size_t i = 0; i < keys.size(); i++) {
-                assert(i < model_->params.size());
+                assert(keys[i] < model_->params.size());
                 model_->params[keys[i]] += vals[i];
             }
         }
@@ -126,13 +126,34 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         p_controller_->AfterPull(info_.get_cluster_id());
     }
 
+    // For v2
+    // TODO: Now, the v2 APIs for spmt still need copy,
+    // Later, we may use brunching to facilitate zero-copy when doing single/hogwild
+    virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
+        keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
+        Pull(keys, &vals_);
+        delta_.clear();
+        delta_.resize(keys.size());
+    }
+    virtual float Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
+    virtual void Update_v2(husky::constants::Key idx, float val) override {
+        delta_[idx] += val;
+        vals_[idx] += val;
+    }
+    virtual void Update_v2(const std::vector<float>& vals) override {
+        assert(vals.size() == vals_.size());
+        for (size_t i = 0; i < vals.size(); ++i) {
+            vals_[i] += vals[i];
+            delta_[i] += vals[i];
+        }
+    }
+    virtual void Clock_v2() override { Push(*keys_, delta_); }
+
    private:
     /*
      * check whether all the threads are in the same machine
      */
     bool isValid() {
-        // husky::base::log_msg("locals: " + std::to_string(info_.get_num_local_workers()) + " globals:" +
-        //                      std::to_string(info_.get_num_workers()));
         return info_.get_num_local_workers() == info_.get_num_workers();
     }
 
@@ -145,6 +166,12 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     int model_id_;
 
     AbstractConsistencyController* p_controller_;
+
+    // For v2
+    // Pointer to keys
+    std::vector<husky::constants::Key>* keys_;
+    std::vector<float> vals_;
+    std::vector<float> delta_;
 };
 
 }  // namespace spmt

@@ -34,7 +34,7 @@ std::vector<std::pair<int, int>> select_threads(std::shared_ptr<Instance>& insta
         pid_tids = available_workers.get_workers(1);
     } else if (instance->get_type() == Task::Type::MLTaskType) {
         std::string hint = static_cast<MLTask*>(instance->get_task())->get_hint();
-        if (hint == "hogwild" || hint == "SPMT#BSP" || hint == "SPMT#SSP" || hint == "SPMT#ASP") {
+        if (hint == "hogwild" || hint == "SPMT:BSP" || hint == "SPMT:SSP" || hint == "SPMT:ASP") {
             // extract from one process
             pid_tids = available_workers.get_local_workers(instance->get_num_workers());
         } else {

@@ -147,14 +147,14 @@ class HogwildGenericWorker : public common::GenericMLWorker {
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(keys.size() == vals.size());
         for (size_t i = 0; i < keys.size(); i++) {
-            assert(i < model_->size());
+            assert(keys[i] < model_->size());
             (*model_)[keys[i]] += vals[i];
         }
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
         vals->resize(keys.size());
         for (size_t i = 0; i < keys.size(); i++) {
-            assert(i < model_->size());
+            assert(keys[i] < model_->size());
             (*vals)[i] = (*model_)[keys[i]];
         }
     }

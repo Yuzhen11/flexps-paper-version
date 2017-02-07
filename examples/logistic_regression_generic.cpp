@@ -7,6 +7,7 @@
 
 #include "lib/data_sampler.hpp"
 #include "lib/load_data.hpp"
+#include "lib/task_utils.hpp"
 
 #include "examples/updater.hpp"
 
@@ -25,8 +26,8 @@ using husky::lib::ml::LabeledPointHObj;
  * Example:
  *
  * ### Mode
- * ### Model should be Single/Hogwild/PSBSP, PSSSP, PSASP
- * model=PSBSP
+ * ### hint should be single/hogwild/PS:BSP/PS:SSP/PS:ASP
+ * hint=PS:BSP
  * num_train_workers=4
  * num_load_workers=4
  *
@@ -41,14 +42,14 @@ int main(int argc, char** argv) {
     bool rt =
         init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
                                     "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
-                                    "model", "num_train_workers", "num_load_workers"});
+                                    "hint", "num_train_workers", "num_load_workers"});
 
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     float alpha = std::stof(Context::get_param("alpha"));
     int num_iters = std::stoi(Context::get_param("num_iters"));
     int num_features = std::stoi(Context::get_param("num_features"));
     int num_params = num_features + 1;  // +1 for intercept
-    std::string model = Context::get_param("model");
+    std::string hint = Context::get_param("hint");
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
 
@@ -78,48 +79,10 @@ int main(int argc, char** argv) {
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(num_params);
     task1.set_total_epoch(train_epoch);  // set epoch number
-
-    int kv1 = -1;
-    if (model == "Single") {
-        assert(num_train_workers == 1);
-        kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-        task1.set_num_workers(num_train_workers);
-        task1.set_hint("single");
-        task1.set_kvstore(kv1);
-        husky::LOG_I << GREEN("Setting to Single, threads: " + std::to_string(num_train_workers));
-    } else if (model == "Hogwild") {
-        kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-        task1.set_num_workers(4);
-        task1.set_hint("hogwild");
-        husky::LOG_I << GREEN("Setting to Hogwild, threads: " + std::to_string(num_train_workers));
-        task1.set_kvstore(kv1);
-    } else if (model == "PSBSP") {
-        kv1 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(num_train_workers));
-        task1.set_num_workers(num_train_workers);
-        task1.set_hint("PS#BSP");
-        task1.set_kvstore(kv1);
-        husky::LOG_I << GREEN("Setting to PSBSP, threads: " + std::to_string(num_train_workers));
-    } else if (model == "PSSSP") {
-        int staleness = 2;
-        kv1 = kvstore::KVStore::Get().CreateKVStore<float>(
-            kvstore::KVServerSSPHandle<float>(num_train_workers, staleness));
-        // task1.set_hint("PS#SSP");
-        task1.set_hint("PS#SSP#SSPWorker#2");  // to use the SSPWorker
-        task1.set_kvstore(kv1);
-        husky::LOG_I << GREEN("Setting to PSSSP, threads: " + std::to_string(num_train_workers) + " Staleness: " +
-                              std::to_string(staleness));
-    } else if (model == "PSASP") {
-        kv1 = kvstore::KVStore::Get().CreateKVStore<float>(
-            kvstore::KVServerDefaultAddHandle<float>());  // use the default add handle
-        task1.set_num_workers(num_train_workers);
-        task1.set_hint("PS#ASP");
-        task1.set_kvstore(kv1);
-        husky::LOG_I << GREEN("Setting to PSASP, threads: " + std::to_string(num_train_workers));
-    } else {
-        husky::LOG_I << RED("Model error: " + model);
-    }
-    // Set max key, to make the keys distributed
+    // Create KVStore and Set hint
+    int kv1 = create_kvstore_and_set_hint(hint, task1, num_train_workers);
     assert(kv1 != -1);
+    // Set max key, to make the keys distributed
     kvstore::KVStore::Get().SetMaxKey(kv1, num_params);
 
     engine.AddTask(std::move(task1), [&data_store, num_iters, alpha, num_params](const Info& info) {

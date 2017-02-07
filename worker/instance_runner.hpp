@@ -59,7 +59,7 @@ class InstanceRunner {
             std::string hint = static_cast<MLTask*>(instance->get_task())->get_hint();
             
             std::vector<std::string> instructions;
-            boost::split(instructions, hint, boost::is_any_of("#"));
+            boost::split(instructions, hint, boost::is_any_of(":"));
 
             try {
                 std::string& first = instructions.at(0);
@@ -68,7 +68,7 @@ class InstanceRunner {
                     if (instructions.size() == 2) {
                         info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
                                                                       info.get_local_id()));
-                    } else if (instructions.at(2) == "SSPWorker") {  // use special SSPWorker to enable thread-cache, e.g. PS#SSP#SSPWorker#2
+                    } else if (instructions.at(2) == "SSPWorker") {  // use special SSPWorker to enable thread-cache, e.g. PS:SSP:SSPWorker:2
                         int staleness = std::stoi(instructions.at(3));
                         info.set_mlworker(new ml::ps::SSPWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(), 
                                                                 info.get_local_id(),
