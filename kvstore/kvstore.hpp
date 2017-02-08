@@ -6,6 +6,7 @@
 #include "husky/core/worker_info.hpp"
 #include "kvmanager.hpp"
 #include "kvworker.hpp"
+#include "range_manager.hpp"
 
 #include "handles/basic_server.hpp"
 #include "handles/bsp_server.hpp"
@@ -120,6 +121,8 @@ class KVStore {
     template <typename Val>
     int CreateKVStore(const ReqHandle<Val>& request_handler = KVServerDefaultAssignHandle<Val>()) {
         assert(is_started_);
+        // set the default max key
+        SetMaxKey(kv_id, std::numeric_limits<husky::constants::Key>::max());  
         for (auto* kvserver : kvservers) {
             kvserver->CreateKVManager<Val>(kv_id, request_handler);
         }
@@ -130,9 +133,8 @@ class KVStore {
     }
 
     void SetMaxKey(int kv_id, husky::constants::Key max_key) {
-        for (auto* kvworker : kvworkers) {
-            kvworker->SetMaxKey(kv_id, max_key);
-        }
+        assert(is_started_);
+        RangeManager::Get().SetMaxKey(kv_id, max_key, kvservers.size());
     }
 
     /*

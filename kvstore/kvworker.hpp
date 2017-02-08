@@ -8,6 +8,7 @@
 
 #include "kvpairs.hpp"
 #include "workercustomer.hpp"
+#include "range_manager.hpp"
 
 #include "core/info.hpp"
 #include "husky/base/serialization.hpp"
@@ -95,8 +96,6 @@ class KVWorker {
                 UniqueProcess<Val>(kv_id, ts, bin, runCallback);
             }));  // push the function template in
     }
-
-    void SetMaxKey(int kv_id, husky::constants::Key max_key) { GetServerKeyRanges(kv_id, max_key); }
 
    private:
     /*
@@ -215,7 +214,7 @@ class KVWorker {
     void Send(int kv_id, int ts, bool push, const KVPairs<Val>& kvs) {
         // slice the message
         SlicedKVs<Val> sliced;
-        Slice(kvs, GetServerKeyRanges(kv_id), &sliced);
+        Slice(kvs, RangeManager::Get().GetServerKeyRanges(kv_id), &sliced);
 
         for (size_t i = 0; i < sliced.size(); ++i) {
             husky::base::BinStream bin;
@@ -273,26 +272,8 @@ class KVWorker {
             kv.vals = send.vals.segment(pos[i] * k, pos[i + 1] * k);
         }
     }
-    const std::vector<pslite::Range>& GetServerKeyRanges(
-        int kv_id, husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max()) {
-        if (kv_id >= server_key_ranges_.size())
-            server_key_ranges_.resize(kv_id + 1);
-        if (server_key_ranges_[kv_id].empty()) {
-            auto num_servers_ = info_.num_ps_servers;
-            for (int i = 0; i < num_servers_ - 1; ++i) {
-                server_key_ranges_[kv_id].push_back(
-                    pslite::Range(max_key / num_servers_ * i, max_key / num_servers_ * (i + 1)));
-            }
-            // the last range should contain all
-            server_key_ranges_[kv_id].push_back(
-                pslite::Range(max_key / num_servers_ * (num_servers_ - 1), max_key));
-        }
-        return server_key_ranges_[kv_id];
-    }
 
    private:
-    std::vector<std::vector<pslite::Range>> server_key_ranges_;
-
     // storage for the kvs
     std::unordered_map<std::pair<int, int>, RecvKVPairsBase*> recv_kvs_;  // { <kv_id,ts>, recv_kvs_ }
     // callbacks
