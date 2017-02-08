@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     auto task3 = TaskFactory::Get().CreateTask<MLTask>();
     task3.set_dimensions(5);
     task3.set_kvstore(kv3);
-    task3.set_hint("PS#BSP");  // set the running type explicitly
+    task3.set_hint("PS:BSP");  // set the running type explicitly
     task3.set_num_workers(4);                           // 4 workers
     engine.AddTask(task3, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     auto task4 = TaskFactory::Get().CreateTask<MLTask>();
     task4.set_dimensions(5);
     task4.set_kvstore(kv4);
-    task4.set_hint("PS#SSP");  // set the running type explicitly
+    task4.set_hint("PS:SSP");  // set the running type explicitly
     task4.set_num_workers(4);                           // 4 workers
     engine.AddTask(task4, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
     auto task5 = TaskFactory::Get().CreateTask<MLTask>();
     task5.set_dimensions(5);
     task5.set_kvstore(kv5);
-    task5.set_hint("PS#ASP");  // set the running type explicitly
+    task5.set_hint("PS:ASP");  // set the running type explicitly
     task5.set_num_workers(4);                           // 4 workers
     engine.AddTask(task5, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     auto task6 = TaskFactory::Get().CreateTask<MLTask>();
     task6.set_dimensions(10);
     task6.set_kvstore(kv6);
-    task6.set_hint("SPMT#ASP");  // set the running type explicitly
+    task6.set_hint("SPMT:ASP");  // set the running type explicitly
     task6.set_num_workers(4);                             // 4 workers
     engine.AddTask(task6, [](const Info& info) {
         test_mlworker_lambda(info);
