@@ -19,7 +19,7 @@ int create_kvstore_and_set_hint(const std::string& hint, MLTask& task, int num_t
         if (first == "PS") {
             std::string& second = instructions.at(1);
             if (second == "BSP") {
-                kv = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(num_train_workers));
+                kv = kvstore::KVStore::Get().CreateKVStore<float>("BSP:"+std::to_string(num_train_workers));
             } else if (second == "SSP") {
                 int staleness;
                 if (instructions.size() == 2) staleness = 1;
@@ -28,11 +28,9 @@ int create_kvstore_and_set_hint(const std::string& hint, MLTask& task, int num_t
                 } else {
                     throw;
                 }
-                kv = kvstore::KVStore::Get().CreateKVStore<float>(
-                    kvstore::KVServerSSPHandle<float>(num_train_workers, staleness));
+                kv = kvstore::KVStore::Get().CreateKVStore<float>("SSP:"+std::to_string(num_train_workers)+":"+std::to_string(staleness));
             } else if (second == "ASP") {
-                kv = kvstore::KVStore::Get().CreateKVStore<float>(
-                    kvstore::KVServerDefaultAddHandle<float>());  // use the default add handle
+                kv = kvstore::KVStore::Get().CreateKVStore<float>("Add");
             }
         } else if (first == "hogwild" || first == "single" || first == "SPMT") {
             kv = kvstore::KVStore::Get().CreateKVStore<float>();

@@ -7,6 +7,8 @@
 #include "kvstore/handles/basic.hpp"
 #include "kvstore/kvmanager.hpp"
 
+#include "kvstore/handles/basic_server.hpp"
+
 namespace kvstore {
 
 /*
@@ -31,9 +33,10 @@ namespace kvstore {
  * Otherwise fast worker may issue two consecutive Pull.
  */
 template <typename Val>
-struct KVServerBSPHandle {
+class BSPServer : public ServerBase {
+   public:
     // the callback function
-    void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
+    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         bool push;  // push or not
         bin >> push;
         if (push) {  // if is push
@@ -44,7 +47,7 @@ struct KVServerBSPHandle {
                 int src;
                 bin >> src;
                 update(bin, store_);
-                server->Response(kv_id, ts, push, src, KVPairs<Val>(), customer);
+                Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
             }
             // if all the push are collected, reply for the pull
             if (push_count_ == num_workers_) {
@@ -54,7 +57,7 @@ struct KVServerBSPHandle {
                     int src;
                     bin >> src;
                     KVPairs<Val> res = retrieve(bin, store_);
-                    server->Response(kv_id, ts + 1, 0, src, res, customer);
+                    Response<Val>(kv_id, ts + 1, 0, src, res, customer);
                 }
                 pull_buffer_.clear();
             }
@@ -64,7 +67,7 @@ struct KVServerBSPHandle {
                 int src;
                 bin >> src;
                 KVPairs<Val> res = retrieve(bin, store_);
-                server->Response(kv_id, ts, push, src, res, customer);
+                Response<Val>(kv_id, ts, push, src, res, customer);
             } else {  // otherwise, reply later
                 pull_buffer_.push_back(std::move(bin));
             }
@@ -76,16 +79,16 @@ struct KVServerBSPHandle {
                     int src;
                     bin >> src;
                     update(bin, store_);
-                    server->Response(kv_id, ts + 1, 1, src, KVPairs<Val>(), customer);
+                    Response<Val>(kv_id, ts + 1, 1, src, KVPairs<Val>(), customer);
                 }
                 push_buffer_.clear();
             }
         }
     }
 
-    KVServerBSPHandle() = delete;
-    KVServerBSPHandle(int num_workers) : num_workers_(num_workers) {}
-    KVServerBSPHandle(int num_workers, bool reply_phase) : num_workers_(num_workers), reply_phase_(reply_phase) {}
+    BSPServer() = delete;
+    BSPServer(int num_workers) : num_workers_(num_workers) {}
+    BSPServer(int num_workers, bool reply_phase) : num_workers_(num_workers), reply_phase_(reply_phase) {}
 
    private:
     int num_workers_;

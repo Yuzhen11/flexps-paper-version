@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     // int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
     // BSP
     int kv3 =
-        kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(4, true));  // for bsp server
+        kvstore::KVStore::Get().CreateKVStore<float>("BSP:4");  // for bsp server
     auto task3 = TaskFactory::Get().CreateTask<MLTask>();
     task3.set_dimensions(5);
     task3.set_kvstore(kv3);
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
     });
 
     // SSP
-    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerSSPHandle<float>(4, 1));  // staleness: 1
+    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>("SSP:4:1");  // staleness: 1
     auto task4 = TaskFactory::Get().CreateTask<MLTask>();
     task4.set_dimensions(5);
     task4.set_kvstore(kv4);
@@ -107,8 +107,7 @@ int main(int argc, char** argv) {
     });
 
     // ASP
-    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>(
-        kvstore::KVServerDefaultAddHandle<float>());  // use the default add handle
+    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>("Add");  // use the default add handle
     auto task5 = TaskFactory::Get().CreateTask<MLTask>();
     task5.set_dimensions(5);
     task5.set_kvstore(kv5);

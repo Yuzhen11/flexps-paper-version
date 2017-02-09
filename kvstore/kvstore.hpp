@@ -119,12 +119,12 @@ class KVStore {
      * @return: kvstore id created
      */
     template <typename Val>
-    int CreateKVStore(const ReqHandle<Val>& request_handler = KVServerDefaultAssignHandle<Val>()) {
+    int CreateKVStore(const std::string& hint = "") {
         assert(is_started_);
         // set the default max key
         SetMaxKey(kv_id, std::numeric_limits<husky::constants::Key>::max());  
         for (auto* kvserver : kvservers) {
-            kvserver->CreateKVManager<Val>(kv_id, request_handler);
+            kvserver->CreateKVManager<Val>(kv_id, hint);
         }
         for (auto* kvworker : kvworkers) {
             kvworker->AddProcessFunc<Val>(kv_id);

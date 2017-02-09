@@ -9,25 +9,49 @@
 
 #include "core/color.hpp"
 
+#include "kvstore/servercustomer.hpp"
+
 namespace kvstore {
+
+class ServerBase {
+   public:
+    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) = 0;
+    /*
+     * response to the push/pull request
+     * The whole callback process is:
+     * process -> HandleAndReply -> Response
+     */
+    template<typename Val>
+    void Response(int kv_id, int ts, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer) {
+        husky::base::BinStream bin;
+        bool isRequest = false;
+        // isRequest, kv_id, ts, isPush, src
+        bin << isRequest << kv_id << ts << push << src;
+
+        bin << res.keys << res.vals;
+        customer->send(src, bin);
+    }
+};
 
 /*
  * The default functor for add operation
  */
 template <typename Val>
-struct KVServerDefaultAddHandle {
-    void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
+class DefaultAddServer : public ServerBase {
+   public:
+    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         bool push;  // push or not
         int src;
         bin >> push >> src;
         if (push == true) {  // if is push
             update(bin, store_);
-            server->Response(kv_id, ts, push, src, KVPairs<Val>(), customer);
+            Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
             KVPairs<Val> res = retrieve(bin, store_);
-            server->Response(kv_id, ts, push, src, res, customer);
+            Response<Val>(kv_id, ts, push, src, res, customer);
         }
     }
+   private:
     // The real storeage
     std::unordered_map<husky::constants::Key, Val> store_;
 };
@@ -36,19 +60,21 @@ struct KVServerDefaultAddHandle {
  * The default functor for assign operation
  */
 template <typename Val>
-struct KVServerDefaultAssignHandle {
-    void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
+class DefaultAssignServer : public ServerBase {
+   public:
+    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         bool push;  // push or not
         int src;
         bin >> push >> src;
         if (push == true) {  // if is push
             assign(bin, store_);
-            server->Response(kv_id, ts, push, src, KVPairs<Val>(), customer);
+            Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
             KVPairs<Val> res = retrieve(bin, store_);
-            server->Response(kv_id, ts, push, src, res, customer);
+            Response<Val>(kv_id, ts, push, src, res, customer);
         }
     }
+   private:
     // The real storeage
     std::unordered_map<husky::constants::Key, Val> store_;
 };

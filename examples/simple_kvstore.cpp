@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 
     // Test KVStore using KVServerBSPHandle: BSP
     task = TaskFactory::Get().CreateTask<Task>(1, 4);
-    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerBSPHandle<float>(4, true));
+    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>("BSP:4");
     engine.AddTask(task, [kv2](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         for (int i = 0; i < 10; ++i) {
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 
     // Test KVStore using KVServerSSPHandle: SSP
     task = TaskFactory::Get().CreateTask<Task>(1, 4);
-    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerSSPHandle<float>(4, 1));  // staleness: 1
+    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>("SSP:4:1");  // staleness: 1
     engine.AddTask(task, [kv3](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         for (int i = 0; i < 10; ++i) {
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
 
     // Test KVStore using KVServerDefaultAddHandle: ASP
     task = TaskFactory::Get().CreateTask<Task>(1, 4);
-    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
+    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>("Add");
     engine.AddTask(task, [kv4](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         for (int i = 0; i < 10; ++i) {

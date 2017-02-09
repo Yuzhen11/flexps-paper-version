@@ -8,6 +8,8 @@
 #include "kvstore/handles/basic.hpp"
 #include "kvstore/kvmanager.hpp"
 
+#include "kvstore/handles/basic_server.hpp"
+
 namespace kvstore {
 
 /*
@@ -22,16 +24,17 @@ namespace kvstore {
  * No need to issue Push/Pull/Push/Pull, Push/Push/Push/Pull should be fine
  */
 template <typename Val>
-struct KVServerSSPHandle {
+class SSPServer : public ServerBase {
+   public:
     // the callback function
-    void operator()(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer, KVServer<Val>* server) {
+    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         bool push;  // push or not
         bin >> push;
         if (push) {  // if is push
             int src;
             bin >> src;
             update(bin, store_);
-            server->Response(kv_id, ts, push, src, KVPairs<Val>(), customer);
+            Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
 
             if (src >= worker_progress_.size())
                 worker_progress_.resize(src + 1);
@@ -46,7 +49,7 @@ struct KVServerSSPHandle {
                     blocked_pulls_.resize(min_clock_ + 1);
                 for (auto& pull_pair : blocked_pulls_[min_clock_]) {
                     KVPairs<Val> res = retrieve(std::get<2>(pull_pair), store_);
-                    server->Response(kv_id, std::get<1>(pull_pair), 0, std::get<0>(pull_pair), res, customer);
+                    Response<Val>(kv_id, std::get<1>(pull_pair), 0, std::get<0>(pull_pair), res, customer);
                 }
                 std::vector<std::tuple<int, int, husky::base::BinStream>>().swap(blocked_pulls_[min_clock_]);
             }
@@ -59,7 +62,7 @@ struct KVServerSSPHandle {
             int expected_min_lock = worker_progress_[src] - staleness_;
             if (expected_min_lock <= min_clock_) {  // acceptable staleness so reply it
                 KVPairs<Val> res = retrieve(bin, store_);
-                server->Response(kv_id, ts, push, src, res, customer);
+                Response<Val>(kv_id, ts, push, src, res, customer);
             } else {  // block it to expected_min_lock(i.e. worker_progress_[src] - staleness_)
                 if (blocked_pulls_.size() <= expected_min_lock)
                     blocked_pulls_.resize(expected_min_lock + 1);
@@ -67,8 +70,8 @@ struct KVServerSSPHandle {
             }
         }
     }
-    KVServerSSPHandle() = delete;
-    KVServerSSPHandle(int num_workers, int staleness)
+    SSPServer() = delete;
+    SSPServer(int num_workers, int staleness)
         : num_workers_(num_workers), worker_progress_(num_workers), staleness_(staleness) {}
 
    private:
