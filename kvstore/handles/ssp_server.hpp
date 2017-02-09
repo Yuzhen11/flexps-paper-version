@@ -28,13 +28,15 @@ class SSPServer : public ServerBase {
    public:
     // the callback function
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
+        int cmd;
         bool push;  // push or not
+        bin >> cmd;
         bin >> push;
         if (push) {  // if is push
             int src;
             bin >> src;
-            update(bin, store_);
-            Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
+            update(kv_id, bin, store_, cmd);
+            Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
 
             if (src >= worker_progress_.size())
                 worker_progress_.resize(src + 1);
@@ -48,8 +50,8 @@ class SSPServer : public ServerBase {
                 if (blocked_pulls_.size() <= min_clock_)
                     blocked_pulls_.resize(min_clock_ + 1);
                 for (auto& pull_pair : blocked_pulls_[min_clock_]) {
-                    KVPairs<Val> res = retrieve(std::get<2>(pull_pair), store_);
-                    Response<Val>(kv_id, std::get<1>(pull_pair), 0, std::get<0>(pull_pair), res, customer);
+                    KVPairs<Val> res = retrieve(kv_id, std::get<2>(pull_pair), store_, cmd);
+                    Response<Val>(kv_id, std::get<1>(pull_pair), cmd, 0, std::get<0>(pull_pair), res, customer);
                 }
                 std::vector<std::tuple<int, int, husky::base::BinStream>>().swap(blocked_pulls_[min_clock_]);
             }
@@ -61,8 +63,8 @@ class SSPServer : public ServerBase {
                 worker_progress_.resize(src + 1);
             int expected_min_lock = worker_progress_[src] - staleness_;
             if (expected_min_lock <= min_clock_) {  // acceptable staleness so reply it
-                KVPairs<Val> res = retrieve(bin, store_);
-                Response<Val>(kv_id, ts, push, src, res, customer);
+                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
+                Response<Val>(kv_id, ts, cmd, push, src, res, customer);
             } else {  // block it to expected_min_lock(i.e. worker_progress_[src] - staleness_)
                 if (blocked_pulls_.size() <= expected_min_lock)
                     blocked_pulls_.resize(expected_min_lock + 1);

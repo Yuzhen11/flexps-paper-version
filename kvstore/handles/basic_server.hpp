@@ -22,11 +22,11 @@ class ServerBase {
      * process -> HandleAndReply -> Response
      */
     template<typename Val>
-    void Response(int kv_id, int ts, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer) {
+    void Response(int kv_id, int ts, int cmd, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer) {
         husky::base::BinStream bin;
         bool isRequest = false;
         // isRequest, kv_id, ts, isPush, src
-        bin << isRequest << kv_id << ts << push << src;
+        bin << isRequest << kv_id << ts << cmd << push << src;
 
         bin << res.keys << res.vals;
         customer->send(src, bin);
@@ -34,7 +34,7 @@ class ServerBase {
 };
 
 /*
- * The default functor for add operation
+ * The default functor for assign operation
  */
 template <typename Val>
 class DefaultAddServer : public ServerBase {
@@ -43,15 +43,17 @@ class DefaultAddServer : public ServerBase {
     DefaultAddServer(int server_id) : server_id_(server_id) {}
 
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
+        int cmd;
         bool push;  // push or not
         int src;
-        bin >> push >> src;
+        bin >> cmd >> push >> src;
         if (push == true) {  // if is push
-            update(bin, store_);
-            Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
+            update(kv_id, bin, store_, cmd);
+            Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
-            KVPairs<Val> res = retrieve(bin, store_);
-            Response<Val>(kv_id, ts, push, src, res, customer);
+            KVPairs<Val> res;
+            res = retrieve(kv_id, bin, store_, cmd);
+            Response<Val>(kv_id, ts, cmd, push, src, res, customer);
         }
     }
    private:
@@ -70,15 +72,17 @@ class DefaultAssignServer : public ServerBase {
     DefaultAssignServer(int server_id) : server_id_(server_id) {}
 
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
+        int cmd;
         bool push;  // push or not
         int src;
-        bin >> push >> src;
+        bin >> cmd >> push >> src;
         if (push == true) {  // if is push
-            assign(bin, store_);
-            Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
+            assign(kv_id, bin, store_, cmd);
+            Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
-            KVPairs<Val> res = retrieve(bin, store_);
-            Response<Val>(kv_id, ts, push, src, res, customer);
+            KVPairs<Val> res;
+            res = retrieve(kv_id, bin, store_, cmd);
+            Response<Val>(kv_id, ts, cmd, push, src, res, customer);
         }
     }
    private:

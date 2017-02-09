@@ -41,7 +41,7 @@ class KVWorker {
     ~KVWorker() { customer_->Stop(); }
 
     /*
-     * Pushes a list of kv pairs to all server nodes
+     * Push a list of kv pairs to all server nodes
      */
     template <typename Val>
     int Push(int kv_id, const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals,
@@ -59,7 +59,7 @@ class KVWorker {
         KVPairs<Val> kvs;
         kvs.keys = keys;
         kvs.vals = vals;
-        Send(kv_id, ts, true, kvs);
+        Send_(kv_id, ts, true, kvs);
         return ts;
     }
 
@@ -78,6 +78,67 @@ class KVWorker {
     int ZPull(int kv_id, const pslite::SArray<husky::constants::Key>& keys, pslite::SArray<Val>* vals,
               const Callback& cb = nullptr) {
         return Pull_<Val>(kv_id, keys, vals, cb);
+    }
+
+    /*
+     * Push a list of chunk to server
+     *
+     * @param chunk_ids The chunk_ids need to be pushed
+     * @param chunks The pointer to real chunks
+     */
+    template <typename Val>
+    int PushChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
+             const Callback& cb = nullptr) {
+        int ts = customer_->NewRequest(kv_id, info_.num_ps_servers);
+        SendChunks_(kv_id, ts, true, chunk_ids, chunks);
+        return ts;
+    }
+
+    /*
+     * Pull a list of chunks from server
+     *
+     * @param chunk_ids The chunk_ids that needs to be pulled
+     * @param chunks The chunks provided must be created beforehand
+     */
+    template<typename Val>
+    int PullChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
+             const Callback& cb = nullptr) {
+        int ts = customer_->NewRequest(kv_id, info_.num_ps_servers);
+        AddCallback(kv_id, ts, [this, kv_id, ts, &chunk_ids, &chunks, cb]() {
+            mu_.lock();
+            auto& kvs = static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs;
+            mu_.unlock();
+
+            int chunk_size = RangeManager::Get().GetChunkSize(kv_id);
+            int chunk_num = RangeManager::Get().GetChunkNum(kv_id);
+            std::sort(kvs.begin(), kvs.end(),
+                      [](const KVPairs<Val>& a, const KVPairs<Val>& b) { return a.keys.front() < b.keys.front(); });
+
+            int idx = 0;
+            for (const auto& s : kvs) {
+                int start = 0;
+                for (int i = 0; i < s.keys.size(); ++ i) {
+                    if (s.keys[i] == chunk_num-1) {
+                        chunks[idx]->resize(s.vals.size()-start);
+                        memcpy(chunks[idx]->data(), s.vals.data()+start, (s.vals.size()-start)*sizeof(Val));
+                    } else {
+                        chunks[idx]->resize(chunk_size);
+                        memcpy(chunks[idx]->data(), s.vals.data()+start, chunk_size*sizeof(Val));
+                    }
+                    start += chunk_size;
+                    idx += 1;
+                }
+            }
+
+            mu_.lock();
+            delete recv_kvs_[{kv_id, ts}];
+            recv_kvs_.erase({kv_id, ts});
+            mu_.unlock();
+            if (cb)
+                cb();
+        });
+        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>());
+        return ts;
     }
 
     /*
@@ -103,8 +164,10 @@ class KVWorker {
      */
     template <typename Val>
     void UniqueProcess(int kv_id, int ts, husky::base::BinStream& bin, bool runCallback) {
+        int cmd;
         bool push;  // push or not
         int src;
+        bin >> cmd;
         bin >> push;
         bin >> src;
         if (push == true)
@@ -203,24 +266,25 @@ class KVWorker {
         });
         KVPairs<Val> kvs;
         kvs.keys = keys;
-        Send(kv_id, ts, false, kvs);
+        Send_(kv_id, ts, false, kvs);
         return ts;
     }
 
     /*
-     * The Send function to send out Push/Pull request
+     * The Send_ function to send out Push/Pull request
      */
     template <typename Val>
-    void Send(int kv_id, int ts, bool push, const KVPairs<Val>& kvs) {
+    void Send_(int kv_id, int ts, bool push, const KVPairs<Val>& kvs) {
         // slice the message
         SlicedKVs<Val> sliced;
         Slice(kvs, RangeManager::Get().GetServerKeyRanges(kv_id), &sliced);
 
+        bool isRequest = true;
+        int src = info_.global_id;
+        int cmd = 0;  // cmd 0 for normal
         for (size_t i = 0; i < sliced.size(); ++i) {
             husky::base::BinStream bin;
-            bool isRequest = true;
-            int src = info_.global_id;
-            bin << isRequest << kv_id << ts << push << src;
+            bin << isRequest << kv_id << ts << cmd << push << src;
             auto& kvs = sliced[i].second;
             bin << kvs.keys << kvs.vals;
             // husky::LOG_I << CLAY("sending to "+std::to_string(i)+" size: "+std::to_string(bin.size()));
@@ -270,6 +334,62 @@ class KVWorker {
             auto& kv = sliced->at(i).second;
             kv.keys = send.keys.segment(pos[i], pos[i + 1]);
             kv.vals = send.vals.segment(pos[i] * k, pos[i + 1] * k);
+        }
+    }
+
+    std::vector<size_t> PartitionChunks_(int kv_id, const std::vector<size_t>& chunk_ids) {
+        // partition the chunk_ids
+        const std::vector<pslite::Range>& ranges = RangeManager::Get().GetServerKeyRanges(kv_id);
+        int chunk_size = RangeManager::Get().GetChunkSize(kv_id);
+        size_t n = ranges.size();
+        int range_id = 0;
+        std::vector<size_t> pos(n + 1);
+        pos[0] = 0;
+        int pos_id = 1;
+        for (size_t i = 0; i < chunk_ids.size(); ++ i) {
+            if (chunk_ids[i]*chunk_size >= ranges[range_id].end()) {
+                pos[pos_id] = i;
+                pos_id += 1;
+                range_id += 1;
+                assert(range_id < n);
+            }
+        }
+        for (size_t i = pos_id; i < n+1; ++ i) {
+            pos[i] = chunk_ids.size();
+        }
+        return pos;
+    }
+
+    /*
+     * Used for PushChunks and PullChunk
+     *
+     * First partition the keys, and then send
+     */
+    template<typename Val>
+    void SendChunks_(int kv_id, int ts, bool push,
+            const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks) {
+        // partition
+        std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
+        const std::vector<pslite::Range>& ranges = RangeManager::Get().GetServerKeyRanges(kv_id);
+        size_t n = ranges.size();
+
+        // send
+        bool isRequest = true;
+        int src = info_.global_id;
+        int cmd = 1;  // cmd 1 for chunk push
+        for (size_t i = 0; i < n; ++ i) {
+            husky::base::BinStream bin;
+            bin << isRequest << kv_id << ts << cmd << push << src;
+            bin << static_cast<size_t>(pos[i+1]-pos[i]);
+            for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunk_ids
+                bin << chunk_ids[j];
+            }
+            if (push) {
+                for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunks
+                    bin << *chunks[j];
+                }
+            }
+            customer_->send(info_.get_tid(i), bin);
         }
     }
 

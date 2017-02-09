@@ -92,6 +92,51 @@ int main(int argc, char** argv) {
     });
     engine.Submit();
 
+    task = TaskFactory::Get().CreateTask<Task>(1, 1);
+    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>();
+    kvstore::KVStore::Get().SetMaxKey(kv5, 98);  // 98 keys
+    kvstore::RangeManager::Get().SetChunkSize(kv5, 10);  // chunksize is 10
+    engine.AddTask(task, [kv5](const Info& info) {
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
+        std::vector<std::vector<float>> params(10, std::vector<float>(10));
+        for (int i = 0; i < 10; ++ i) {
+            params[0][i] = 123;
+            params[3][i] = 234;
+            params[6][i] = 789;
+        }
+        params[9].resize(8);  // the last one has only 8 keys
+        for (int i = 0; i < 8; ++ i) params[9][i] = 1000;
+        std::vector<size_t> chunk_ids{0,3,6,9};
+        std::vector<std::vector<float>*> chunks{&params[0], &params[3], &params[6], &params[9]};
+        int ts = kvworker->PushChunks(kv5, chunk_ids, chunks);
+        kvworker->Wait(kv5, ts);
+
+        std::vector<float> v[4];
+        v[0].resize(10);
+        v[1].resize(10);
+        v[2].resize(10);
+        v[3].resize(8);
+        std::vector<std::vector<float>*> pull_chunks{&v[0], &v[1], &v[2], &v[3]};
+        ts = kvworker->PullChunks(kv5, chunk_ids, pull_chunks);
+        kvworker->Wait(kv5, ts);
+        assert(v[0].size() == 10);
+        assert(v[1].size() == 10);
+        assert(v[2].size() == 10);
+        for (int j = 0; j < 10; ++ j) {
+            // husky::LOG_I << GREEN("result: "+std::to_string(v[i][j]));
+            assert(v[0][j] == 123);
+            assert(v[1][j] == 234);
+            assert(v[2][j] == 789);
+        }
+        assert(v[3].size() == 8);
+        for (int j = 0; j < v[3].size(); ++ j) {
+            // husky::LOG_I << GREEN("result: "+std::to_string(v[3][j]));
+            assert(v[3][j] == 1000);
+        }
+        husky::LOG_I << GREEN("chunk based Push/Pull checked done");
+    });
+
+    engine.Submit();
     engine.Exit();
     // Stop the kvstore, should stop before mailbox is down
     kvstore::KVStore::Get().Stop();

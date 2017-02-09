@@ -37,7 +37,9 @@ class BSPServer : public ServerBase {
    public:
     // the callback function
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
+        int cmd;
         bool push;  // push or not
+        bin >> cmd;
         bin >> push;
         if (push) {  // if is push
             push_count_ += 1;
@@ -46,8 +48,8 @@ class BSPServer : public ServerBase {
             } else {  // otherwise, directly update
                 int src;
                 bin >> src;
-                update(bin, store_);
-                Response<Val>(kv_id, ts, push, src, KVPairs<Val>(), customer);
+                update(kv_id, bin, store_, cmd);
+                Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
             }
             // if all the push are collected, reply for the pull
             if (push_count_ == num_workers_) {
@@ -56,8 +58,8 @@ class BSPServer : public ServerBase {
                 for (auto& bin : pull_buffer_) {  // process the pull_buffer_
                     int src;
                     bin >> src;
-                    KVPairs<Val> res = retrieve(bin, store_);
-                    Response<Val>(kv_id, ts + 1, 0, src, res, customer);
+                    KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
+                    Response<Val>(kv_id, ts + 1, cmd, 0, src, res, customer);
                 }
                 pull_buffer_.clear();
             }
@@ -66,8 +68,8 @@ class BSPServer : public ServerBase {
             if (reply_phase_) {  // if is now replying, directly reply
                 int src;
                 bin >> src;
-                KVPairs<Val> res = retrieve(bin, store_);
-                Response<Val>(kv_id, ts, push, src, res, customer);
+                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
+                Response<Val>(kv_id, ts, cmd, push, src, res, customer);
             } else {  // otherwise, reply later
                 pull_buffer_.push_back(std::move(bin));
             }
@@ -78,8 +80,8 @@ class BSPServer : public ServerBase {
                 for (auto& bin : push_buffer_) {  // process the push_buffer_
                     int src;
                     bin >> src;
-                    update(bin, store_);
-                    Response<Val>(kv_id, ts + 1, 1, src, KVPairs<Val>(), customer);
+                    update(kv_id, bin, store_, cmd);
+                    Response<Val>(kv_id, ts + 1, cmd, 1, src, KVPairs<Val>(), customer);
                 }
                 push_buffer_.clear();
             }
