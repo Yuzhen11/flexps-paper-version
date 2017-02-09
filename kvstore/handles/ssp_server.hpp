@@ -71,8 +71,8 @@ class SSPServer : public ServerBase {
         }
     }
     SSPServer() = delete;
-    SSPServer(int num_workers, int staleness)
-        : num_workers_(num_workers), worker_progress_(num_workers), staleness_(staleness) {}
+    SSPServer(int server_id, int num_workers, int staleness)
+        : server_id_(server_id), num_workers_(num_workers), worker_progress_(num_workers), staleness_(staleness) {}
 
    private:
     int num_workers_;
@@ -83,6 +83,7 @@ class SSPServer : public ServerBase {
     std::vector<std::vector<std::tuple<int, int, husky::base::BinStream>>> blocked_pulls_;
     // The real storeage
     std::unordered_map<husky::constants::Key, Val> store_;
+    int server_id_;
 };
 
 }  // namespace kvstore

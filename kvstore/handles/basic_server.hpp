@@ -39,6 +39,9 @@ class ServerBase {
 template <typename Val>
 class DefaultAddServer : public ServerBase {
    public:
+    DefaultAddServer() = delete;
+    DefaultAddServer(int server_id) : server_id_(server_id) {}
+
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         bool push;  // push or not
         int src;
@@ -54,6 +57,7 @@ class DefaultAddServer : public ServerBase {
    private:
     // The real storeage
     std::unordered_map<husky::constants::Key, Val> store_;
+    int server_id_;
 };
 
 /*
@@ -62,6 +66,9 @@ class DefaultAddServer : public ServerBase {
 template <typename Val>
 class DefaultAssignServer : public ServerBase {
    public:
+    DefaultAssignServer() = delete;
+    DefaultAssignServer(int server_id) : server_id_(server_id) {}
+
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         bool push;  // push or not
         int src;
@@ -77,6 +84,7 @@ class DefaultAssignServer : public ServerBase {
    private:
     // The real storeage
     std::unordered_map<husky::constants::Key, Val> store_;
+    int server_id_;
 };
 
 }  // namespace kvstore

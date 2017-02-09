@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     auto& engine = Engine::Get();
     // Start the kvstore, should start after mailbox is up
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
-                                  Context::get_zmq_context());
+                                  Context::get_zmq_context(), 2);
 
     auto task = TaskFactory::Get().CreateTask<Task>(1, 1);
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();

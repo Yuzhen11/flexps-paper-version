@@ -37,23 +37,23 @@ template <typename Val>
 class KVServer : public KVServerBase {
    public:
     KVServer() = delete;
-    KVServer(const std::string& hint) {
+    KVServer(int server_id, const std::string& hint) {
         if (hint == "") {
-            server_base_.reset(new DefaultAssignServer<Val>());
+            server_base_.reset(new DefaultAssignServer<Val>(server_id));
         } else {
             std::vector<std::string> instructions;
             boost::split(instructions, hint, boost::is_any_of(":"));
             try {
                 std::string& first = instructions.at(0);
                 if (first == "Add") {
-                    server_base_.reset(new DefaultAddServer<Val>());
+                    server_base_.reset(new DefaultAddServer<Val>(server_id));
                 } else if (first == "SSP") {
                     int worker_num = stoi(instructions.at(1));
                     int staleness = stoi(instructions.at(2));
-                    server_base_.reset(new SSPServer<Val>(worker_num, staleness));
+                    server_base_.reset(new SSPServer<Val>(server_id, worker_num, staleness));
                 } else if (first == "BSP") {
                     int worker_num = stoi(instructions.at(1));
-                    server_base_.reset(new BSPServer<Val>(worker_num));
+                    server_base_.reset(new BSPServer<Val>(server_id, worker_num));
                 } else {
                     throw;
                 }
@@ -80,8 +80,9 @@ class KVServer : public KVServerBase {
  */
 class KVManager {
    public:
-    KVManager(husky::LocalMailbox& mailbox, int channel_id)
-        : customer_(new ServerCustomer(
+    KVManager(int server_id, husky::LocalMailbox& mailbox, int channel_id)
+        : server_id_(server_id), 
+          customer_(new ServerCustomer(
               mailbox, [this](int kv_id, int ts, husky::base::BinStream& bin) { Process(kv_id, ts, bin); },
               channel_id)) {
         customer_->Start();
@@ -98,7 +99,7 @@ class KVManager {
      */
     template <typename Val>
     void CreateKVManager(int kv_id, const std::string& hint) {
-        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(hint))));
+        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(server_id_, hint))));
     }
 
    private:
@@ -114,6 +115,8 @@ class KVManager {
     // customer for communication
     std::unique_ptr<ServerCustomer> customer_;
     std::unordered_map<int, std::unique_ptr<KVServerBase>> kv_store_;
+
+    int server_id_;
 };
 
 }  // namespace kvstore

@@ -87,8 +87,10 @@ class BSPServer : public ServerBase {
     }
 
     BSPServer() = delete;
-    BSPServer(int num_workers) : num_workers_(num_workers) {}
-    BSPServer(int num_workers, bool reply_phase) : num_workers_(num_workers), reply_phase_(reply_phase) {}
+    BSPServer(int server_id, int num_workers) : 
+        server_id_(server_id), num_workers_(num_workers) {}
+    BSPServer(int server_id, int num_workers, bool reply_phase) : 
+        server_id_(server_id), num_workers_(num_workers), reply_phase_(reply_phase) {}
 
    private:
     int num_workers_;
@@ -102,6 +104,7 @@ class BSPServer : public ServerBase {
 
     // The real storeage
     std::unordered_map<husky::constants::Key, Val> store_;
+    int server_id_;
 };
 
 }  // namespace kvstore
