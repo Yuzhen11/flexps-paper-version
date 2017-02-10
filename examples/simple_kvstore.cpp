@@ -94,8 +94,7 @@ int main(int argc, char** argv) {
 
     task = TaskFactory::Get().CreateTask<Task>(1, 1);
     int kv5 = kvstore::KVStore::Get().CreateKVStore<float>();
-    kvstore::KVStore::Get().SetMaxKey(kv5, 98);  // 98 keys
-    kvstore::RangeManager::Get().SetChunkSize(kv5, 10);  // chunksize is 10
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv5, 98, 10);  // max_keys is 98, chunksize is 10
     engine.AddTask(task, [kv5](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<std::vector<float>> params(10, std::vector<float>(10));

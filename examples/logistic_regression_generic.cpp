@@ -79,11 +79,12 @@ int main(int argc, char** argv) {
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(num_params);
     task1.set_total_epoch(train_epoch);  // set epoch number
+    task1.set_num_workers(num_train_workers);
     // Create KVStore and Set hint
     int kv1 = create_kvstore_and_set_hint(hint, task1, num_train_workers);
     assert(kv1 != -1);
     // Set max key, to make the keys distributed
-    kvstore::KVStore::Get().SetMaxKey(kv1, num_params);
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, num_params);
 
     engine.AddTask(std::move(task1), [&data_store, num_iters, alpha, num_params](const Info& info) {
         // create a DataStoreWrapper

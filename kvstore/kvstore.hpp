@@ -122,8 +122,8 @@ class KVStore {
     template <typename Val>
     int CreateKVStore(const std::string& hint = "") {
         assert(is_started_);
-        // set the default max key
-        SetMaxKey(kv_id, std::numeric_limits<husky::constants::Key>::max());  
+        // set the default max key and chunk size
+        RangeManager::Get(kvservers.size()*num_processes_).SetMaxKeyAndChunkSize(kv_id);  
         for (auto* kvserver : kvservers) {
             kvserver->CreateKVManager<Val>(kv_id, hint);
         }
@@ -131,11 +131,6 @@ class KVStore {
             kvworker->AddProcessFunc<Val>(kv_id);
         }
         return kv_id++;
-    }
-
-    void SetMaxKey(int kv_id, husky::constants::Key max_key) {
-        assert(is_started_);
-        RangeManager::Get().SetMaxKey(kv_id, max_key, kvservers.size()*num_processes_);
     }
 
     /*
