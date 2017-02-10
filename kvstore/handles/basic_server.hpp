@@ -51,8 +51,7 @@ class DefaultAddServer : public ServerBase {
             update(kv_id, bin, store_, cmd);
             Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
-            KVPairs<Val> res;
-            res = retrieve(kv_id, bin, store_, cmd);
+            KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
             Response<Val>(kv_id, ts, cmd, push, src, res, customer);
         }
     }
@@ -80,8 +79,7 @@ class DefaultAssignServer : public ServerBase {
             assign(kv_id, bin, store_, cmd);
             Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
         } else {  // if is pull
-            KVPairs<Val> res;
-            res = retrieve(kv_id, bin, store_, cmd);
+            KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
             Response<Val>(kv_id, ts, cmd, push, src, res, customer);
         }
     }
