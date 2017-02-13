@@ -28,6 +28,24 @@ endif(MONGOCLIENT_FOUND)
 # set(husky husky-lib husky-io husky-core husky-base) 
 # set(proj core base husky) 
 
+# Unit Test
+file(GLOB_RECURSE UNITTEST_FILES ${PROJECT_SOURCE_DIR}/*_ml_unittest.cpp) 
+remove_definitions(-DWITH_THRIFT)  # Workaround for namespace collisions between gtest and flume.
+include_directories(${GTEST_INCLUDE})
+add_executable(HuskyMLUnitTest ${UNITTEST_FILES} unittest_main.cpp)
+add_dependencies(HuskyMLUnitTest gtest)
+target_link_libraries(HuskyMLUnitTest husky)
+target_link_libraries(HuskyMLUnitTest ${HUSKY_EXTERNAL_LIB})
+# hard code GTEST_LIBRARIES and GMOCK_LIBRARIES
+set(GTEST_LIBRARIES_TMP
+    "${PROJECT_BINARY_DIR}/husky/lib/libgtest.a"
+    "${PROJECT_BINARY_DIR}/husky/lib/libgtest_main.a")
+set(GMOCK_LIBRARIES_TMP
+    "${PROJECT_BINARY_DIR}/husky/lib/libgmock.a"
+    "${PROJECT_BINARY_DIR}/husky/lib/libgmock_main.a")
+target_link_libraries(HuskyMLUnitTest ${GTEST_LIBRARIES_TMP})
+target_link_libraries(HuskyMLUnitTest ${GMOCK_LIBRARIES_TMP})
+husky_default_properties(HuskyMLUnitTest)
 
 ### Applications
 
