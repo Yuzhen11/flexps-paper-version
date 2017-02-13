@@ -1,8 +1,12 @@
 #pragma once
 
 #include <cassert>
+#include <cstdlib>
 #include <vector>
+#include <limits>
+
 #include "kvstore/ps_lite/range.h"
+#include "core/constants.hpp"
 
 namespace kvstore {
 
@@ -43,6 +47,7 @@ class RangeManager {
         assert(num_servers_ > 0);
         if (kv_id >= server_key_ranges_.size()) {
             server_key_ranges_.resize(kv_id + 1);
+            server_chunk_ranges_.resize(kv_id + 1);
             max_keys_.resize(kv_id+1);
             chunk_sizes_.resize(kv_id+1);
             chunk_nums_.resize(kv_id+1);
@@ -51,21 +56,44 @@ class RangeManager {
         // If there's one set, overwrite it
         max_keys_[kv_id] = max_key;
         server_key_ranges_[kv_id].clear();
+        server_chunk_ranges_[kv_id].clear();
         // 1. Set chunk size
         chunk_sizes_[kv_id] = chunk_size;
         chunk_nums_[kv_id] = (max_key-1)/chunk_size + 1;
 
         // 2. Set server_key_ranges
-        int chunk_num = chunk_nums_[kv_id];
+        size_t chunk_num = chunk_nums_[kv_id];
 
-        for (int i = 0; i < num_servers_ - 1; ++i) {
+        //  [0, remain)
+        size_t base = chunk_num / num_servers_;
+        size_t remain = chunk_num % num_servers_;
+        for (size_t i = 0; i < remain; ++ i) {
             server_key_ranges_[kv_id].push_back(
-                pslite::Range(chunk_num / num_servers_ * i * chunk_size, 
-                              chunk_num / num_servers_ * (i + 1) * chunk_size));
+                pslite::Range(i * (base + 1) * chunk_size,
+                              (i + 1) * (base + 1) * chunk_size));
+            server_chunk_ranges_[kv_id].push_back(
+                pslite::Range(i * (base + 1),
+                              (i + 1) * (base + 1)));
         }
-        // the last range should contain all
+        // [remain, num_servers_-1)
+        size_t end = remain * (base + 1);
+        for (size_t i = 0; i < num_servers_ - remain - 1; ++ i) {
+            server_key_ranges_[kv_id].push_back(
+                pslite::Range((end + i * base) * chunk_size,
+                              (end + (i + 1) * base) * chunk_size));
+            server_chunk_ranges_[kv_id].push_back(
+                pslite::Range((end + i * base),
+                              (end + (i + 1) * base)));
+        }
+        // num_servers_
         server_key_ranges_[kv_id].push_back(
-            pslite::Range(chunk_num / num_servers_ * (num_servers_ - 1) * chunk_size, max_key));
+            pslite::Range((end + (num_servers_ - remain - 1) * base) * chunk_size, max_key));
+        server_chunk_ranges_[kv_id].push_back(
+            pslite::Range((end + (num_servers_ - remain - 1) * base), chunk_num));
+    }
+
+    int SetNumServers(int num_servers) {
+        num_servers_ = num_servers;
     }
 
     /*
@@ -74,6 +102,11 @@ class RangeManager {
     const std::vector<pslite::Range>& GetServerKeyRanges(int kv_id) {
         assert(kv_id < server_key_ranges_.size());
         return server_key_ranges_.at(kv_id);
+    }
+
+    const std::vector<pslite::Range>& GetServerChunkRanges(int kv_id) {
+        assert(kv_id < server_chunk_ranges_.size());
+        return server_chunk_ranges_.at(kv_id);
     }
 
     size_t GetChunkSize(int kv_id) {
@@ -85,6 +118,9 @@ class RangeManager {
     size_t GetLastChunkSize(int kv_id) {
         return max_keys_[kv_id]%chunk_sizes_[kv_id];
     }
+    int GetNumServers() {
+        return num_servers_;
+    }
 
    private:
     RangeManager(int num_servers) : num_servers_(num_servers) {}
@@ -92,6 +128,7 @@ class RangeManager {
     int num_servers_;
 
     std::vector<std::vector<pslite::Range>> server_key_ranges_;
+    std::vector<std::vector<pslite::Range>> server_chunk_ranges_;
     std::vector<husky::constants::Key> max_keys_;
     std::vector<size_t> chunk_sizes_;
     std::vector<size_t> chunk_nums_;
