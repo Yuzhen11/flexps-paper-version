@@ -43,12 +43,14 @@ class KVWorker {
     /*
      * Push a list of kv pairs to all server nodes
      *
-     * @param wait_all whether need to wait for all servers, if it is set, server side control will be disable (ssp, bsp)
+     * @param send_all whether need to send to all servers.
+     * If it is false, server side control will be disable (ssp, bsp)
+     * If it is true, empty messages will be sent to servers which have no partitions, so make sure that these servers won't reply
      */
     template <typename Val>
     int Push(int kv_id, const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals,
-             bool wait_all = true, const Callback& cb = nullptr) {
-        return ZPush(kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), wait_all, cb);
+             bool send_all = true, const Callback& cb = nullptr) {
+        return ZPush(kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), send_all, cb);
     }
 
     /*
@@ -56,7 +58,7 @@ class KVWorker {
      */
     template <typename Val>
     int ZPush(int kv_id, const pslite::SArray<husky::constants::Key>& keys, const pslite::SArray<Val>& vals,
-              bool wait_all = true, const Callback& cb = nullptr) {
+              bool send_all = true, const Callback& cb = nullptr) {
         // 1. slice
         KVPairs<Val> kvs;
         kvs.keys = keys;
@@ -64,21 +66,21 @@ class KVWorker {
         SlicedKVs<Val> sliced;
         Slice_(kvs, RangeManager::Get().GetServerKeyRanges(kv_id), &sliced);
         // 2. get ts
-        int ts = GetTimestamp_(kv_id, sliced, wait_all);
+        int ts = GetTimestamp_(kv_id, sliced, send_all);
         // 3. send
-        Send_(kv_id, ts, true, sliced, wait_all);
+        Send_(kv_id, ts, true, sliced, send_all);
         return ts;
     }
 
     /*
      * Pulls the values associated with the keys from the server nodes
      *
-     * @param wait_all whether need to wait for all servers, if it is set, server side control will be disable (ssp, bsp)
+     * @param send_all whether need to send for all servers, if it is false, server side control will be disable (ssp, bsp)
      */
     template <typename Val>
     int Pull(int kv_id, const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals,
-             bool wait_all = true, const Callback& cb = nullptr) {
-        return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, wait_all, cb);
+             bool send_all = true, const Callback& cb = nullptr) {
+        return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, send_all, cb);
     }
 
     /*
@@ -86,8 +88,8 @@ class KVWorker {
      */
     template <typename Val>
     int ZPull(int kv_id, const pslite::SArray<husky::constants::Key>& keys, pslite::SArray<Val>* vals,
-              bool wait_all = true, const Callback& cb = nullptr) {
-        return Pull_<Val>(kv_id, keys, vals, wait_all, cb);
+              bool send_all = true, const Callback& cb = nullptr) {
+        return Pull_<Val>(kv_id, keys, vals, send_all, cb);
     }
 
     /*
@@ -98,14 +100,14 @@ class KVWorker {
      */
     template <typename Val>
     int PushChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
-             bool wait_all = true, const Callback& cb = nullptr) {
+             bool send_all = true, const Callback& cb = nullptr) {
         assert(chunk_ids.size() == chunks.size());
         // 1. partition
         std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
         // 2. get ts
-        int ts = GetTimestampChunk_(kv_id, pos, wait_all);
+        int ts = GetTimestampChunk_(kv_id, pos, send_all);
         // 3. send
-        SendChunks_(kv_id, ts, true, chunk_ids, chunks, pos, wait_all);
+        SendChunks_(kv_id, ts, true, chunk_ids, chunks, pos, send_all);
         return ts;
     }
 
@@ -117,12 +119,12 @@ class KVWorker {
      */
     template<typename Val>
     int PullChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
-             bool wait_all = true, const Callback& cb = nullptr) {
+             bool send_all = true, const Callback& cb = nullptr) {
         assert(chunk_ids.size() == chunks.size());
         // 1. partition
         std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
         // 2. get ts
-        int ts = GetTimestampChunk_(kv_id, pos, wait_all);
+        int ts = GetTimestampChunk_(kv_id, pos, send_all);
         AddCallback(kv_id, ts, [this, kv_id, ts, &chunk_ids, &chunks, cb]() {
             mu_.lock();
             auto& kvs = static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs;
@@ -156,7 +158,7 @@ class KVWorker {
             if (cb)
                 cb();
         });
-        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, wait_all);
+        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, send_all);
         return ts;
     }
 
@@ -249,14 +251,14 @@ class KVWorker {
     }
 
     template <typename Val, typename C>
-    int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, bool wait_all, const Callback& cb) {
+    int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, bool send_all, const Callback& cb) {
         // 1. slice the message
         KVPairs<Val> kvs;
         kvs.keys = keys;
         SlicedKVs<Val> sliced;
         Slice_(kvs, RangeManager::Get().GetServerKeyRanges(kv_id), &sliced);
         // 2. get ts
-        int ts = GetTimestamp_(kv_id, sliced, wait_all);
+        int ts = GetTimestamp_(kv_id, sliced, send_all);
         // 3. add callback
         AddCallback(kv_id, ts, [this, kv_id, ts, keys, vals, cb]() mutable {
             mu_.lock();
@@ -290,7 +292,7 @@ class KVWorker {
                 cb();
         });
         // 4. send
-        Send_(kv_id, ts, false, sliced, wait_all);
+        Send_(kv_id, ts, false, sliced, send_all);
         return ts;
     }
 
@@ -345,13 +347,10 @@ class KVWorker {
      * Identify wait_num
      */
     template<typename Val>
-    int GetTimestamp_(int kv_id, const SlicedKVs<Val>& sliced, bool wait_all) { 
-        int wait_num = info_.num_ps_servers;
-        if (!wait_all) {  // if no need to wait all, get the wait_num
-            wait_num = 0;
-            for (size_t i = 0; i < sliced.size(); ++ i) {
-                if (sliced[i].first) wait_num += 1;
-            }
+    int GetTimestamp_(int kv_id, const SlicedKVs<Val>& sliced, bool send_all) { 
+        int wait_num = 0;
+        for (size_t i = 0; i < sliced.size(); ++ i) {
+            if (sliced[i].first) wait_num += 1;
         }
         int ts = customer_->NewRequest(kv_id, wait_num);
         // husky::LOG_I << RED("Wait num: "+std::to_string(wait_num));
@@ -365,18 +364,20 @@ class KVWorker {
      * @return ts 
      */
     template <typename Val>
-    void Send_(int kv_id, int ts, bool push, const SlicedKVs<Val>& sliced, bool wait_all) {
+    void Send_(int kv_id, int ts, bool push, const SlicedKVs<Val>& sliced, bool send_all) {
         bool isRequest = true;
         int src = info_.global_id;
         int cmd = 0;  // cmd 0 for normal
         for (size_t i = 0; i < sliced.size(); ++i) {
-            if (!wait_all && !sliced[i].first) {  // if no need to wait all, skip empty sliced
+            if (!send_all && !sliced[i].first) {  // if no need to send all, skip empty sliced
                 continue;
             }
             husky::base::BinStream bin;
             bin << isRequest << kv_id << ts << cmd << push << src;
-            auto& kvs = sliced[i].second;
-            bin << kvs.keys << kvs.vals;
+            if (sliced[i].first) {  // if no empty, don't send the size
+                auto& kvs = sliced[i].second;
+                bin << kvs.keys << kvs.vals;
+            }
             // husky::LOG_I << CLAY("sending to "+std::to_string(i)+" size: "+std::to_string(bin.size()));
             customer_->send(info_.get_tid(i), bin);
         }
@@ -414,13 +415,10 @@ class KVWorker {
      *
      * Identify wait_num
      */
-    int GetTimestampChunk_(int kv_id, const std::vector<size_t>& pos, bool wait_all) {
-        int wait_num = info_.num_ps_servers;
-        if (!wait_all) {  // if no need to wait all, get the wait_num
-            wait_num = 0;
-            for (int i = 0; i < pos.size() - 1; ++ i) {
-                if (pos[i] != pos[i+1]) wait_num += 1;
-            }
+    int GetTimestampChunk_(int kv_id, const std::vector<size_t>& pos, bool send_all) {
+        int wait_num = 0;
+        for (int i = 0; i < pos.size() - 1; ++ i) {
+            if (pos[i] != pos[i+1]) wait_num += 1;
         }
         // husky::LOG_I << RED("wait num: "+std::to_string(wait_num));
         int ts = customer_->NewRequest(kv_id, wait_num);
@@ -436,7 +434,7 @@ class KVWorker {
     template<typename Val>
     void SendChunks_(int kv_id, int ts, bool push,
             const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks, 
-            const std::vector<size_t>& pos, int wait_all) {
+            const std::vector<size_t>& pos, int send_all) {
         const std::vector<pslite::Range>& ranges = RangeManager::Get().GetServerKeyRanges(kv_id);
         size_t n = ranges.size();
 
@@ -445,18 +443,20 @@ class KVWorker {
         int src = info_.global_id;
         int cmd = 1;  // cmd 1 for chunk push
         for (size_t i = 0; i < n; ++ i) {
-            if (!wait_all && pos[i] == pos[i+1]) {  // if no need to wait all, skip empty sliced
+            if (!send_all && pos[i] == pos[i+1]) {  // if no need to send all, skip empty sliced
                 continue;
             }
             husky::base::BinStream bin;
             bin << isRequest << kv_id << ts << cmd << push << src;
-            bin << static_cast<size_t>(pos[i+1]-pos[i]);
-            for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunk_ids
-                bin << chunk_ids[j];
-            }
-            if (push) {
-                for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunks
-                    bin << *chunks[j];
+            if (pos[i] != pos[i+1]) {  // if empty, don't send the size
+                bin << static_cast<size_t>(pos[i+1]-pos[i]);
+                for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunk_ids
+                    bin << chunk_ids[j];
+                }
+                if (push) {
+                    for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunks
+                        bin << *chunks[j];
+                    }
                 }
             }
             customer_->send(info_.get_tid(i), bin);

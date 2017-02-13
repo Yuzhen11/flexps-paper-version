@@ -48,11 +48,15 @@ class DefaultAddServer : public ServerBase {
         int src;
         bin >> cmd >> push >> src;
         if (push == true) {  // if is push
-            update(kv_id, bin, store_, cmd);
-            Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
+            if (bin.size()) {  // if bin is empty, don't reply
+                update(kv_id, bin, store_, cmd);
+                Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
+            }
         } else {  // if is pull
-            KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
-            Response<Val>(kv_id, ts, cmd, push, src, res, customer);
+            if (bin.size()) {  // if bin is empty, don't reply
+                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
+                Response<Val>(kv_id, ts, cmd, push, src, res, customer);
+            }
         }
     }
    private:
@@ -76,11 +80,15 @@ class DefaultAssignServer : public ServerBase {
         int src;
         bin >> cmd >> push >> src;
         if (push == true) {  // if is push
-            assign(kv_id, bin, store_, cmd);
-            Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
+            if (bin.size()) {  // if bin is empty, don't reply
+                assign(kv_id, bin, store_, cmd);
+                Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
+            }
         } else {  // if is pull
-            KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
-            Response<Val>(kv_id, ts, cmd, push, src, res, customer);
+            if (bin.size()) {  // if bin is empty, don't reply
+                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
+                Response<Val>(kv_id, ts, cmd, push, src, res, customer);
+            }
         }
     }
    private:
