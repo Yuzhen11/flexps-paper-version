@@ -14,7 +14,8 @@
 #include "ml/spmt/asp_consistency_controller.hpp"
 #include "ml/spmt/ssp_consistency_controller.hpp"
 #include "ml/spmt/bsp_consistency_controller.hpp"
-#include "ml/spmt/model.hpp"
+#include "ml/spmt/integral_model.hpp"
+#include "ml/spmt/chunk_based_model.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -60,7 +61,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             }
             p_controller_->Init(info.get_num_local_workers());
 
-            model_ = new Model(info.get_local_id(), model_id, std::forward<Args>(args)...);
+            model_ = (Model*) new ChunkBasedLockModel(model_id, std::forward<Args>(args)...);
         }
         if (info_.get_cluster_id() == 0) {
             std::vector<std::string> identity_store;
@@ -95,7 +96,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
         p_controller_->BeforePull(info_.get_cluster_id());
-        model_->Pull(keys, vals);
+        model_->Pull(keys, vals, info_.get_local_id());
         p_controller_->AfterPull(info_.get_cluster_id());
     }
 
@@ -122,8 +123,8 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     }
     virtual void Clock_v2() override { Push(*keys_, delta_); }
 
-    virtual void Load() override {}
-    virtual void Dump() override {}
+    virtual void Load() override { model_->Load(info_.get_local_id()); }
+    virtual void Dump() override { model_->Dump(info_.get_local_id()); }
 
    private:
     /*

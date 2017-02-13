@@ -125,13 +125,13 @@ class KVWorker {
         std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
         // 2. get ts
         int ts = GetTimestampChunk_(kv_id, pos, send_all);
-        AddCallback(kv_id, ts, [this, kv_id, ts, &chunk_ids, &chunks, cb]() {
+        AddCallback(kv_id, ts, [this, kv_id, ts, chunk_ids, chunks, cb]() {
             mu_.lock();
             auto& kvs = static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs;
             mu_.unlock();
 
-            int chunk_size = RangeManager::Get().GetChunkSize(kv_id);
-            int chunk_num = RangeManager::Get().GetChunkNum(kv_id);
+            size_t chunk_size = RangeManager::Get().GetChunkSize(kv_id);
+            size_t chunk_num = RangeManager::Get().GetChunkNum(kv_id);
             std::sort(kvs.begin(), kvs.end(),
                       [](const KVPairs<Val>& a, const KVPairs<Val>& b) { return a.keys.front() < b.keys.front(); });
 

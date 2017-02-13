@@ -11,7 +11,7 @@ using namespace husky;
 std::vector<float> answer(10, 1000.0);
 void get_keys(std::vector<husky::constants::Key>& keys, const Info& info) {
     if (info.get_cluster_id() == 0) {
-        keys = {0,1,2,3};
+        keys = {0,1,2,3,4,5};
     } else if (info.get_cluster_id() == 1) {
         keys = {3,4,5,8};
     } else {
@@ -52,12 +52,15 @@ int main(int argc, char** argv) {
         return 1;
 
     answer[3] = 2000.0;
+    answer[4] = 2000.0;
+    answer[5] = 2000.0;
     auto& engine = Engine::Get();
     // Start the kvstore, should start after mailbox is up
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
 
     int kv = kvstore::KVStore::Get().CreateKVStore<float>();
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv, 10, 5);
     auto task = TaskFactory::Get().CreateTask<MLTask>();
     task.set_dimensions(10);
     task.set_kvstore(kv);
