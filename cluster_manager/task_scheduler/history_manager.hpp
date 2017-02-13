@@ -17,14 +17,9 @@ public:
         num_processes_ = num_processes;
     }
 
-    std::unordered_map<int, std::vector<int>> get_all_history() {
-        return history_;
-    }
-
-    void update_history(int task_id, std::vector<std::pair<int, int>> pid_tids) {
+    void update_history(int task_id, const std::vector<std::pair<int, int>>& pid_tids) {
         // if the task with this task_id runs first time, init its history first
-        std::unordered_map<int, std::vector<int>>::iterator it;
-        it = history_.find(task_id);
+        auto it = history_.find(task_id);
         if (it == history_.end()) {
             history_.emplace(task_id, std::vector<int>(num_processes_));
         }
@@ -35,25 +30,16 @@ public:
             pids.push_back(pid_tids[i].first);
         }
 
-        std::vector<int>::iterator unique_pids;
-        unique_pids = std::unique(pids.begin(), pids.end());
+        std::sort(pids.begin(), pids.end());
+        pids.erase(std::unique(pids.begin(), pids.end()), pids.end());
 
         // update history
-        for(std::vector<int>::iterator pid = pids.begin(); pid != unique_pids; pid++) {
-            (history_.at(task_id))[*pid] += 1;
+        for (auto pid : pids) {
+            history_.at(task_id)[pid] += 1;
         }
-
-        // check the history
-        /*
-        for(auto& it:history_) {
-            for(int j = 0; j < it.second.size(); j++) {
-                husky::LOG_I << it.second[j];
-            }
-        }
-        */
     }
 
-    std::vector<int> get_task_history(int task_id) {
+    const std::vector<int>& get_task_history(int task_id) {
         return history_[task_id];
     }
 

@@ -21,8 +21,6 @@ class GreedyTaskScheduler : public TaskScheduler {
    public:
     GreedyTaskScheduler(WorkerInfo& worker_info_) : TaskScheduler(worker_info_) {
         num_processes_ = worker_info_.get_num_processes();
-        // init history manager map
-        HistoryManager::get().start(num_processes_);
         // initialize the available_workers_
         auto tids = worker_info_.get_global_tids();
         for (auto tid : tids) {

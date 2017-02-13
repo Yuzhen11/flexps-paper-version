@@ -24,13 +24,6 @@ namespace husky {
 class ClusterManager {
    public:
     ClusterManager() = default;
-    ClusterManager(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection,
-                   const std::string& hint = "")
-        : worker_info_(std::move(worker_info)),
-          cluster_manager_connection_(new ClusterManagerConnection(std::move(cluster_manager_connection))) {
-        setup_task_scheduler(hint);
-        is_setup = true;
-    }
 
     // setup
     void setup(WorkerInfo&& worker_info, ClusterManagerConnection&& cluster_manager_connection,
@@ -38,6 +31,8 @@ class ClusterManager {
         worker_info_ = std::move(worker_info);
         cluster_manager_connection_.reset(new ClusterManagerConnection(std::move(cluster_manager_connection)));
         setup_task_scheduler(hint);
+        // init history manager map
+        HistoryManager::get().start(worker_info_.get_num_processes());
         is_setup = true;
     }
 

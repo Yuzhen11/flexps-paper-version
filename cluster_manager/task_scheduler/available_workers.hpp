@@ -115,24 +115,22 @@ class AvailableWorkers {
         return {};
     }
 
-    /**
-     * gurantee to find required_num_workers in a process which is not frequently visited
-     * */
+    /*
+     * Gurantee to find required_num_workers in a process which is not frequently visited
+     */
     std::vector<std::pair<int, int>> get_traverse_workers(int task_id, int required_num_workers, int num_processes) {
-        std::vector<int> task_history;
-        task_history = HistoryManager::get().get_task_history(task_id);
-        
+        std::vector<int> task_history = HistoryManager::get().get_task_history(task_id);
         std::vector<int> potential_workers;
         
+        assert(task_history.size() > 0);
         int target_min = task_history[0];
-        potential_workers.push_back(0);
-        for (int i = 1; i < task_history.size(); i++) {
-            if (task_history[i] < target_min) {
-                potential_workers.erase(potential_workers.begin(), potential_workers.end());
+        for (auto t : task_history) {
+            if (t < target_min) 
+                target_min = t;
+        }
+        for (int i = 0; i < task_history.size(); ++ i) {
+            if (task_history[i] == target_min)
                 potential_workers.push_back(i);
-            } else if (task_history[i] == target_min) {
-                potential_workers.push_back(i);
-            }
         }
 
         // The requirement is satisfied, get these threads
@@ -146,7 +144,7 @@ class AvailableWorkers {
 
         return {};
     }
-    /**
+    /*
      * Find required_num_workers in an exact process
      */
      std::vector<std::pair<int,int>> get_workers_exact_process(int required_num_workers, int exact_process, int num_processes) {

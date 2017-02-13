@@ -109,8 +109,7 @@ int main(int argc, char** argv) {
         int current_epoch = info.get_current_epoch();
         std::vector<husky::constants::Key> keys;
         for (int i = 0; i < num_params; i++) { keys.push_back(i); }
-        auto* kvworker_w = kvstore::KVStore::Get().get_kvworker(kv_w);
-        auto* kvworker_u = kvstore::KVStore::Get().get_kvworker(kv_u);
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         // Create a DataLoadBalance for SGD
         DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, worker_num.size(), pos);
         data_load_balance.start_point();
@@ -118,7 +117,7 @@ int main(int argc, char** argv) {
             // do FGD
             // pull from kvstore_w
             std::vector<float> rets_w;
-            kvworker_w->Wait(kv_w, kvworker_w->Pull(kv_w, keys, &rets_w));
+            kvworker->Wait(kv_w, kvworker->Pull(kv_w, keys, &rets_w));
 
             std::vector<float> delta(num_params);
             float sum = 0;
@@ -143,7 +142,7 @@ int main(int argc, char** argv) {
                 delta[i] = delta[i] / sum;
             }
 
-            kvworker_u->Push(kv_u, keys, delta);
+            kvworker->Push(kv_u, keys, delta);
         }
         else {
             // Create a DataSampler for SGD
@@ -151,11 +150,11 @@ int main(int argc, char** argv) {
             // do SGD
             // pull from kvstore_w
             std::vector<float> rets_w;
-            kvworker_w->Wait(kv_w, kvworker_w->Pull(kv_w, keys, &rets_w));
+            kvworker->Wait(kv_w, kvworker->Pull(kv_w, keys, &rets_w));
             std::vector<float> old_rets_w = rets_w;
             // pull from kvstore_u
             std::vector<float> rets_u;
-            kvworker_u->Wait(kv_u, kvworker_u->Pull(kv_u, keys, &rets_u));
+            kvworker->Wait(kv_u, kvworker->Pull(kv_u, keys, &rets_u));
 
             std::vector<float> rets_w_delta(num_params);
             while (data_iterator.has_next()) {
@@ -199,7 +198,7 @@ int main(int argc, char** argv) {
                 } 
                 test_error(rets_w, data_store); 
             } 
-            kvworker_w->Push(kv_w, keys, rets_w_delta);
+            kvworker->Push(kv_w, keys, rets_w_delta);
 
             husky::LOG_I << "test model";
             if (info.get_cluster_id() == 0) {

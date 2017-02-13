@@ -19,9 +19,7 @@ int main() {
     auto connect_str = "tcp://" + remote_addr + ":" + remote_port;
     cluster_manager_connection.add_proc(0, connect_str);
 
-    ClusterManager cluster_manager(std::move(worker_info), std::move(cluster_manager_connection));
-    // cluster_manager.recv_tasks_from_worker();
-    // cluster_manager.test_connection();
-    // cluster_manager.assign_initial_tasks();
+    ClusterManager cluster_manager;
+    cluster_manager.setup(std::move(worker_info), std::move(cluster_manager_connection));
     cluster_manager.serve();
 }
