@@ -1,11 +1,11 @@
 # Copyright 2016 Husky Team
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 # http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,8 +25,8 @@ if(MONGOCLIENT_FOUND)
     add_definitions(-DWITH_MONGODB)
 endif(MONGOCLIENT_FOUND)
 
-# set(husky husky-lib husky-io husky-core husky-base) 
-# set(proj core base husky) 
+# set(husky husky-lib husky-io husky-core husky-base)
+# set(proj core base husky)
 
 # Unit Test
 file(GLOB_RECURSE UNITTEST_FILES ${PROJECT_SOURCE_DIR}/*_ml_unittest.cpp) 
@@ -134,7 +134,7 @@ target_link_libraries(SingleLRGeneric husky)
 target_link_libraries(SingleLRGeneric ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SingleLRGeneric PROPERTY CXX_STANDARD 14)
 
-# TestMigrate 
+# TestMigrate
 add_executable(TestMigrate test_migrate.cpp)
 target_link_libraries(TestMigrate husky)
 target_link_libraries(TestMigrate ${HUSKY_EXTERNAL_LIB})
@@ -152,12 +152,6 @@ target_link_libraries(TestSVRG husky)
 target_link_libraries(TestSVRG ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestSVRG PROPERTY CXX_STANDARD 14)
 
-# TestFixedWorkers
-add_executable(TestFixedWorkers test_fixedworkers.cpp)
-target_link_libraries(TestFixedWorkers husky)
-target_link_libraries(TestFixedWorkers ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET TestFixedWorkers PROPERTY CXX_STANDARD 14)
-
 # TestSampleReader
 add_executable(TestSampleReader sample_reader.cpp)
 target_link_libraries(TestSampleReader husky)
@@ -169,3 +163,16 @@ add_executable(LRSampleReader logistic_regression_samplereader.cpp)
 target_link_libraries(LRSampleReader husky)
 target_link_libraries(LRSampleReader ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET LRSampleReader PROPERTY CXX_STANDARD 14)
+
+# TestConfigurableTask
+add_executable(TestConfigurableTask test_configurableTask.cpp)
+target_link_libraries(TestConfigurableTask husky)
+target_link_libraries(TestConfigurableTask ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestConfigurableTask PROPERTY CXX_STANDARD 14)
+
+# TestDataSampler
+add_executable(TestDataSampler test_data_sampler.cpp)
+target_link_libraries(TestDataSampler husky)
+target_link_libraries(TestDataSampler ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestDataSampler PROPERTY CXX_STANDARD 14)
+

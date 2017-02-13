@@ -27,16 +27,12 @@ class Instance {
             task_.reset(new HuskyTask(static_cast<const HuskyTask&>(task)));
             break;
         }
-        case Task::Type::TwoPhasesTaskType: {  // TwoPhasesTask
-            task_.reset(new TwoPhasesTask(static_cast<const TwoPhasesTask&>(task)));
-            break;
-        }
-        case Task::Type::FixedWorkersTaskType: {  // TwoPhasesTask
-            task_.reset(new FixedWorkersTask(static_cast<const FixedWorkersTask&>(task)));
-            break;
-        }
         case Task::Type::MLTaskType: {  // ML Task
             task_.reset(new MLTask(static_cast<const MLTask&>(task)));
+            break;
+        }
+        case Task::Type::ConfigurableWorkersTaskType: { // TwoPhasesTask
+            task_.reset(new ConfigurableWorkersTask(static_cast<const ConfigurableWorkersTask&>(task)));
             break;
         }
         default:

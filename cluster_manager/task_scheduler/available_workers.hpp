@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "history_manager.hpp"
 
 namespace husky {
 
@@ -114,7 +115,77 @@ class AvailableWorkers {
         return {};
     }
 
-    int get_num_available_workers() { return workers_.size(); }
+    /**
+     * gurantee to find required_num_workers in a process which is not frequently visited
+     * */
+    std::vector<std::pair<int, int>> get_traverse_workers(int task_id, int required_num_workers, int num_processes) {
+        std::vector<int> task_history;
+        task_history = HistoryManager::get().get_task_history(task_id);
+        
+        std::vector<int> potential_workers;
+        
+        int target_min = task_history[0];
+        potential_workers.push_back(0);
+        for (int i = 1; i < task_history.size(); i++) {
+            if (task_history[i] < target_min) {
+                potential_workers.erase(potential_workers.begin(), potential_workers.end());
+                potential_workers.push_back(i);
+            } else if (task_history[i] == target_min) {
+                potential_workers.push_back(i);
+            }
+        }
+
+        // The requirement is satisfied, get these threads
+        std::vector<std::pair<int,int>> selected_workers;
+        for (int i = 0; i < potential_workers.size(); i++) {
+            selected_workers = get_workers_exact_process(required_num_workers, potential_workers[i], num_processes);
+            if (selected_workers.size()) {
+                return selected_workers;
+            }
+        }
+
+        return {};
+    }
+    /**
+     * Find required_num_workers in an exact process
+     */
+     std::vector<std::pair<int,int>> get_workers_exact_process(int required_num_workers, int exact_process, int num_processes) {
+       std::map<int, std::vector<int>> pid_tids_map;
+       // init map
+       for (int i = 0; i < num_processes; i++) {
+           pid_tids_map.emplace(i, std::vector<int>());
+       }
+
+       for (auto tid_pid : workers_) {
+           pid_tids_map[tid_pid.second].push_back(tid_pid.first);
+       }
+
+       // Guarantee at least thread_per_worker threads in each worker
+       if (pid_tids_map[exact_process].size() < required_num_workers) {
+         return {};
+       }
+
+       // The requirement is satisfied, get these threads
+       std::vector<std::pair<int,int>> selected_workers;
+
+       for (int j = 0; j < required_num_workers; j++) {
+           selected_workers.push_back({exact_process, pid_tids_map[exact_process].at(j)});  // <pid, tid>
+       }
+
+       // erase from workers
+       for (auto pid_tid : selected_workers) {
+           workers_.erase({pid_tid.second, pid_tid.first});
+       }
+       //erase from pid_tids
+       for (auto pid_tid : selected_workers)
+           pid_tids_[pid_tid.first].erase(pid_tid.second);
+
+       return selected_workers;
+     }
+
+    int get_num_available_workers() {
+        return workers_.size();
+    }
 
     int get_max_local_workers() {
         int max_num = 0;
