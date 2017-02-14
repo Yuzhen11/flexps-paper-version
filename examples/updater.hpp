@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/data_sampler.hpp"
+#include "datastore/datastore_utils.hpp"
 #include "ml/common/mlworker.hpp"
 
 using husky::lib::ml::LabeledPointHObj;
@@ -10,7 +10,7 @@ namespace {
 
 // The SGD updater
 void sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-                DataSampler<LabeledPointHObj<float, float, true>>& data_sampler, float alpha) {
+                datastore::DataSampler<LabeledPointHObj<float, float, true>>& data_sampler, float alpha) {
     auto& data = data_sampler.next();  // get next data
     auto& x = data.x;
     float y = data.y;
@@ -41,7 +41,7 @@ void sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
 
 // The SGD updater for v2 APIs
 void sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-                   DataSampler<LabeledPointHObj<float, float, true>>& data_sampler, float alpha) {
+                   datastore::DataSampler<LabeledPointHObj<float, float, true>>& data_sampler, float alpha) {
     auto& data = data_sampler.next();  // get next data
     auto& x = data.x;
     float y = data.y;
@@ -69,7 +69,7 @@ void sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
 
 // The mini-batch SGD updator
 void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-                      BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha) {
+                      datastore::BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
     std::vector<husky::constants::Key> keys =
         batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
@@ -102,7 +102,7 @@ void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker
 
 // The mini-batch SGD updator for v2
 void batch_sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-                         BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha) {
+                         datastore::BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
     std::vector<husky::constants::Key> keys =
         batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
@@ -131,7 +131,7 @@ void batch_sgd_update_v2(const std::unique_ptr<ml::common::GenericMLWorker>& wor
 };
 
 float get_test_error(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-                     DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
+                     datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
                      int test_samples = -1) {
     test_samples = 1000;
     std::vector<husky::constants::Key> all_keys;
@@ -169,7 +169,7 @@ float get_test_error(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
 }
 
 float get_test_error_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-                        DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
+                        datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
                         int test_samples = -1) {
     test_samples = 1000;
     std::vector<husky::constants::Key> all_keys;

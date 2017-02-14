@@ -1,13 +1,13 @@
 #include <vector>
 
 #include "datastore/datastore.hpp"
+#include "datastore/datastore_utils.hpp"
 #include "worker/engine.hpp"
 #include "ml/common/mlworker.hpp"
 #include "kvstore/kvstore.hpp"
 #include "core/color.hpp"
 
 #include "lib/load_data.hpp"
-#include "lib/data_sampler.hpp"
 
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
@@ -17,7 +17,7 @@ using namespace husky;
 void test_error(std::vector<float>& rets_w,
     datastore::DataStore<LabeledPointHObj<float, float, true>>& data_store) {
 
-    DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
+    datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
     
     std::string debug_kvstore_w;
     int flag = 1;
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     int kv_u = kvstore::KVStore::Get().CreateKVStore<float>();
     engine.AddTask(std::move(task1), [&kv_w, &kv_u, &data_store, num_iters, alpha, num_params](const Info & info) {
         // create a DataStoreWrapper
-        DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
+        datastore::DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
         if (data_store_wrapper.get_data_size() == 0) {
             return;  // return if there is no data
         }
@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < num_params; i++) { keys.push_back(i); }
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         // Create a DataLoadBalance for SGD
-        DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, worker_num.size(), pos);
+        datastore::DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, worker_num.size(), pos);
         data_load_balance.start_point();
         if (current_epoch % worker_num.size() == 0) {
             // do FGD
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
         }
         else {
             // Create a DataSampler for SGD
-            DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
+            datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
             // do SGD
             // pull from kvstore_w
             std::vector<float> rets_w;

@@ -2,10 +2,10 @@
 #include <vector>
 
 #include "datastore/datastore.hpp"
+#include "datastore/datastore_utils.hpp"
 #include "ml/common/mlworker.hpp"
 #include "worker/engine.hpp"
 
-#include "lib/data_sampler.hpp"
 #include "lib/load_data.hpp"
 #include "lib/task_utils.hpp"
 
@@ -88,17 +88,17 @@ int main(int argc, char** argv) {
 
     engine.AddTask(std::move(task1), [&data_store, num_iters, alpha, num_params](const Info& info) {
         // create a DataStoreWrapper
-        DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
+        datastore::DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
         if (data_store_wrapper.get_data_size() == 0) {
             return;  // return if there's not data
         }
         auto& worker = info.get_mlworker();
         // Create a DataSampler for SGD
-        DataSampler<LabeledPointHObj<float, float, true>> data_sampler(data_store);
+        datastore::DataSampler<LabeledPointHObj<float, float, true>> data_sampler(data_store);
         data_sampler.random_start_point();
         // Create BatchDataSampler for mini-batch SGD
         int batch_size = 100;
-        BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, batch_size);
+        datastore::BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, batch_size);
         batch_data_sampler.random_start_point();
         for (int iter = 0; iter < num_iters; ++iter) {
             // sgd_update_v2(worker, data_sampler, alpha);
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
             if (iter % 10 == 0) {
                 // Testing, now all the threads need to run `get_test_error`, it is for PS.
                 // So it won't mess up the iteration
-                DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
+                datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
                 float test_error = get_test_error_v2(worker, data_iterator, num_params);
                 if (info.get_cluster_id() == 0) {
                     husky::LOG_I << "Iter:" << std::to_string(iter) << " Accuracy is " << test_error;

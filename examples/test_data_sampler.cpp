@@ -1,5 +1,5 @@
 #include "datastore/datastore.hpp"
-#include "lib/data_sampler.hpp"
+#include "datastore/datastore_utils.hpp"
 #include "lib/load_data.hpp"
 #include "worker/engine.hpp"
 #include "husky/io/input/line_inputformat.hpp"
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     task1.set_worker_num_type({"threads_per_worker", "threads_per_cluster", "threads_per_cluster"});
     engine.AddTask(std::move(task1), [&data_store](const Info & info) {
         // create a DataStoreWrapper
-        DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
+        datastore::DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
         if (data_store_wrapper.get_data_size() == 0) {
             return;  // return if there is no data
         }
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
         int current_epoch = info.get_current_epoch();
 
         // Create a DataLoadBalance for SGD
-        DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, worker_num.size(), pos);
+        datastore::DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, worker_num.size(), pos);
         data_load_balance.start_point();
 
         int sum = 0;
