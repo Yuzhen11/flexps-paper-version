@@ -37,6 +37,7 @@ int main(int argc, char** argv) {
 
     //  A Hogwild! Task
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, 10);
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(10);
     task1.set_kvstore(kv1);
@@ -59,6 +60,7 @@ int main(int argc, char** argv) {
 
     // A Single Task
     int kv2 = kvstore::KVStore::Get().CreateKVStore<float>();
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv2, 10);
     auto task2 = TaskFactory::Get().CreateTask<MLTask>();
     task2.set_dimensions(5);
     task2.set_kvstore(kv2);
@@ -82,6 +84,7 @@ int main(int argc, char** argv) {
     // BSP
     int kv3 =
         kvstore::KVStore::Get().CreateKVStore<float>("BSP:4");  // for bsp server
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv3, 10);
     auto task3 = TaskFactory::Get().CreateTask<MLTask>();
     task3.set_dimensions(5);
     task3.set_kvstore(kv3);
@@ -95,6 +98,7 @@ int main(int argc, char** argv) {
 
     // SSP
     int kv4 = kvstore::KVStore::Get().CreateKVStore<float>("SSP:4:1");  // staleness: 1
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv4, 10);
     auto task4 = TaskFactory::Get().CreateTask<MLTask>();
     task4.set_dimensions(5);
     task4.set_kvstore(kv4);
@@ -108,6 +112,7 @@ int main(int argc, char** argv) {
 
     // ASP
     int kv5 = kvstore::KVStore::Get().CreateKVStore<float>("Add");  // use the default add handle
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv5, 10);
     auto task5 = TaskFactory::Get().CreateTask<MLTask>();
     task5.set_dimensions(5);
     task5.set_kvstore(kv5);
@@ -121,6 +126,7 @@ int main(int argc, char** argv) {
 
     //  A SPMT Task
     int kv6 = kvstore::KVStore::Get().CreateKVStore<float>();
+    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv6, 10);
     auto task6 = TaskFactory::Get().CreateTask<MLTask>();
     task6.set_dimensions(10);
     task6.set_kvstore(kv6);

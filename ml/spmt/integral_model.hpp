@@ -10,6 +10,8 @@
 #include "core/constants.hpp"
 #include "ml/spmt/model.hpp"
 #include "kvstore/kvstore.hpp"
+#include "ml/spmt/load.hpp"
+#include "ml/spmt/dump.hpp"
 
 namespace ml {
 namespace spmt {
@@ -35,29 +37,11 @@ class IntegralModel : public Model {
     }
 
     virtual void Load(int local_id) override {  // coordination and sync are handled by MLWorker
-        husky::LOG_I << "loading model_id:" + std::to_string(model_id_) + " local_id:" +
-                            std::to_string(local_id) + "model_size: " + std::to_string(num_params_);
-        auto start_time = std::chrono::steady_clock::now();
-        auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
-        std::vector<husky::constants::Key> keys(num_params_);
-        for (size_t i = 0; i < keys.size(); ++i)
-            keys[i] = i;
-        int ts = kvworker->Pull(model_id_, keys, &params_);
-        kvworker->Wait(model_id_, ts);
-        auto end_time = std::chrono::steady_clock::now();
-        husky::LOG_I << "[Hogwild] Load done and Load time: "
-                     << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count()
-                     << " ms";
+        LoadAllIntegral(local_id, model_id_, num_params_, &params_);
     }
 
     virtual void Dump(int local_id) override {
-        auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
-
-        std::vector<husky::constants::Key> keys(num_params_);
-        for (size_t i = 0; i < keys.size(); ++i)
-            keys[i] = i;
-        int ts = kvworker->Push(model_id_, keys, params_);
-        kvworker->Wait(model_id_, ts);
+        DumpAllIntegral(local_id, model_id_, num_params_, params_);
     }
 
    protected:
