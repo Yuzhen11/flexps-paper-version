@@ -176,3 +176,8 @@ target_link_libraries(TestDataSampler husky)
 target_link_libraries(TestDataSampler ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestDataSampler PROPERTY CXX_STANDARD 14)
 
+# TestModel
+add_executable(TestModel test_model.cpp)
+target_link_libraries(TestModel husky)
+target_link_libraries(TestModel ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestModel PROPERTY CXX_STANDARD 14)

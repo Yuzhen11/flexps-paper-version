@@ -92,7 +92,7 @@ class RangeManager {
             pslite::Range((end + (num_servers_ - remain - 1) * base), chunk_num));
     }
 
-    int SetNumServers(int num_servers) {
+    void SetNumServers(int num_servers) {
         num_servers_ = num_servers;
     }
 
@@ -116,10 +116,21 @@ class RangeManager {
         return chunk_nums_[kv_id];
     }
     size_t GetLastChunkSize(int kv_id) {
-        return max_keys_[kv_id]%chunk_sizes_[kv_id];
+        if (max_keys_[kv_id]%chunk_sizes_[kv_id] != 0)
+            return max_keys_[kv_id]%chunk_sizes_[kv_id];
+        else 
+            return chunk_sizes_[kv_id];
     }
     int GetNumServers() {
         return num_servers_;
+    }
+
+    std::pair<size_t, husky::constants::Key> GetLocation(int kv_id, const husky::constants::Key& key) {  // default range partition
+        assert(key < max_keys_[kv_id]);
+        std::pair<size_t, husky::constants::Key> loc;
+        loc.first = key / chunk_sizes_[kv_id];
+        loc.second = key % chunk_sizes_[kv_id];
+        return loc;
     }
 
    private:

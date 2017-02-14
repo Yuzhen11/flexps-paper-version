@@ -14,6 +14,8 @@
 #include "ml/spmt/asp_consistency_controller.hpp"
 #include "ml/spmt/ssp_consistency_controller.hpp"
 #include "ml/spmt/bsp_consistency_controller.hpp"
+#include "ml/spmt/integral_model.hpp"
+#include "ml/spmt/chunk_based_model.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -21,11 +23,6 @@
 
 namespace ml {
 namespace spmt {
-
-struct Model {
-    std::mutex mtx;
-    std::vector<float> params;
-};
 
 class SPMTGenericWorker : public common::GenericMLWorker {
    public:
@@ -37,7 +34,6 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     template <typename... Args>
     SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, const std::string& type, Args&&... args)
         : info_(info),
-          model_id_(model_id),
           context_(context),
           socket_(context, info.get_cluster_id() == 0 ? ZMQ_ROUTER : ZMQ_REQ) {
         int task_id = info_.get_task()->get_id();
@@ -65,8 +61,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             }
             p_controller_->Init(info.get_num_local_workers());
 
-            model_ = new Model;
-            model_->params.resize(std::forward<Args>(args)...);
+            model_ = (Model*) new ChunkBasedLockModel(model_id, std::forward<Args>(args)...);
         }
         if (info_.get_cluster_id() == 0) {
             std::vector<std::string> identity_store;
@@ -94,35 +89,14 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         }
     }
 
-    virtual void Load() override {}
-    virtual void Dump() override {}
-
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         p_controller_->BeforePush(info_.get_cluster_id());
-        {
-            // Acquire lock
-            std::lock_guard<std::mutex> lck(model_->mtx);
-            // Directly update the model
-            assert(keys.size() == vals.size());
-            for (size_t i = 0; i < keys.size(); i++) {
-                assert(keys[i] < model_->params.size());
-                model_->params[keys[i]] += vals[i];
-            }
-        }
+        model_->Push(keys, vals);
         p_controller_->AfterPush(info_.get_cluster_id());
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
         p_controller_->BeforePull(info_.get_cluster_id());
-        {
-            // Acquire lock
-            std::lock_guard<std::mutex> lck(model_->mtx);
-            // Directly access the model
-            vals->resize(keys.size());
-            for (size_t i = 0; i < keys.size(); i++) {
-                assert(keys[i] < model_->params.size());
-                (*vals)[i] = model_->params[keys[i]];
-            }
-        }
+        model_->Pull(keys, vals, info_.get_local_id());
         p_controller_->AfterPull(info_.get_cluster_id());
     }
 
@@ -149,6 +123,9 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     }
     virtual void Clock_v2() override { Push(*keys_, delta_); }
 
+    virtual void Load() override { model_->Load(info_.get_local_id()); }
+    virtual void Dump() override { model_->Dump(info_.get_local_id()); }
+
    private:
     /*
      * check whether all the threads are in the same machine
@@ -163,7 +140,6 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     const husky::Info& info_;
     zmq::context_t& context_;
     zmq::socket_t socket_;
-    int model_id_;
 
     AbstractConsistencyController* p_controller_;
 
