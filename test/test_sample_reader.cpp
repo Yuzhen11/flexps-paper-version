@@ -1,4 +1,4 @@
-#include "sample_reader.hpp"
+#include "examples/sample_reader.hpp"
 
 #include "worker/engine.hpp"
 
