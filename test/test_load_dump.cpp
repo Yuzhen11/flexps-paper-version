@@ -3,8 +3,8 @@
 
 #include "core/color.hpp"
 
-#include "ml/spmt/load.hpp"
-#include "ml/spmt/dump.hpp"
+#include "ml/model/load.hpp"
+#include "ml/model/dump.hpp"
 
 using namespace husky;
 
@@ -26,13 +26,13 @@ int main(int argc, char** argv) {
         {
             // Test LoadAllIntegral, DumpAllIntegral
             std::vector<float> params;
-            ml::spmt::LoadAllIntegral(info.get_local_id(), kv1, num_params, &params);
+            ml::model::LoadAllIntegral(info.get_local_id(), kv1, num_params, &params);
             for (int i = 0; i < params.size(); ++ i) {
                 assert(params[i] == 0);
                 params[i] = 1;
             }
-            ml::spmt::DumpAllIntegral(info.get_local_id(), kv1, num_params, params);
-            ml::spmt::LoadAllIntegral(info.get_local_id(), kv1, num_params, &params);
+            ml::model::DumpAllIntegral(info.get_local_id(), kv1, num_params, params);
+            ml::model::LoadAllIntegral(info.get_local_id(), kv1, num_params, &params);
             for (int i = 0; i < params.size(); ++ i) {
                 assert(params[i] == 1);
             }
@@ -41,15 +41,15 @@ int main(int argc, char** argv) {
         {
             // Test LoadAllChunks/DumpAllChunks
             std::vector<std::vector<float>> chunks(chunk_size);
-            ml::spmt::LoadAllChunks(info.get_local_id(), kv1, &chunks);
+            ml::model::LoadAllChunks(info.get_local_id(), kv1, &chunks);
             for (int i = 0; i < chunks.size(); ++ i) {
                 for (auto& elem : chunks[i]) {
                     assert(elem == 1);
                     elem = 2;
                 }
             }
-            ml::spmt::DumpAllChunks(info.get_local_id(), kv1, chunks);
-            ml::spmt::LoadAllChunks(info.get_local_id(), kv1, &chunks);
+            ml::model::DumpAllChunks(info.get_local_id(), kv1, chunks);
+            ml::model::LoadAllChunks(info.get_local_id(), kv1, &chunks);
             for (int i = 0; i < chunks.size(); ++ i) {
                 for (auto& elem : chunks[i]) {
                     assert(elem == 2);
@@ -63,10 +63,10 @@ int main(int argc, char** argv) {
             std::vector<float> chunk1(chunk_size, 4);
             std::vector<float> chunk3(chunk_size, 5);
             std::vector<std::vector<float>*> chunks{&chunk1, &chunk3};
-            ml::spmt::DumpChunks(info.get_local_id(), kv1, keys, chunks);
+            ml::model::DumpChunks(info.get_local_id(), kv1, keys, chunks);
             std::vector<float> recv1, recv2;
             std::vector<std::vector<float>*> recv{&recv1, &recv2};
-            ml::spmt::LoadChunks(info.get_local_id(), kv1, keys, &recv);
+            ml::model::LoadChunks(info.get_local_id(), kv1, keys, &recv);
             for (auto elem : recv1) {
                 assert(elem == 4);
             }

@@ -8,7 +8,7 @@
 #include "core/constants.hpp"
 
 namespace ml {
-namespace spmt {
+namespace model {
 
 class Model {
    public:
@@ -25,5 +25,5 @@ class Model {
     int num_params_;
 };
 
-}
+}  // namespace model
 }  // namespace ml

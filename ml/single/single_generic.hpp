@@ -5,6 +5,8 @@
 #include <utility>
 
 #include "ml/common/mlworker.hpp"
+#include "ml/model/load.hpp"
+#include "ml/model/dump.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -17,7 +19,11 @@ class SingleGenericWorker : public common::GenericMLWorker {
 
     template <typename... Args>
     SingleGenericWorker(int model_id, int local_id, Args&&... args)
-        : model_id_(model_id), local_id_(local_id), model_(std::forward<Args>(args)...) {}
+        : model_id_(model_id), local_id_(local_id), model_(std::forward<Args>(args)...) {
+        husky::LOG_I << CLAY("[Single] model_id: "+std::to_string(model_id)
+                +" local_id: "+std::to_string(local_id)
+                +" model_size: "+std::to_string(model_.size()));
+    }
 
     void print_model() const {
         // debug
@@ -29,33 +35,14 @@ class SingleGenericWorker : public common::GenericMLWorker {
      * Get parameters from global kvstore
      */
     virtual void Load() override {
-        husky::LOG_I << "[Single] loading model_id:" + std::to_string(model_id_) + " local_id:" +
-                            std::to_string(local_id_) + "model_size: " + std::to_string(model_.size());
-        auto start_time = std::chrono::steady_clock::now();
-        auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
-        std::vector<husky::constants::Key> keys(model_.size());
-        for (size_t i = 0; i < keys.size(); ++i)
-            keys[i] = i;
-        int ts = kvworker->Pull(model_id_, keys, &model_);
-        kvworker->Wait(model_id_, ts);
-        auto end_time = std::chrono::steady_clock::now();
-        husky::LOG_I << "[Single] Load done and Load time: "
-                     << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() << " ms";
+        model::LoadAllIntegral(local_id_, model_id_, model_.size(), &model_);
         // print_model();
     }
     /*
      * Put the parameters to global kvstore
      */
     virtual void Dump() override {
-        husky::LOG_I << "[Single] dumping";
-
-        auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id_);
-
-        std::vector<husky::constants::Key> keys(model_.size());
-        for (size_t i = 0; i < keys.size(); ++i)
-            keys[i] = i;
-        int ts = kvworker->Push(model_id_, keys, model_);
-        kvworker->Wait(model_id_, ts);
+        model::DumpAllIntegral(local_id_, model_id_, model_.size(), model_);
     }
     /*
      * Put/Get, Push/Pull APIs

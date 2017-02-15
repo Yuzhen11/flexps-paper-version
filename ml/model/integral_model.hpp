@@ -8,13 +8,13 @@
 #include <vector>
 
 #include "core/constants.hpp"
-#include "ml/spmt/model.hpp"
+#include "ml/model/model.hpp"
 #include "kvstore/kvstore.hpp"
-#include "ml/spmt/load.hpp"
-#include "ml/spmt/dump.hpp"
+#include "ml/model/load.hpp"
+#include "ml/model/dump.hpp"
 
 namespace ml {
-namespace spmt {
+namespace model {
 
 class IntegralModel : public Model {
    public:
@@ -67,5 +67,5 @@ class IntegralLockModel : public IntegralModel {
     boost::shared_mutex mtx_;
 };
 
-}  // namespace spmt
+}  // namespace model
 }  // namespace ml

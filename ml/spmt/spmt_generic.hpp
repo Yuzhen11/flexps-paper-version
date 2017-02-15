@@ -14,8 +14,8 @@
 #include "ml/spmt/asp_consistency_controller.hpp"
 #include "ml/spmt/ssp_consistency_controller.hpp"
 #include "ml/spmt/bsp_consistency_controller.hpp"
-#include "ml/spmt/integral_model.hpp"
-#include "ml/spmt/chunk_based_model.hpp"
+#include "ml/model/integral_model.hpp"
+#include "ml/model/chunk_based_model.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -61,7 +61,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             }
             p_controller_->Init(info.get_num_local_workers());
 
-            model_ = (Model*) new ChunkBasedLockModel(model_id, std::forward<Args>(args)...);
+            model_ = (model::Model*) new model::ChunkBasedLockModel(model_id, std::forward<Args>(args)...);
         }
         if (info_.get_cluster_id() == 0) {
             std::vector<std::string> identity_store;
@@ -85,7 +85,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             auto ptr = husky::zmq_recv_int64(&socket_);
             auto ptr2 = husky::zmq_recv_int64(&socket_);
             p_controller_ = reinterpret_cast<AbstractConsistencyController*>(ptr);
-            model_ = reinterpret_cast<Model*>(ptr2);
+            model_ = reinterpret_cast<model::Model*>(ptr2);
         }
     }
 
@@ -135,7 +135,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     }
 
     // pointer to the real model
-    Model* model_ = nullptr;
+    model::Model* model_ = nullptr;
 
     const husky::Info& info_;
     zmq::context_t& context_;

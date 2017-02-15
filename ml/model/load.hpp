@@ -5,7 +5,7 @@
 #include <kvstore/kvstore.hpp>
 
 namespace ml {
-namespace spmt {
+namespace model {
 namespace {
 
 /*
@@ -63,5 +63,5 @@ void LoadAllChunks(int local_id, int model_id, std::vector<std::vector<float>>* 
 }
 
 }  // namespace anonymous
-}  // namespace spmt
+}  // namespace model
 }  // namespace ml

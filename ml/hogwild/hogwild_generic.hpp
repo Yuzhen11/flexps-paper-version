@@ -8,6 +8,8 @@
 #include "husky/core/zmq_helpers.hpp"
 
 #include "ml/common/mlworker.hpp"
+#include "ml/model/load.hpp"
+#include "ml/model/dump.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -34,6 +36,11 @@ class HogwildGenericWorker : public common::GenericMLWorker {
           model_id_(model_id),
           context_(context),
           socket_(context, info.get_cluster_id() == 0 ? ZMQ_ROUTER : ZMQ_REQ) {
+        if (info.get_cluster_id() == 0) {
+            husky::LOG_I << CLAY("[Hogwild] model_id: "+std::to_string(model_id)
+                    +" local_id: "+std::to_string(info.get_local_id()));
+        }
+
         int task_id = info_.get_task()->get_id();
         // check valid
         if (!isValid()) {
@@ -97,21 +104,9 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      */
     virtual void Load() override {
         if (info_.get_cluster_id() == 0) {
-            husky::LOG_I << "[Hogwild] loading model_id:" + std::to_string(model_id_) + " local_id:" +
-                                std::to_string(info_.get_local_id()) + "model_size: " + std::to_string(model_->size());
-            auto start_time = std::chrono::steady_clock::now();
-            auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
-            std::vector<husky::constants::Key> keys(model_->size());
-            for (size_t i = 0; i < keys.size(); ++i)
-                keys[i] = i;
-            int ts = kvworker->Pull(model_id_, keys, model_);
-            kvworker->Wait(model_id_, ts);
-            auto end_time = std::chrono::steady_clock::now();
-            husky::LOG_I << "[Hogwild] Load done and Load time: "
-                         << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count()
-                         << " ms";
-            // print_model();
+            model::LoadAllIntegral(info_.get_local_id(), model_id_, model_->size(), model_);
         }
+        // Other threads should wait
         Sync();
     }
     /*
@@ -120,15 +115,7 @@ class HogwildGenericWorker : public common::GenericMLWorker {
     virtual void Dump() override {
         Sync();
         if (info_.get_cluster_id() == 0) {
-            // husky::LOG_I << "[Hogwild] dumping";
-
-            auto* kvworker = kvstore::KVStore::Get().get_kvworker(info_.get_local_id());
-
-            std::vector<husky::constants::Key> keys(model_->size());
-            for (size_t i = 0; i < keys.size(); ++i)
-                keys[i] = i;
-            int ts = kvworker->Push(model_id_, keys, *model_);
-            kvworker->Wait(model_id_, ts);
+            model::DumpAllIntegral(info_.get_local_id(), model_id_, model_->size(), *model_);
         }
         Sync();
     }

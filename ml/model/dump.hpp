@@ -5,7 +5,7 @@
 #include <kvstore/kvstore.hpp>
 
 namespace ml {
-namespace spmt {
+namespace model {
 namespace {
 
 void DumpAllIntegral(int local_id, int model_id, int num_params, 
@@ -52,5 +52,5 @@ void DumpAllChunks(int local_id, int model_id, const std::vector<std::vector<flo
 }
 
 }  // namespace anonymous
-}  // namespace spmt
+}  // namespace model
 }  // namespace ml

@@ -7,11 +7,11 @@
 #include <vector>
 
 #include "core/constants.hpp"
-#include "ml/spmt/model.hpp"
+#include "ml/model/model.hpp"
 #include "kvstore/kvstore.hpp"
 
 namespace ml {
-namespace spmt {
+namespace model {
 
 class ChunkBasedModel : public Model {
    public:
@@ -244,5 +244,5 @@ class ChunkBasedLockModel : public ChunkBasedModel {
     }
 };
 
-}  // namespace spmt
+}  // namespace model
 }  // namespace ml
