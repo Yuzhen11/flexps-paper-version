@@ -15,6 +15,10 @@ class TaskFactory {
         static TaskFactory task_factory;
         return task_factory;
     }
+    TaskFactory(const TaskFactory&) = delete;
+    TaskFactory& operator=(const TaskFactory&) = delete;
+    TaskFactory(TaskFactory&&) = delete;
+    TaskFactory& operator=(TaskFactory&&) = delete;
 
     template <typename TaskT, typename... Args>
     TaskT CreateTask(Args&&... args) {
@@ -24,6 +28,8 @@ class TaskFactory {
     }
 
    private:
+    TaskFactory() = default;
+
     int task_id_;
 };
 

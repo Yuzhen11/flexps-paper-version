@@ -26,6 +26,10 @@ class RangeManager {
         static RangeManager range_manager(num_servers);
         return range_manager;
     }
+    RangeManager(const RangeManager&) = delete;
+    RangeManager& operator=(const RangeManager&) = delete;
+    RangeManager(RangeManager&&) = delete;
+    RangeManager& operator=(RangeManager&&) = delete;
 
     /*
      * kvstore use this function to set max keys

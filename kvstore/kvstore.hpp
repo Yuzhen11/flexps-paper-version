@@ -26,6 +26,10 @@ class KVStore {
         static KVStore kvstore;
         return kvstore;
     }
+    KVStore(const KVStore&) = delete;
+    KVStore operator=(const KVStore&) = delete;
+    KVStore(KVStore&&) = delete;
+    KVStore operator=(KVStore&&) = delete;
 
     /*
      * \brief kvstore start function

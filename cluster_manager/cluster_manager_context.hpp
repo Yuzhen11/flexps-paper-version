@@ -19,6 +19,10 @@ class ClusterManagerContext {
         static ClusterManagerContext cluster_manager_context;
         return cluster_manager_context;
     }
+    ClusterManagerContext(const ClusterManagerContext&) = delete;
+    ClusterManagerContext& operator=(const ClusterManagerContext&) = delete;
+    ClusterManagerContext(ClusterManagerContext&&) = delete;
+    ClusterManagerContext& operator=(ClusterManagerContext&&) = delete;
 
     void serve() { cluster_manager_.serve(); }
 

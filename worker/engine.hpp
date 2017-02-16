@@ -22,6 +22,10 @@ class Engine {
         static Engine engine;
         return engine;
     }
+    Engine(const Engine&) = delete;
+    Engine& operator=(const Engine&) = delete;
+    Engine(Engine&&) = delete;
+    Engine& operator=(Engine&&) = delete;
 
     /*
      * Add a new task to the buffer
