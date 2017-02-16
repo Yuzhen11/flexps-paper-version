@@ -18,76 +18,51 @@ class SingleGenericWorker : public common::GenericMLWorker {
     SingleGenericWorker() = default;
 
     template <typename... Args>
-    SingleGenericWorker(int model_id, int local_id, Args&&... args)
-        : model_id_(model_id), local_id_(local_id), model_(std::forward<Args>(args)...) {
+    SingleGenericWorker(int model_id, int local_id, int num_params)
+        : local_id_(local_id) {
         husky::LOG_I << CLAY("[Single] model_id: "+std::to_string(model_id)
                 +" local_id: "+std::to_string(local_id)
-                +" model_size: "+std::to_string(model_.size()));
+                +" model_size: "+std::to_string(num_params));
+        model_.reset(new model::IntegralModel(model_id, num_params));
+        params_ = static_cast<model::IntegralModel*>(model_.get())->GetParamsPtr();
     }
 
-    void print_model() const {
-        // debug
-        for (int i = 0; i < model_.size(); ++i)
-            husky::LOG_I << std::to_string(model_[i]);
-    }
-
-    /*
-     * Get parameters from global kvstore
-     */
     virtual void Load() override {
-        model::LoadAllIntegral(local_id_, model_id_, model_.size(), &model_);
-        // print_model();
+        model_->Load(local_id_);
     }
-    /*
-     * Put the parameters to global kvstore
-     */
+
     virtual void Dump() override {
-        model::DumpAllIntegral(local_id_, model_id_, model_.size(), model_);
+        model_->Dump(local_id_);
     }
     /*
      * Put/Get, Push/Pull APIs
      */
-    virtual void Put(husky::constants::Key key, float val) override {
-        assert(key < model_.size());
-        model_[key] = val;
-    }
-    virtual float Get(husky::constants::Key key) override {
-        assert(key < model_.size());
-        return model_[key];
-    }
-
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
-        assert(keys.size() == vals.size());
-        for (size_t i = 0; i < keys.size(); i++) {
-            assert(keys[i] < model_.size());
-            model_[keys[i]] += vals[i];
-        }
+        model_->Push(keys, vals);
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
-        vals->resize(keys.size());
-        for (size_t i = 0; i < keys.size(); i++) {
-            assert(keys[i] < model_.size());
-            (*vals)[i] = model_[keys[i]];
-        }
+        model_->Pull(keys, vals, local_id_);
     }
 
     // For v2
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
     }
-    virtual float Get_v2(size_t idx) override { return model_[(*keys_)[idx]]; }
-    virtual void Update_v2(size_t idx, float val) override { model_[(*keys_)[idx]] += val; }
+    virtual float Get_v2(size_t idx) override { return (*params_)[(*keys_)[idx]]; }
+    virtual void Update_v2(size_t idx, float val) override { (*params_)[(*keys_)[idx]] += val; }
     virtual void Update_v2(const std::vector<float>& vals) override {
         assert(vals.size() == keys_->size());
         for (size_t i = 0; i < keys_->size(); ++i) {
-            assert((*keys_)[i] < model_.size());
-            model_[(*keys_)[i]] += vals[i];
+            assert((*keys_)[i] < params_->size());
+            (*params_)[(*keys_)[i]] += vals[i];
         }
     }
 
    private:
-    std::vector<float> model_;
-    int model_id_;
+    std::unique_ptr<model::Model> model_;
+    // A pointer to the parameter
+    std::vector<float>* params_;
+    // std::vector<float> model_;
     int local_id_;
 
     // For v2

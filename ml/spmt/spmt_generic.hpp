@@ -15,7 +15,7 @@
 #include "ml/spmt/ssp_consistency_controller.hpp"
 #include "ml/spmt/bsp_consistency_controller.hpp"
 #include "ml/model/integral_model.hpp"
-#include "ml/model/chunk_based_model.hpp"
+#include "ml/model/chunk_based_mt_model.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -61,7 +61,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             }
             p_controller_->Init(info.get_num_local_workers());
 
-            model_ = (model::Model*) new model::ChunkBasedLockModel(model_id, std::forward<Args>(args)...);
+            model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, std::forward<Args>(args)...);
         }
         if (info_.get_cluster_id() == 0) {
             std::vector<std::string> identity_store;

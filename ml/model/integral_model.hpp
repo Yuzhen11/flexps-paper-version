@@ -44,6 +44,9 @@ class IntegralModel : public Model {
         DumpAllIntegral(local_id, model_id_, num_params_, params_);
     }
 
+    std::vector<float>* GetParamsPtr() {
+        return &params_;
+    }
    protected:
     std::vector<float> params_;
 };

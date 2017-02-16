@@ -67,16 +67,10 @@ int main(int argc, char** argv) {
     task2.set_hint("single");  // set the running type explicitly
     engine.AddTask(task2, [](const Info& info) {
         auto& worker = info.get_mlworker();
-        // int k = 3;
-        // worker->Put(k, 0.456);
-        // float v = worker->Get(k);
-        // base::log_msg("k: " + std::to_string(k) + " v: " + std::to_string(v));
-        int start = info.get_cluster_id();
-        for (int i = 0; i < 10000; ++i) {
-            worker->Put(start, 0.01);
-            start += 1;
-            start %= static_cast<MLTask*>(info.get_task())->get_dimensions();
-        }
+        worker->Push({2}, {3});
+        std::vector<float> res;
+        worker->Pull({2}, &res);
+        assert(res[0] == 3);
     });
 
     // A PS Task
