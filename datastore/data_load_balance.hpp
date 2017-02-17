@@ -5,7 +5,7 @@
 namespace datastore {
 
 /*
- * DataLoadBalance: Select a random start point and sample the data one by one according to the fixed thread num
+ * DataLoadBalance: Select a start point and sample the data one by one according to the fixed thread num
  * Can work on the whole datastore
  *
  * Usage:
