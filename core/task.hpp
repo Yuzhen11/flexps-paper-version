@@ -36,10 +36,10 @@ class Task {
     virtual ~Task() {}
 
     virtual BinStream& serialize(BinStream& bin) const {
-        bin << id_ << total_epoch_ << current_epoch_ << num_workers_ << type_;
+        bin << id_ << total_epoch_ << current_epoch_ << num_workers_ << type_ << hint_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
-        bin >> id_ >> total_epoch_ >> current_epoch_ >> num_workers_ >> type_;
+        bin >> id_ >> total_epoch_ >> current_epoch_ >> num_workers_ >> type_ >> hint_;
     }
 
     /*
@@ -57,6 +57,7 @@ class Task {
     inline int get_current_epoch() const { return current_epoch_; }
     inline int get_num_workers() const { return num_workers_; }
     inline Type get_type() const { return type_; }
+    const std::string& get_hint() const { return hint_; }
 
     // setter
     inline void set_id(int id) { id_ = id; }
@@ -64,6 +65,7 @@ class Task {
     inline void set_current_epoch(int current_epoch) { current_epoch_ = current_epoch; }
     inline void set_num_workers(int num_workers) { num_workers_ = num_workers; }
     inline void set_type(Type type) { type_ = type; }
+    void set_hint(const std::string& hint) { hint_ = hint; }
 
     inline void inc_epoch() { current_epoch_ += 1; }
 
@@ -83,6 +85,7 @@ class Task {
     int num_workers_ = 0;  // num of workers needed to run the job
 
     Type type_;  // task type
+    std::string hint_;  // the hint
 };
 
 class MLTask : public Task {
@@ -93,19 +96,17 @@ class MLTask : public Task {
 
     void set_dimensions(int dim) { dim_ = dim; }
     void set_kvstore(int kv_id) { kv_id_ = kv_id; }
-    void set_hint(const std::string& hint) { hint_ = hint; }
 
     int get_dimensions() const { return dim_; }
     int get_kvstore() const { return kv_id_; }
-    const std::string& get_hint() const { return hint_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
         Task::serialize(bin);
-        bin << hint_;
+        bin << kv_id_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
         Task::deserialize(bin);
-        bin >> hint_;
+        bin >> kv_id_;
     }
     friend BinStream& operator<<(BinStream& bin, const MLTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, MLTask& task) { return task.deserialize(bin); }
@@ -114,7 +115,6 @@ class MLTask : public Task {
 
     int kv_id_ = -1;  // the corresponding kvstore id
     int dim_ = -1;  // the parameter dimensions
-    std::string hint_;  // the hint
 };
 
 /*

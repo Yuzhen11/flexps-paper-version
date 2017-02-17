@@ -123,8 +123,8 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     }
     virtual void Clock_v2() override { Push(*keys_, delta_); }
 
-    virtual void Load() override { model_->Load(info_.get_local_id()); }
-    virtual void Dump() override { model_->Dump(info_.get_local_id()); }
+    virtual void Load() override { model_->Load(info_.get_local_id(), ""); }
+    virtual void Dump() override { model_->Dump(info_.get_local_id(), ""); }
 
    private:
     /*

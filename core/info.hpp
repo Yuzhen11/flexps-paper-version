@@ -26,6 +26,7 @@ class Info {
     std::vector<int> get_local_tids() const { return worker_info_.get_local_tids(); }
     std::vector<int> get_pids() const { return worker_info_.get_pids(); }
     int get_current_epoch() const { return current_epoch_; }
+    int get_total_epoch() const { return task_->get_total_epoch(); }
 
     const std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() const { return mlworker_; }
     std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() { return mlworker_; }

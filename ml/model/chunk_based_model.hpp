@@ -25,8 +25,8 @@ class ChunkBasedModel : public Model {
         params_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
         is_cached_(kvstore::RangeManager::Get().GetChunkNum(model_id), false) {}
 
-    void Load(int local_id) override {}
-    void Dump(int local_id) override {
+    void Load(int local_id, const std::string& hint) override {}
+    void Dump(int local_id, const std::string& hint) override {
         // TODO
     }
 

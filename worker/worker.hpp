@@ -13,6 +13,7 @@
 #include "worker/cluster_manager_connector.hpp"
 #include "worker/instance_runner.hpp"
 #include "worker/task_store.hpp"
+#include "worker/model_transfer_manager.hpp"
 
 namespace husky {
 
@@ -24,8 +25,9 @@ namespace husky {
 class Worker {
    public:
     Worker() = delete;
-    Worker(WorkerInfo&& worker_info_, ClusterManagerConnector&& cluster_manager_connector_)
-        : worker_info(std::move(worker_info_)),
+    Worker(const WorkerInfo& worker_info_, ModelTransferManager* model_transfer_manager, ClusterManagerConnector&& cluster_manager_connector_)
+        : worker_info(worker_info_),
+          model_transfer_manager_(model_transfer_manager),
           cluster_manager_connector(std::move(cluster_manager_connector_)),
           instance_runner(worker_info, cluster_manager_connector, task_store) {}
 
@@ -62,6 +64,8 @@ class Worker {
      * normally it's the last statement in worker
      */
     void send_exit() {
+        // stop the model_transfer_manager_
+        model_transfer_manager_->SendHalt();
         if (worker_info.get_process_id() == 0) {
             auto& socket = cluster_manager_connector.get_send_socket();
             zmq_send_int32(&socket, constants::kClusterManagerExit);
@@ -102,6 +106,10 @@ class Worker {
                                           " finished on Proc:" + std::to_string(worker_info.get_process_id()));
                     instance_runner.remove_instance(instance_id);
                 }
+            } else if (type == constants::kClusterManagerDirectTransferModel) {
+                int dst = zmq_recv_int32(&socket);
+                int model_id = zmq_recv_int32(&socket);
+                model_transfer_manager_->SendTask(dst, model_id);
             } else if (type == constants::kClusterManagerFinished) {
                 husky::LOG_I << GREEN("[Worker]: Tasks finished");
                 break;
@@ -113,7 +121,8 @@ class Worker {
 
    private:
     ClusterManagerConnector cluster_manager_connector;
-    WorkerInfo worker_info;
+    const WorkerInfo& worker_info;
+    ModelTransferManager* model_transfer_manager_;
     InstanceRunner instance_runner;
     TaskStore task_store;
 };

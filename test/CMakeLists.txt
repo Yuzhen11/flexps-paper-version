@@ -106,3 +106,9 @@ add_executable(TestLoadDump test_load_dump.cpp)
 target_link_libraries(TestLoadDump husky)
 target_link_libraries(TestLoadDump ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestLoadDump PROPERTY CXX_STANDARD 14)
+
+# TestModelTransfer
+add_executable(TestModelTransfer test_direct_model_transfer.cpp)
+target_link_libraries(TestModelTransfer husky)
+target_link_libraries(TestModelTransfer ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestModelTransfer PROPERTY CXX_STANDARD 14)

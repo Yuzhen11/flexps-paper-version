@@ -28,10 +28,9 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      * constructor to construct a hogwild model
      * \param context zmq_context
      * \param info info in this instance
-     * \param args variable args to initialize the variables
      */
     template <typename... Args>
-    HogwildGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, Args&&... args)
+    HogwildGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, size_t num_params)
         : info_(info),
           model_id_(model_id),
           context_(context),
@@ -56,7 +55,7 @@ class HogwildGenericWorker : public common::GenericMLWorker {
 
         if (info_.get_cluster_id() == 0) {
             // use args to initialize the variable
-            model_ = new std::vector<float>(std::forward<Args>(args)...);
+            model_ = new std::vector<float>(num_params);
         }
 
         // TODO may not be portable, pointer size problem

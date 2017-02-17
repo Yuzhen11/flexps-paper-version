@@ -29,8 +29,8 @@ class ChunkBasedMTModel : public ChunkBasedModel {
         ChunkBasedModel(model_id, num_params),
         lock_table_(kvstore::RangeManager::Get().GetChunkNum(model_id), 0) {}
 
-    void Load(int local_id) override {}
-    void Dump(int local_id) override {
+    void Load(int local_id, const std::string& hint) override {}
+    void Dump(int local_id, const std::string& hint) override {
         // TODO: LRU/LFU/else? replacement threshold?
     }
 
@@ -47,7 +47,7 @@ class ChunkBasedMTModel : public ChunkBasedModel {
         // 1. Collect the uncached chunks
         for (size_t i = 0; i < keys.size(); ++i) {
             auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            if (is_cached_[loc.first] == false) {
+            if (is_cached_[loc.first] == false && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
                 chunks_to_fetch.push_back(loc.first);
             }
         }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <boost/algorithm/string.hpp>
+
 #include "husky/base/exception.hpp"
 #include "husky/base/log.hpp"
 #include "husky/core/worker_info.hpp"
@@ -135,8 +137,55 @@ class ClusterManager {
                 zmq_sendmore_int32(&socket.second, constants::kTaskType);
                 zmq_send_binstream(&socket.second, bin);
             }
+            // Try to send last instance to enable ModelTransferManager
+            send_last_instance(instance);
+            // Set last instance
+            set_last_instance(instance);
         }
     }
+    /*
+     * Possibly enable the ModelTransferManager
+     */
+    void send_last_instance(const std::shared_ptr<Instance>& instance) {
+        std::string hint = instance->get_task()->get_hint();
+        std::vector<std::string> instructions;
+        boost::split(instructions, hint, boost::is_any_of(":"));
+        std::string& first = instructions.at(0);
+        if (first != "single")
+            return;
+        if (instance->get_epoch() == 0)
+            return;
+        // If it is single, enable ModelTransferManager
+        auto& last_instance = HistoryManager::get().get_last_instance(instance->get_id());
+        // Get source
+        int src = -1;
+        assert(last_instance->get_cluster().size() == 1);
+        for (auto& kv : last_instance->get_cluster()) {
+            src = kv.second.at(0).first;
+            assert(kv.second.at(0).second == 0);
+        }
+        assert(src != -1);
+        // Get destination
+        int dst = -1;
+        assert(instance->get_cluster().size() == 1);
+        for (auto& kv : instance->get_cluster()) {
+            dst = kv.second.at(0).first;
+            assert(kv.second.at(0).second == 0);
+        }
+        assert(dst != -1);
+
+        int model_id = static_cast<MLTask*>(instance->get_task())->get_kvstore();
+        husky::LOG_I << RED("Enable ModelTransferManager: src: "+std::to_string(src)+" dst: "+std::to_string(dst)+" model_id: "+std::to_string(model_id));
+        auto& socket = cluster_manager_connection_->get_send_socket(worker_info_.get_process_id(src));
+        zmq_sendmore_int32(&socket, constants::kClusterManagerDirectTransferModel);
+        zmq_sendmore_int32(&socket, dst);
+        zmq_send_int32(&socket, model_id);
+    }
+
+    void set_last_instance(const std::shared_ptr<Instance>& instance) {
+        HistoryManager::get().set_last_instance(instance->get_id(), instance);
+    }
+
     /*
      * Send exit signal to Workers
      */

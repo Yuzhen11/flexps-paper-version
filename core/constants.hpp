@@ -14,7 +14,8 @@ const int kv_channel_id = 37;
 
 const uint32_t kClusterManagerInit = 200;
 const uint32_t kClusterManagerThreadFinished = 201;
-const uint32_t kClusterManagerExit = 202;
+const uint32_t kClusterManagerDirectTransferModel = 202;
+const uint32_t kClusterManagerExit = 203;
 
 const uint32_t kTaskType = 100;
 const uint32_t kThreadFinished = 101;

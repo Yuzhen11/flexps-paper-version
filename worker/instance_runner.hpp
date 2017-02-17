@@ -29,7 +29,7 @@ namespace husky {
 class InstanceRunner {
    public:
     InstanceRunner() = delete;
-    InstanceRunner(WorkerInfo& worker_info, ClusterManagerConnector& cluster_manager_connector, TaskStore& task_store)
+    InstanceRunner(const WorkerInfo& worker_info, ClusterManagerConnector& cluster_manager_connector, TaskStore& task_store)
         : worker_info_(worker_info),
           cluster_manager_connector_(cluster_manager_connector),
           task_store_(task_store),
@@ -56,7 +56,7 @@ class InstanceRunner {
         // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
         // cluster_manager
         if (info.get_task()->get_type() == Task::Type::MLTaskType) {
-            std::string hint = static_cast<const MLTask*>(instance->get_task())->get_hint();
+            std::string hint = instance->get_task()->get_hint();
             
             std::vector<std::string> instructions;
             boost::split(instructions, hint, boost::is_any_of(":"));
@@ -83,7 +83,7 @@ class InstanceRunner {
                     info.get_mlworker()->Load();
                 } else if (first == "single") {
                     info.set_mlworker(new ml::single::SingleGenericWorker(
-                        static_cast<MLTask*>(info.get_task())->get_kvstore(), info.get_local_id(),
+                        static_cast<MLTask*>(info.get_task())->get_kvstore(), info,
                         static_cast<MLTask*>(info.get_task())->get_dimensions()));
                     info.get_mlworker()->Load();
                 } else if (first == "SPMT") {
@@ -184,7 +184,7 @@ class InstanceRunner {
     }
 
    private:
-    WorkerInfo& worker_info_;
+    const WorkerInfo& worker_info_;
     ClusterManagerConnector& cluster_manager_connector_;
     TaskStore& task_store_;
     std::unordered_map<int, std::shared_ptr<Instance>> instances_;

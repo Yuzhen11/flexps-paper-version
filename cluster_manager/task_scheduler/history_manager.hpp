@@ -2,6 +2,9 @@
 
 #include <unordered_map>
 #include <vector>
+#include <memory>
+
+#include "core/instance.hpp"
 
 namespace husky {
 
@@ -43,8 +46,16 @@ public:
         return history_[task_id];
     }
 
+    void set_last_instance(int task_id, const std::shared_ptr<Instance>& last_instance) {
+        last_instance_[task_id] = last_instance;
+    }
+
+    const std::shared_ptr<Instance>& get_last_instance(int task_id) {
+        return last_instance_[task_id];
+    }
 private:
     std::unordered_map<int, std::vector<int>> history_;
+    std::unordered_map<int, std::shared_ptr<Instance>> last_instance_;
     // the num of processes in the cluster,it is also the history_ vector size
     int num_processes_;
 };

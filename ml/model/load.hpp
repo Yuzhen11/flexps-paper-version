@@ -4,6 +4,9 @@
 #include <chrono>
 #include <kvstore/kvstore.hpp>
 
+#include "husky/core/context.hpp"
+#include "core/color.hpp"
+
 namespace ml {
 namespace model {
 namespace {
@@ -12,8 +15,8 @@ namespace {
  * LoadAllIntegral is to load all the parameters and store in std::vector
  */
 void LoadAllIntegral(int local_id, int model_id, int num_params, std::vector<float>* params) {
-    husky::LOG_I << "[LoadAllIntegral] Loading model_id:" + std::to_string(model_id) + " local_id:" +
-                        std::to_string(local_id) + " model_size: " + std::to_string(num_params);
+    husky::LOG_I << PURPLE("[LoadAllIntegral] Loading model_id: " + std::to_string(model_id) + " local_id: " +
+                        std::to_string(local_id) + " model_size: " + std::to_string(num_params));
     auto start_time = std::chrono::steady_clock::now();
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
     // TODO change the keys to chunk based or add another PullAll APIs to kvstore
@@ -23,9 +26,23 @@ void LoadAllIntegral(int local_id, int model_id, int num_params, std::vector<flo
     int ts = kvworker->Pull(model_id, keys, params);
     kvworker->Wait(model_id, ts);
     auto end_time = std::chrono::steady_clock::now();
-    husky::LOG_I << "[LoadAllIntegral] Load time: "
-                 << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count()
-                 << " ms";
+    husky::LOG_I << PURPLE("[LoadAllIntegral] Load time: "
+                 + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count())
+                 + " ms");
+}
+
+/*
+ * Load the params from ModelTransferManager
+ */
+void LoadIntegralFromStore(int local_id, int model_id, std::vector<float>* params) {
+    husky::LOG_I << PURPLE("[LoadIntegralFromStore] Loading model_id: " + std::to_string(model_id) + " local_id: " + 
+                        std::to_string(local_id));
+    // Receive from mailbox
+    auto* mailbox = husky::Context::get_mailbox(local_id);
+    if (mailbox->poll(0,0)) {
+        auto bin = mailbox->recv(0,0);
+        bin >> *params;
+    }
 }
 
 /*
@@ -33,16 +50,16 @@ void LoadAllIntegral(int local_id, int model_id, int num_params, std::vector<flo
  */
 void LoadChunks(int local_id, int model_id,
         const std::vector<size_t>& keys, std::vector<std::vector<float>*>* chunks) {
-    husky::LOG_I << "[LoadChunks] loading model_id:" + std::to_string(model_id) + " local_id:" +
-                        std::to_string(local_id) + " chunk_num: " + std::to_string(keys.size());
+    husky::LOG_I << PURPLE("[LoadChunks] Loading model_id:" + std::to_string(model_id) + " local_id:" +
+                        std::to_string(local_id) + " chunk_num: " + std::to_string(keys.size()));
     auto start_time = std::chrono::steady_clock::now();
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
     int ts = kvworker->PullChunks(model_id, keys, *chunks, false);
     kvworker->Wait(model_id, ts);
     auto end_time = std::chrono::steady_clock::now();
-    husky::LOG_I << "[LoadChunks] Load time: "
-                 << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count()
-                 << " ms";
+    husky::LOG_I << PURPLE("[LoadChunks] Load time: "
+                 + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count())
+                 + " ms");
 }
 
 /*

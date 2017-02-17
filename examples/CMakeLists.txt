@@ -31,24 +31,11 @@ endif(MONGOCLIENT_FOUND)
 
 ### Applications
 
-# ProcMain
-add_executable(ProcMain ProcMain.cpp)
-target_link_libraries(ProcMain husky)
-target_link_libraries(ProcMain ${HUSKY_EXTERNAL_LIB})
-
-set_property(TARGET ProcMain PROPERTY CXX_STANDARD 14)
-
 # ClusterManagerMain
 add_executable(ClusterManagerMain ClusterManagerMain.cpp)
 target_link_libraries(ClusterManagerMain husky)
 target_link_libraries(ClusterManagerMain ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET ClusterManagerMain PROPERTY CXX_STANDARD 14)
-
-# ProcMainWithContext
-add_executable(ProcMainWithContext ProcMainWithContext.cpp)
-target_link_libraries(ProcMainWithContext husky)
-target_link_libraries(ProcMainWithContext ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET ProcMainWithContext PROPERTY CXX_STANDARD 14)
 
 # ProcMainWithContextDriver
 add_executable(ProcMainWithContextDriver ProcMainWithContextDriver.cpp)

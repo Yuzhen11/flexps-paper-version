@@ -29,7 +29,13 @@ class ClusterManagerConnection {
         husky::LOG_I << "[ClusterManagerConnection]: Connect to " + remote_addr;
         proc_sockets_.emplace(proc_id, std::move(socket));
     }
+
     auto& get_send_sockets() { return proc_sockets_; }
+
+    zmq::socket_t& get_send_socket(int id) { 
+        assert(proc_sockets_.find(id) != proc_sockets_.end());
+        return proc_sockets_.find(id)->second;
+    }
 
     auto& get_recv_socket() { return recv_socket_; }
 

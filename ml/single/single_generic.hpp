@@ -18,21 +18,34 @@ class SingleGenericWorker : public common::GenericMLWorker {
     SingleGenericWorker() = default;
 
     template <typename... Args>
-    SingleGenericWorker(int model_id, int local_id, int num_params)
-        : local_id_(local_id) {
+    SingleGenericWorker(int model_id, const husky::Info& info, size_t num_params)
+        : info_(info) {
         husky::LOG_I << CLAY("[Single] model_id: "+std::to_string(model_id)
-                +" local_id: "+std::to_string(local_id)
+                +" local_id: "+std::to_string(info_.get_local_id())
                 +" model_size: "+std::to_string(num_params));
         model_.reset(new model::IntegralModel(model_id, num_params));
         params_ = static_cast<model::IntegralModel*>(model_.get())->GetParamsPtr();
     }
 
     virtual void Load() override {
-        model_->Load(local_id_);
+        husky::LOG_I << RED("Load epoch: current: "+std::to_string(info_.get_current_epoch()));
+        std::string hint;
+        if (info_.get_current_epoch() == 0)
+            hint = "kvstore";
+        else
+            hint = "transfer";
+        model_->Load(info_.get_local_id(), hint);
     }
 
     virtual void Dump() override {
-        model_->Dump(local_id_);
+        std::string hint;
+        husky::LOG_I << RED("Dump epoch: current: "+std::to_string(info_.get_current_epoch())
+                +" total: "+std::to_string(info_.get_total_epoch()));
+        if (info_.get_current_epoch() < info_.get_total_epoch() - 1)
+            hint = "transfer";
+        else
+            hint = "kvstore";
+        model_->Dump(info_.get_local_id(), hint);
     }
     /*
      * Put/Get, Push/Pull APIs
@@ -41,7 +54,7 @@ class SingleGenericWorker : public common::GenericMLWorker {
         model_->Push(keys, vals);
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
-        model_->Pull(keys, vals, local_id_);
+        model_->Pull(keys, vals, info_.get_local_id());
     }
 
     // For v2
@@ -63,7 +76,7 @@ class SingleGenericWorker : public common::GenericMLWorker {
     // A pointer to the parameter
     std::vector<float>* params_;
     // std::vector<float> model_;
-    int local_id_;
+    const husky::Info& info_;
 
     // For v2
     // Pointer to keys

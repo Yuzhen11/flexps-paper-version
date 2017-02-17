@@ -74,16 +74,15 @@ class AvailableWorkers {
     std::vector<std::pair<int, int>> get_workers(int required_num_workers) {
         if (workers_.size() < required_num_workers)
             return {};
-        // Since all the workers are stored in unordered_set,
-        // I just get the first *required_num_workers* threads
-        std::vector<std::pair<int, int>> selected_workers;
-        auto it = workers_.begin();
-        while (selected_workers.size() < required_num_workers) {
-            selected_workers.push_back({it->second, it->first});  // <pid, tid>
-            ++it;
+
+        // Select and remove from workers_
+        std::set<std::pair<int,int>> selected;
+        while (selected.size() < required_num_workers) {
+            auto it = std::next(std::begin(workers_), rand()%workers_.size());
+            selected.insert({it->second, it->first});  // <pid, tid>
+            workers_.erase(it);
         }
-        // erase from workers_
-        workers_.erase(workers_.begin(), it);
+        std::vector<std::pair<int,int>> selected_workers{selected.begin(), selected.end()};
         // erase from pid_tids_
         for (auto pid_tid : selected_workers)
             pid_tids_[pid_tid.first].erase(pid_tid.second);

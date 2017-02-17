@@ -7,6 +7,7 @@
 #include <set>
 #include <vector>
 
+#include "husky/base/exception.hpp"
 #include "core/constants.hpp"
 #include "ml/model/model.hpp"
 #include "kvstore/kvstore.hpp"
@@ -36,12 +37,24 @@ class IntegralModel : public Model {
         }
     }
 
-    virtual void Load(int local_id) override {  // coordination and sync are handled by MLWorker
-        LoadAllIntegral(local_id, model_id_, num_params_, &params_);
+    virtual void Load(int local_id, const std::string& hint) override {  // coordination and sync are handled by MLWorker
+        if (hint == "kvstore") {
+            LoadAllIntegral(local_id, model_id_, num_params_, &params_);
+        } else if (hint == "transfer") {
+            LoadIntegralFromStore(local_id, model_id_, &params_);
+        } else {
+            throw husky::base::HuskyException("Unknown hint in IntegralModel");
+        }
     }
 
-    virtual void Dump(int local_id) override {
-        DumpAllIntegral(local_id, model_id_, num_params_, params_);
+    virtual void Dump(int local_id, const std::string& hint) override {
+        if (hint == "kvstore") {
+            DumpAllIntegral(local_id, model_id_, num_params_, params_);
+        } else if (hint == "transfer") {
+            DumpIntegralToStore(model_id_, std::move(params_));
+        } else {
+            throw husky::base::HuskyException("Unknown hint in IntegralModel");
+        }
     }
 
     std::vector<float>* GetParamsPtr() {

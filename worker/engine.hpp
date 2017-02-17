@@ -6,6 +6,7 @@
 #include "worker/basic.hpp"
 #include "worker/task_factory.hpp"
 #include "worker/worker.hpp"
+#include "worker/model_transfer_manager.hpp"
 
 #include "husky/core/constants.hpp"
 #include "husky/core/coordinator.hpp"
@@ -71,17 +72,19 @@ class Engine {
         std::string host_name = Context::get_param("hostname");
 
         // worker info
-        WorkerInfo worker_info = Context::get_worker_info();
+        auto& worker_info = Context::get_worker_info();
 
         // cluster_manager connector
         ClusterManagerConnector cluster_manager_connector(Context::get_zmq_context(), bind_addr, cluster_manager_addr,
                                                           host_name);
-
         // Create mailboxes
         Context::create_mailbox_env();
 
+        // Create ModelTransferManager
+        model_transfer_manager.reset(new ModelTransferManager(worker_info, Context::get_mailbox_event_loop(), Context::get_zmq_context()));
+
         // create worker
-        worker.reset(new Worker(std::move(worker_info), std::move(cluster_manager_connector)));
+        worker.reset(new Worker(worker_info, model_transfer_manager.get(), std::move(cluster_manager_connector)));
     }
 
     void StartCoordinator() { Context::get_coordinator()->serve(); }
@@ -99,6 +102,7 @@ class Engine {
     }
 
     std::unique_ptr<Worker> worker;
+    std::unique_ptr<ModelTransferManager> model_transfer_manager;
 };
 
 }  // namespace husky
