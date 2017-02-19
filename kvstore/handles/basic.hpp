@@ -73,7 +73,7 @@ KVPairs<Val> retrieve(int kv_id, husky::base::BinStream& bin, std::unordered_map
     if (cmd == 0) {
         KVPairs<Val> recv;
         KVPairs<Val> send;
-        bin >> recv.keys >> recv.vals;
+        bin >> recv.keys;
         send.keys = recv.keys;
         send.vals.resize(recv.keys.size());
         for (size_t i = 0; i < send.keys.size(); ++i) {

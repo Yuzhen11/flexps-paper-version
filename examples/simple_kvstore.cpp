@@ -129,7 +129,24 @@ int main(int argc, char** argv) {
         }
         husky::LOG_I << GREEN("chunk based Push/Pull checked done");
     });
+    engine.Submit();
 
+    task = TaskFactory::Get().CreateTask<Task>(1, 1);
+    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>();
+    engine.AddTask(task, [kv6](const Info& info) {
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
+        std::vector<husky::constants::Key> keys{0};
+        std::vector<float> vals{2.0};
+        int ts = kvworker->PushLocal(kv6, info.get_proc_id(), keys, vals);
+        // int ts = kvworker->Push(kv6, keys, vals, false);
+        kvworker->Wait(kv6, ts);
+        husky::LOG_I << "Push Done!";
+
+        std::vector<float> rets;
+        kvworker->Wait(kv6, kvworker->PullLocal(kv6, info.get_proc_id(), keys, &rets));
+        // kvworker->Wait(kv6, kvworker->Pull(kv6, keys, &rets, false));
+        husky::LOG_I << rets[0];
+    });
     engine.Submit();
     engine.Exit();
     // Stop the kvstore, should stop before mailbox is down

@@ -162,6 +162,55 @@ class KVWorker {
         return ts;
     }
 
+    template<typename Val>
+    int PushLocal(int kv_id, int dst, const std::vector<husky::constants::Key>& keys, 
+            const std::vector<Val>& vals, const Callback& cb = nullptr) {
+        int ts = customer_->NewRequest(kv_id, 1);
+        AddCallback(kv_id, ts, cb);
+        husky::base::BinStream bin;
+        bool isRequest = true;
+        bool isPush = true;
+        int cmd = 0;
+        int src = info_.global_id;
+        bin << isRequest << kv_id << ts << cmd << isPush << src;
+        bin << keys << vals;
+        customer_->send(info_.get_tid(dst), bin);
+        return ts;
+    }
+
+    template<typename Val>
+    int PullLocal(int kv_id, int dst, const std::vector<husky::constants::Key>& keys, 
+            std::vector<Val>* vals, const Callback& cb = nullptr) {
+        int ts = customer_->NewRequest(kv_id, 1);
+        AddCallback(kv_id, ts, [this, kv_id, ts, vals, cb]() mutable {
+            mu_.lock();
+            auto& kvs = static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs;
+            mu_.unlock();
+
+            assert(kvs.size() == 1);
+            // Assume the kvs are ordered
+            vals->resize(kvs[0].vals.size());
+            for (size_t i = 0; i < vals->size(); ++ i) {
+                (*vals)[i] = std::move(kvs[0].vals[i]);
+            }
+
+            mu_.lock();
+            delete recv_kvs_[{kv_id, ts}];
+            recv_kvs_.erase({kv_id, ts});
+            mu_.unlock();
+            if (cb) cb();
+        });
+        husky::base::BinStream bin;
+        bool isRequest = true;
+        bool isPush = false;
+        int cmd = 0;
+        int src = info_.global_id;
+        bin << isRequest << kv_id << ts << cmd << isPush << src;
+        bin << keys;
+        customer_->send(info_.get_tid(dst), bin);
+        return ts;
+    }
+
     /*
      * \brief Waits until a push or pull has been finished
      */
@@ -376,7 +425,10 @@ class KVWorker {
             bin << isRequest << kv_id << ts << cmd << push << src;
             if (sliced[i].first) {  // if no empty, don't send the size
                 auto& kvs = sliced[i].second;
-                bin << kvs.keys << kvs.vals;
+                if (push)
+                    bin << kvs.keys << kvs.vals;
+                else
+                    bin << kvs.keys;
             }
             // husky::LOG_I << CLAY("sending to "+std::to_string(i)+" size: "+std::to_string(bin.size()));
             customer_->send(info_.get_tid(i), bin);

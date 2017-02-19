@@ -5,9 +5,6 @@
 
 namespace kvstore {
 
-/*
- * Use std::vector first, may replaced by SArray
- */
 template <typename Val>
 struct KVPairs {
     pslite::SArray<husky::constants::Key> keys;
