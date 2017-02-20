@@ -27,8 +27,14 @@ class ServerBase {
         bool isRequest = false;
         // isRequest, kv_id, ts, isPush, src
         bin << isRequest << kv_id << ts << cmd << push << src;
-
-        bin << res.keys << res.vals;
+        if (cmd == 2 && push == false) {  // enable zero-copy for local Pull
+            KVPairs<Val>* p = new KVPairs<Val>();  // delete by worker
+            p->keys = res.keys;
+            p->vals = res.vals;
+            bin << reinterpret_cast<std::uintptr_t>(p);
+        } else {
+            bin << res.keys << res.vals;
+        }
         customer->send(src, bin);
     }
 };

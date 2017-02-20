@@ -88,6 +88,9 @@ class KVStore {
                 info.channel_id = husky::constants::kv_channel_id;
                 info.global_id = num_workers + i;
                 info.num_ps_servers = num_processes_ * num_servers_per_process;
+                for (int j = 0; j < num_servers_per_process; ++ j) {
+                    info.local_server_ids.insert(worker_info.get_process_id() + j * num_processes_);
+                }
                 info.server_id_to_global_id= server2global;
                 kvworkers.push_back(new kvstore::KVWorker(info, *kvworker_mailboxes[k]));
                 k += 1;

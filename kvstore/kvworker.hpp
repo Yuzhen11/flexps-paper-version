@@ -243,19 +243,32 @@ class KVWorker {
         if (push == true)
             ;                      // if is push
         else if (push == false) {  // if is pull
-            KVPairs<Val> kvs;
-            // Format: keys, values
-            bin >> kvs.keys >> kvs.vals;
-            mu_.lock();
-            if (recv_kvs_.find({kv_id, ts}) == recv_kvs_.end()) {
-                recv_kvs_[{kv_id, ts}] = new RecvKVPairs<Val>();
+            auto update_kvs = [this, kv_id, ts](const KVPairs<Val>& kvs) {
+                mu_.lock();
+                if (recv_kvs_.find({kv_id, ts}) == recv_kvs_.end()) {
+                    recv_kvs_[{kv_id, ts}] = new RecvKVPairs<Val>();
+                }
+                // only push non-empty size
+                // husky::LOG_I << RED("pull size: "+std::to_string(kvs.keys.size()));
+                if (kvs.keys.size() != 0) {
+                    static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs.push_back(kvs);
+                }
+                mu_.unlock();
+            };
+            if (cmd == 2) {  // zero-copy enabled
+                // husky::LOG_I << RED("zero-copy in Pull is enabled");
+                std::uintptr_t ptr;
+                bin >> ptr;
+                auto* p_recv = reinterpret_cast<KVPairs<Val>*>(ptr);
+                update_kvs(*p_recv);
+                delete p_recv;
+            } else {
+                // husky::LOG_I << RED("zero-copy in Pull is disabled");
+                KVPairs<Val> kvs;
+                // Format: keys, values
+                bin >> kvs.keys >> kvs.vals;
+                update_kvs(kvs);
             }
-            // only push non-empty size
-            // husky::LOG_I << RED("pull size: "+std::to_string(kvs.keys.size()));
-            if (kvs.keys.size() != 0) {
-                static_cast<RecvKVPairs<Val>*>(recv_kvs_[{kv_id, ts}])->recv_kvs.push_back(kvs);
-            }
-            mu_.unlock();
         }
         // If all the servers response, run the callback
         // if (customer_->NumResponse(kv_id, ts) == info_.num_ps_servers - 1) {
@@ -422,13 +435,26 @@ class KVWorker {
                 continue;
             }
             husky::base::BinStream bin;
-            bin << isRequest << kv_id << ts << cmd << push << src;
-            if (sliced[i].first) {  // if no empty, don't send the size
-                auto& kvs = sliced[i].second;
-                if (push)
-                    bin << kvs.keys << kvs.vals;
-                else
-                    bin << kvs.keys;
+            bin << isRequest << kv_id << ts;
+            if (info_.local_server_ids.find(i) == info_.local_server_ids.end()) {
+                bin << cmd << push << src;
+                if (sliced[i].first) {  // if no empty, don't send the size
+                    auto& kvs = sliced[i].second;
+                    if (push)
+                        bin << kvs.keys << kvs.vals;
+                    else
+                        bin << kvs.keys;
+                }
+            } else {  // if it is local server, zero-copy enabled
+                bin << static_cast<int>(2) << push << src;
+                if (sliced[i].first) {  // if no empty, don't send the size
+                    auto& kvs = sliced[i].second;
+                    // husky::LOG_I << RED("zero-copy enable");
+                    KVPairs<Val>* p = new KVPairs<Val>();  // delete by server
+                    p->keys = kvs.keys;
+                    p->vals = kvs.vals;
+                    bin << reinterpret_cast<std::uintptr_t>(p);
+                }
             }
             // husky::LOG_I << CLAY("sending to "+std::to_string(i)+" size: "+std::to_string(bin.size()));
             customer_->send(info_.get_tid(i), bin);

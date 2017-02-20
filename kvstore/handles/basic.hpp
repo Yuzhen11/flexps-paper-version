@@ -34,6 +34,15 @@ void update(int kv_id, husky::base::BinStream& bin, std::unordered_map<husky::co
             }
         }
         // husky::LOG_I << RED("Done");
+    } else if (cmd == 2) {  // enable zero-copy
+        std::uintptr_t ptr;
+        bin >> ptr;
+        auto* p_recv = reinterpret_cast<KVPairs<Val>*>(ptr);
+        for (size_t i = 0; i < p_recv->keys.size(); ++ i) {
+            store[p_recv->keys[i]] += p_recv->vals[i];
+            // husky::LOG_I << RED("Assign: "+std::to_string(p_recv->keys[i])+" "+std::to_string(p_recv->vals[i]));
+        }
+        delete p_recv;
     } else {
         throw husky::base::HuskyException("Unknown cmd");
     }
@@ -62,6 +71,15 @@ void assign(int kv_id, husky::base::BinStream& bin, std::unordered_map<husky::co
             }
         }
         // husky::LOG_I << RED("Done");
+    } else if (cmd == 2) {  // enable zero-copy
+        std::uintptr_t ptr;
+        bin >> ptr;
+        auto* p_recv = reinterpret_cast<KVPairs<Val>*>(ptr);
+        for (size_t i = 0; i < p_recv->keys.size(); ++ i) {
+            store[p_recv->keys[i]] = p_recv->vals[i];
+            // husky::LOG_I << RED("Assign: "+std::to_string(p_recv->keys[i])+" "+std::to_string(p_recv->vals[i]));
+        }
+        delete p_recv;
     } else {
         throw husky::base::HuskyException("Unknown cmd");
     }
@@ -100,6 +118,19 @@ KVPairs<Val> retrieve(int kv_id, husky::base::BinStream& bin, std::unordered_map
                 // husky::LOG_I << RED("val: "+std::to_string(store[start_id + i]));
             }
         }
+        return send;
+    } else if (cmd == 2) {  // enable zero-copy
+        KVPairs<Val> send;
+        std::uintptr_t ptr;
+        bin >> ptr;
+        auto* p_recv = reinterpret_cast<KVPairs<Val>*>(ptr);
+        send.keys = p_recv->keys;
+        send.vals.resize(p_recv->keys.size());
+        for (size_t i = 0; i < send.keys.size(); ++ i) {
+            send.vals[i] = store[send.keys[i]];
+            // husky::LOG_I << RED("Retrieve: "+std::to_string(send.keys[i])+" "+std::to_string(send.vals[i]));
+        }
+        delete p_recv;
         return send;
     } else {
         throw husky::base::HuskyException("Unknown cmd");
