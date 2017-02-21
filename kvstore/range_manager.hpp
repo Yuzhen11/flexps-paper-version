@@ -99,7 +99,7 @@ class RangeManager {
     /*
      * Get the server id for a given key
      */
-    int GetServer(int kv_id, husky::constants::Key key) {
+    int GetServerFromKey(int kv_id, husky::constants::Key key) {
         // TODO: can be done in logn
         int i = 0;
         while (key >= server_key_ranges_[kv_id][i].begin()) {
@@ -108,6 +108,13 @@ class RangeManager {
                 break;
         }
         return i-1;
+    }
+
+    /*
+     * Get the server id for a given chunk id
+     */
+    int GetServerFromChunk(int kv_id, size_t chunk_id) {
+        return GetServerFromKey(kv_id, chunk_id*GetChunkSize(kv_id));
     }
 
     void SetNumServers(int num_servers) {

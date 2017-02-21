@@ -60,11 +60,17 @@ TEST_F(TestRangeManager, GetServer) {
     range_manager.SetNumServers(3);
     range_manager.SetMaxKeyAndChunkSize(0, 9, 2);
     for (int i = 0; i < 4; ++ i)
-        EXPECT_EQ(range_manager.GetServer(0, i), 0);
+        EXPECT_EQ(range_manager.GetServerFromKey(0, i), 0);
     for (int i = 4; i < 8; ++ i)
-        EXPECT_EQ(range_manager.GetServer(0, i), 1);
+        EXPECT_EQ(range_manager.GetServerFromKey(0, i), 1);
     for (int i = 8; i < 9; ++ i)
-        EXPECT_EQ(range_manager.GetServer(0, i), 2);
+        EXPECT_EQ(range_manager.GetServerFromKey(0, i), 2);
+
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 0), 0);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 1), 0);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 2), 1);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 3), 1);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 4), 2);
 }
 
 }  // namespace
