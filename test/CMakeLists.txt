@@ -1,4 +1,4 @@
-include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${Boost_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${HUSKY_EXTERNAL_INCLUDE})
 
 if(LIBHDFS3_FOUND)
     include_directories(${LIBHDFS3_INCLUDE_DIR})

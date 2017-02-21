@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${Boost_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${HUSKY_EXTERNAL_INCLUDE})
 
 if(LIBHDFS3_FOUND)
     include_directories(${LIBHDFS3_INCLUDE_DIR})
@@ -79,3 +79,8 @@ target_link_libraries(LRSampleReader husky)
 target_link_libraries(LRSampleReader ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET LRSampleReader PROPERTY CXX_STANDARD 14)
 
+# ALS
+add_executable(ALS als.cpp)
+target_link_libraries(ALS husky)
+target_link_libraries(ALS ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET ALS PROPERTY CXX_STANDARD 14)

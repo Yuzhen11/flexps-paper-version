@@ -43,7 +43,7 @@ class RangeManager {
      * Example:
      * max_key = 13, chunk_size = 5, num_servers = 2
      * chunks: {5, 5, 3}
-     * servers: {{5}, {5, 3}} -> {{0, 5}, {5, 13}}
+     * servers: {{5, 5}, {3}} -> {{0, 10}, {10, 13}}
      */
     void SetMaxKeyAndChunkSize(int kv_id, 
             husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max(),
@@ -94,6 +94,20 @@ class RangeManager {
             pslite::Range((end + (num_servers_ - remain - 1) * base) * chunk_size, max_key));
         server_chunk_ranges_[kv_id].push_back(
             pslite::Range((end + (num_servers_ - remain - 1) * base), chunk_num));
+    }
+
+    /*
+     * Get the server id for a given key
+     */
+    int GetServer(int kv_id, husky::constants::Key key) {
+        // TODO: can be done in logn
+        int i = 0;
+        while (key >= server_key_ranges_[kv_id][i].begin()) {
+            i += 1;
+            if (i == num_servers_)
+                break;
+        }
+        return i-1;
     }
 
     void SetNumServers(int num_servers) {
