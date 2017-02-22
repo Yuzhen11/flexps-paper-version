@@ -5,6 +5,8 @@
 #include "husky/io/input/inputformat_store.hpp"
 #include "husky/lib/ml/feature_label.hpp"
 
+#include "io/input/line_inputformat_ml.hpp"
+
 namespace husky {
 namespace {
 
@@ -75,7 +77,9 @@ template <typename ParseT>
 void load_line_input(std::string& url, ParseT parse) {
     // setup input format
     auto& infmt = husky::io::InputFormatStore::create_line_inputformat();
+    
     infmt.set_input(url);
+
 
     // loading
     typename io::LineInputFormat::RecordT record;

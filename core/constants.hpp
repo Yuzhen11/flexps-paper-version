@@ -21,6 +21,8 @@ const uint32_t kTaskType = 100;
 const uint32_t kThreadFinished = 101;
 const uint32_t kClusterManagerFinished = 102;
 
+const uint32_t kIOHDFSSubsetLoad = 301;
+
 }  // namespace anonymous
 
 }  // namespace constants
