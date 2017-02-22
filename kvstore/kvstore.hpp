@@ -102,22 +102,29 @@ class KVStore {
      */
     void Stop() {
         is_started_ = false;
+        kv_id = 0;
+        num_processes_ = -1;
+        RangeManager::Get().Clear();
         // 1. delete the kvworkers
         for (auto* p : kvworkers) {
             delete p;
         }
+        kvworkers.clear();
         // destroy the mailboxes
         for (auto* p : kvworker_mailboxes) {
             delete p;
         }
+        kvworker_mailboxes.clear();
         // 2. delete the kvservers
         for (auto* p : kvservers) {
             delete p;
         }
+        kvservers.clear();
         // destroy the mailbox
         for (auto* p : kvserver_mailboxes) {
             delete p;
         }
+        kvserver_mailboxes.clear();
     }
 
     /*
@@ -130,7 +137,8 @@ class KVStore {
     int CreateKVStore(const std::string& hint = "") {
         assert(is_started_);
         // set the default max key and chunk size
-        RangeManager::Get(kvservers.size()*num_processes_).SetMaxKeyAndChunkSize(kv_id);  
+        RangeManager::Get().SetNumServers(kvservers.size()*num_processes_);
+        RangeManager::Get().SetMaxKeyAndChunkSize(kv_id);  
         for (auto* kvserver : kvservers) {
             kvserver->CreateKVManager<Val>(kv_id, hint);
         }

@@ -22,14 +22,37 @@ class RangeManager {
      *
      * CreateKVStore will be the first one who calls this function
      */
-    static RangeManager& Get(int num_servers = -1) {
-        static RangeManager range_manager(num_servers);
+    static RangeManager& Get() {
+        static RangeManager range_manager;
         return range_manager;
     }
     RangeManager(const RangeManager&) = delete;
     RangeManager& operator=(const RangeManager&) = delete;
     RangeManager(RangeManager&&) = delete;
     RangeManager& operator=(RangeManager&&) = delete;
+
+    /*
+     * Set the num of servers, the server number should be set before used.
+     */ 
+    void SetNumServers(int num_servers) {
+        num_servers_ = num_servers;
+    }
+
+    /*
+     * Clear all the data
+     */
+    void Clear() {
+        num_servers_ = -1;
+        server_key_ranges_.clear();
+        server_chunk_ranges_.clear();
+        max_keys_.clear();
+        chunk_sizes_.clear();
+        chunk_nums_.clear();
+    }
+
+    size_t GetNumRanges() const {
+        return server_key_ranges_.size();
+    }
 
     /*
      * kvstore use this function to set max keys
@@ -117,10 +140,6 @@ class RangeManager {
         return GetServerFromKey(kv_id, chunk_id*GetChunkSize(kv_id));
     }
 
-    void SetNumServers(int num_servers) {
-        num_servers_ = num_servers;
-    }
-
     /*
      * kvworker use this function to get the server key ranges
      */
@@ -159,9 +178,9 @@ class RangeManager {
     }
 
    private:
-    RangeManager(int num_servers) : num_servers_(num_servers) {}
+    RangeManager() = default;
 
-    int num_servers_;
+    int num_servers_ = -1;
 
     std::vector<std::vector<pslite::Range>> server_key_ranges_;
     std::vector<std::vector<pslite::Range>> server_chunk_ranges_;

@@ -13,14 +13,35 @@ class TestRangeManager: public testing::Test {
     ~TestRangeManager() {}
 
    protected:
-    void SetUp() {}
-    void TearDown() {}
+    void SetUp() {
+        // At least create the RangeManager Singleton
+        kvstore::RangeManager::Get();
+    }
+    void TearDown() {
+        // Clear
+        kvstore::RangeManager::Get().Clear();
+    }
 };
 
 TEST_F(TestRangeManager, SetNumServers) {
     auto& range_manager = kvstore::RangeManager::Get();
     int num_servers = range_manager.GetNumServers();
     EXPECT_EQ(num_servers, -1);
+
+    range_manager.SetNumServers(3);
+    EXPECT_EQ(range_manager.GetNumServers(), 3);
+}
+
+TEST_F(TestRangeManager, GetNumRanges) {
+    auto& range_manager = kvstore::RangeManager::Get();
+    EXPECT_EQ(range_manager.GetNumRanges(), 0);
+
+    range_manager.SetNumServers(3);
+    range_manager.SetMaxKeyAndChunkSize(0, 9, 2);
+    EXPECT_EQ(range_manager.GetNumRanges(), 1);
+
+    range_manager.Clear();
+    EXPECT_EQ(range_manager.GetNumRanges(), 0);
 }
 
 TEST_F(TestRangeManager, SetMaxKeyAndChunkSize) {
