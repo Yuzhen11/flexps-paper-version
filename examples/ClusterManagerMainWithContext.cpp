@@ -5,6 +5,8 @@
 #include "husky/core/job_runner.hpp"
 #include "husky/master/master.hpp"
 
+#include "io/hdfs_assigner_ml.hpp"
+
 using namespace husky;
 
 int main(int argc, char** argv) {
@@ -16,6 +18,10 @@ int main(int argc, char** argv) {
     // thread for husky::Master
     std::thread master_thread([] {
         auto& master = husky::Master::get_instance();
+        
+        // finish some handlers
+        HDFSBlockAssignerML hdfs_block_assign;
+
         master.setup();
         master.serve();
     });
