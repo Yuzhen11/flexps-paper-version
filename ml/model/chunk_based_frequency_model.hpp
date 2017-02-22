@@ -1,111 +1,126 @@
 #pragma once
 
-#include <cassert>
-#include <condition_variable>
-#include <mutex>
-#include <set>
+#include <unordered_map>
 #include <vector>
 
-#include "core/constants.hpp"
-#include "ml/model/chunk_based_model.hpp"
-#include "ml/model/process_cache_manager.hpp"
 #include "kvstore/kvstore.hpp"
+#include "ml/model/chunk_based_model.hpp"
+#include "ml/model/chunk_based_mt_model.hpp"
 
 namespace ml {
 namespace model {
 
-class ChunkLock {
+class ChunkBasedFrequencyModel : public ChunkBasedModel {
    public:
-    ChunkLock(int num_chunks) : lock_table_(num_chunks, 0) {}
+    ChunkBasedFrequencyModel(int model_id, int num_params):
+        ChunkBasedModel(model_id, num_params) {}
 
-    /*
-     * Acquire the wirte lock to load the chunks from kvstore
-     */
-    bool try_lock_write(const std::vector<size_t>& w_chunks) {  // called when lock_table_ is locked
-        for (auto w : w_chunks) {
-            if (lock_table_[w] != 0) return false;
+    void LoadFrequent(int local_id, const std::vector<husky::constants::Key>& frequent_ids) {
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
+        std::vector<float> params;
+        int ts = kvworker->Pull(model_id_, frequent_ids, &params);
+        kvworker->Wait(model_id_, ts);
+        for (size_t i = 0; i < frequent_ids.size(); ++i) {
+            frequent_pool_[frequent_ids[i]] = params[i];
         }
-        // lock chunks
-        for (auto w : w_chunks) { lock_table_[w] = -1; }
-        return true;
     }
 
-    /*
-     * Release the write lock
-     */
-    void unlock_write(const std::vector<size_t>& chunks) {
-        for (auto chunk : chunks) {
-            lock_table_[chunk] = 0;
+    void Dump(int local_id, const std::string& hint) override {
+        // 1. Dump all chunks
+        DumpAllChunks(local_id, model_id_, params_);
+
+        // 2. Dump frequent parameters
+        auto size = frequent_pool_.size();
+        std::vector<float> vals(size);
+        std::vector<husky::constants::Key> keys(size);
+        size_t index = 0;
+        for (auto f : frequent_pool_) {
+            vals[index] = f.second;
+            keys[index] = f.first;
+            ++index;
         }
-        cv_.notify_all();
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
+        auto ts = kvworker->Push(model_id_, keys, vals);
+        kvworker->Wait(model_id_, ts);
     }
 
-    /*
-     * Try to get the read lock for the chunks
-     */
-    bool try_lock_read(const std::vector<size_t>& chunks) {
-        for (auto chunk_id : chunks) {
-            if (lock_table_[chunk_id] == -1) return false;
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+        auto& range_manager = kvstore::RangeManager::Get();
+        for (size_t i = 0; i < keys.size(); ++i) {
+            // 1. find the key in frequent pool
+            auto iter = frequent_pool_.find(keys[i]);
+            if (iter != frequent_pool_.end()) {
+                iter->second += vals[i];
+            } 
+            // 2. if miss, find it in the chunks
+            else {
+                auto loc = range_manager.GetLocation(model_id_, keys[i]);
+                params_[loc.first][loc.second] += vals[i];
+            }
         }
-
-        // lock chunks
-        for (auto chunk_id : chunks) { lock_table_[chunk_id] += 1; }
-        return true;
     }
 
-    /*
-     * Release the read lock for the chunks
-     */
-    void unlock_read(const std::vector<size_t>& chunks) {
-        bool notify = false;
-        for (auto chunk_id : chunks) {
-            assert(lock_table_[chunk_id] > 0);
-            lock_table_[chunk_id] -= 1;
-            if (lock_table_[chunk_id] == 0) notify = true;
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
+        Prepare(keys, local_id);
+        vals->resize(keys.size());
+        auto& range_manager = kvstore::RangeManager::Get();
+        for (size_t i = 0; i < keys.size(); ++i) {
+            auto iter = frequent_pool_.find(keys[i]);
+            if (iter != frequent_pool_.end()) {
+                vals->at(i) = iter->second;
+            } else {
+                auto loc = range_manager.GetLocation(model_id_, keys[i]);
+                vals->at(i) = params_[loc.first][loc.second];
+            }
         }
-        if (notify) cv_.notify_all();
     }
 
-    std::mutex lock_table_mtx_;  // for the lock table
-    std::vector<int> lock_table_;  // 0 for no lock, positive for read lock, -1 for write lock
-    std::condition_variable cv_;
+   protected:
+    virtual void Prepare(const std::vector<husky::constants::Key>& keys, int local_id) override {
+        auto& range_manager = kvstore::RangeManager::Get();
+        std::vector<size_t> chunks_to_fetch;
+        for (size_t i = 0; i < keys.size(); ++i) {
+            auto iter = frequent_pool_.find(keys[i]);
+            if (iter == frequent_pool_.end()) {
+                auto loc = range_manager.GetLocation(model_id_, keys[i]);
+                if (is_cached_[loc.first] == false && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
+                    chunks_to_fetch.push_back(loc.first);
+                    is_cached_[loc.first] = true;
+                }
+            }
+        }
+        if (!chunks_to_fetch.empty()) {
+            int ts = fetch_chunk(chunks_to_fetch, local_id);
+            wait(ts, local_id);
+        }
+    }
+
+    std::unordered_map<husky::constants::Key, float> frequent_pool_;
 };
 
-/*
- * ChunkBasedMTModel
- *
- * The ChunkBased Model for Push/Pull in a lock free manner for Multi-threads
- *
- * The Pull is not totally lock-free, since we need to fetch from kvstore
- *
- * Double-checked locking is used
- */
-class ChunkBasedMTModel : public ChunkBasedModel {
+class ChunkBasedMTFrequencyModel : public ChunkBasedFrequencyModel {
    public:
-    ChunkBasedMTModel() = delete;
-    ChunkBasedMTModel(int model_id, int num_params):
-        ChunkBasedModel(model_id, num_params),
+    ChunkBasedMTFrequencyModel(int model_id, int num_params):
+        ChunkBasedFrequencyModel(model_id, num_params),
         chunk_lock_(kvstore::RangeManager::Get().GetChunkNum(model_id)) {}
 
    protected:
-    /*
-     * Override the Prepare function in ChunkBasedModel
-     *
-     * Allow concurrent Pull issues to kvstore
-     * Use double-checked locking to reduce the overhead of acquiring the lock
-     */
     virtual void Prepare(const std::vector<husky::constants::Key>& keys, int local_id) override {
+        auto& range_manager = kvstore::RangeManager::Get();
         std::vector<size_t> chunks_to_fetch;
         // 1. Collect the uncached chunks
-        auto& range_manager = kvstore::RangeManager::Get();
         for (size_t i = 0; i < keys.size(); ++i) {
-            auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            if (is_cached_[loc.first] == false && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
-                chunks_to_fetch.push_back(loc.first);
+            auto iter = frequent_pool_.find(keys[i]);
+            if (iter == frequent_pool_.end()) {
+                auto loc = range_manager.GetLocation(model_id_, keys[i]);
+                if (is_cached_[loc.first] == false && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
+                    chunks_to_fetch.push_back(loc.first);
+                }
             }
         }
+
         // 2. Test the locking criterion without actually acquiring the lock
-        // If there is any missing chunk, lock and pull with kvworker
+        //    If there is any missing chunk, lock and pull with kvworker
         if (chunks_to_fetch.size() > 0) {
             {
                 // 3. Lock and check again
@@ -153,33 +168,11 @@ class ChunkBasedMTModel : public ChunkBasedModel {
     ChunkLock chunk_lock_;
 };
 
-
-/*
- * ChunkBasedMTLockModel
- *
- * ChunkBasedMTLockModel with Read/Write lock for each chunks for multi-threads
- *
- * TODO: handle writer starvation (prioritize write or read?)
- */
-class ChunkBasedMTLockModel : public ChunkBasedMTModel {
+class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel {
    public:
-    ChunkBasedMTLockModel(int model_id, int num_params):
-        ChunkBasedMTModel(model_id, num_params) {} 
+    ChunkBasedMTLockFrequencyModel(int model_id, int num_params):
+        ChunkBasedMTFrequencyModel(model_id, num_params) {}
 
-    /*
-     * Update locally by chunks
-     * 1. Acquire locks atomically
-     *     1.1 lock lock_table
-     *     1.2 wait if any lock cannot be acquired
-     *     1.3 else lock all chunks requested and unlock lock_table
-     * 2. Do the updates
-     *     2.1 find the chunk and index
-     *     2.2 update
-     * 3. Unlock chunks
-     *     3.1 lock lock_table
-     *     3.2 unlock chunks
-     *     3.3 unlock lock_table and notify all
-     */
     void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         auto& range_manager = kvstore::RangeManager::Get();
         // Get chunk indices 
@@ -200,7 +193,7 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel {
         }
 
         // 2. Do the updates
-        ChunkBasedModel::Push(keys, vals);
+        ChunkBasedFrequencyModel::Push(keys, vals);
 
         {
             // 3. Unlock the chunks
@@ -209,19 +202,6 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel {
         }
     }
 
-    /* Get local cache and fetch on miss
-     * 1. Acquire locks atomically
-     *     1.1 lock lock_table
-     *     1.2 wait if any lock cannot be acquired
-     *     1.3 else lock all chunks requested and unlock lock_table
-     * 2. Get chunks
-     *     2.1 find the chunk and index
-     *     2.2 copy
-     * 3. Unlock chunks
-     *     3.1 lock lock_table
-     *     3.2 unlock chunks
-     *     3.3 unlock lock_table
-     */
     void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
         // Prepare the keys
         Prepare(keys, local_id);
@@ -246,8 +226,13 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel {
         // 2. Get the chunks
         vals->resize(keys.size());
         for (size_t i = 0; i < keys.size(); ++i) {
-            auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            (*vals)[i] = params_[loc.first][loc.second];
+            auto iter = frequent_pool_.find(keys[i]);
+            if (iter != frequent_pool_.end()) {
+                vals->at(i) = iter->second;
+            } else {
+                auto loc = range_manager.GetLocation(model_id_, keys[i]);
+                (*vals)[i] = params_[loc.first][loc.second];
+            }
         }
 
         {

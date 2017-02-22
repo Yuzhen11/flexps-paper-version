@@ -1,11 +1,10 @@
 #include <vector>
 #include <chrono>
 
-// #include "datastore/datastore.hpp"
 #include "worker/engine.hpp"
 #include "ml/common/mlworker.hpp"
 
-#include "sample_reader.hpp"
+#include "lib/sample_reader.hpp"
 #include "lib/task_utils.hpp"
 
 #include "examples/updater.hpp"
@@ -40,24 +39,31 @@ using husky::lib::ml::LabeledPointHObj;
 
 template <template <typename> typename ContainerT>
 void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
-        ContainerT<LabeledPointHObj<float, float, true>>* container, float alpha) {
+        ContainerT<LabeledPointHObj<float, float, true>>* container, float alpha, int num_params) {
     alpha /= container->get_batch_size();
     auto keys = container->prepare_next_batch();
+    keys.push_back(num_params - 1);
     worker->Prepare_v2(keys);
-    for (auto data : container->get_data_ptrs()) {
-        if (data == NULL) break;
-        auto& x = data->x;
-        float y = data->y;
+    for (auto data : container->get_data()) {
+        auto& x = data.x;
+        float y = data.y;
         if (y < 0) y = 0;
         float pred_y = 0.0;
 
         int i = 0;
         for (auto iter = x.begin_feaval(); iter != x.end_feaval(); ++iter) {
             const auto& field = *iter;
-            while (keys[i] < field.fea) i += 1;
+            while (i < keys.size() && keys[i] < field.fea) i += 1;
+            assert(keys[i] == field.fea);
             pred_y += worker->Get_v2(i) * field.val;
-        }  // TODO add intercept
+        }
+        while (i < keys.size() && keys[i] < num_params - 1) i += 1;
+        assert(keys[i] == num_params - 1);
+        pred_y += worker->Get_v2(i);  // intercept
+
         pred_y = 1. / (1. + exp(-1 * pred_y)); 
+
+        worker->Update_v2(i, alpha * (y - pred_y));  // intercept
         i = 0;
         for (auto iter = x.begin_feaval(); iter != x.end_feaval(); ++iter) {
             const auto& field = *iter;
@@ -78,17 +84,14 @@ float get_test_error_v2(const std::unique_ptr<ml::common::GenericMLWorker>& work
     worker->Prepare_v2(all_keys);
     int count = 0;
     float c_count = 0; //correct count
-    bool has_next = true;
-    while (count < test_samples && has_next) {
+    while (count < test_samples) {
         container->prepare_next_batch();
-        for (auto data : container->get_data_ptrs()) {
-            if (data == NULL) {
-                has_next = false;
-                break;
-            }
+        auto batch = container->get_data();
+        if (batch.size() == 0) break;
+        for (auto data : batch) {
             count = count + 1;
-            auto& x = data->x;
-            float y = data->y;
+            auto& x = data.x;
+            float y = data.y;
             if (y < 0) y = 0;
             float pred_y = 0.0;
             for (auto iter = x.begin_feaval(); iter != x.end_feaval(); ++iter) {
@@ -139,23 +142,22 @@ int main(int argc, char** argv) {
     // Set max key, to make the keys distributed
     kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, num_params);
 
-    // create a TextBuffer
+    // create a AsyncReadBuffer
     int batch_size = 100, batch_num = 50;
-    auto buffer = new TextBuffer(Context::get_param("input"), batch_size, batch_num);
+    auto buffer = new AsyncReadBuffer(Context::get_param("input"), batch_size, batch_num, false);
 
     engine.AddTask(std::move(task1), [num_iters, alpha, num_params, num_features, buffer](const Info& info) {
+        buffer->init();
         int batch_size = 100;
         // create a reader
         SampleReader<LabeledPointHObj<float,float,true>> * reader = new LIBSVMSampleReader<float, float, true>(batch_size, num_features, buffer);
 
-        if (reader->is_empty()) {
-            return;  // return if there's no data
-        }
+        if (reader->is_empty()) return;  // return if there's no data
         auto& worker = info.get_mlworker();
 
         // main loop
         for (int iter = 0; iter < num_iters; ++ iter) {
-            batch_sgd_update(worker, reader, alpha);
+            batch_sgd_update(worker, reader, alpha, num_params);
         }
 
         auto accuracy = get_test_error_v2(worker, reader, num_params);
