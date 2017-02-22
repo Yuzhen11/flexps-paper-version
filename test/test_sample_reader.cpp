@@ -1,4 +1,4 @@
-#include "examples/sample_reader.hpp"
+#include "lib/sample_reader.hpp"
 
 #include "worker/engine.hpp"
 
@@ -17,28 +17,36 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
+    // create the buffer for loading data from hdfs (a shared buffer in a process)
+    auto buffer = new AsyncReadBuffer(Context::get_param("input"), batch_size, batch_num, true);
     auto task = TaskFactory::Get().CreateTask<HuskyTask>(1, 4); // 1 epoch, 4 workers
-    engine.AddTask(std::move(task), [&batch_size, &batch_num, &num_features](const Info& info) {
-        // load
-        auto buffer = new TextBuffer(Context::get_param("input"), batch_size, batch_num);
-        /*
-        std::vector<boost::string_ref>* batch = nullptr;
+    engine.AddTask(std::move(task), [buffer, &batch_size, &batch_num, &num_features](const Info& info) {
+        buffer->init();  // start buffer
+
+        /* load with AsyncReadBuffer
+        std::vector<boost::string_ref> batch;
         int count = 0;
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         while (buffer->get_batch(batch)) {
-            count += batch->size();
-
-            // std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            count += batch.size();
             husky::LOG_I << buffer->ask() << " unread batches in buffer";
         }
         husky::LOG_I << "loaded " << count << " records.";
         */
 
+        // read samples in libsvm format
         auto reader = LIBSVMSampleReader<float, float, true>(batch_size, num_features, buffer);
-        auto keys = reader.prepare_next_batch();
-        auto data = reader.get_data_ptrs();
-        delete buffer;
+        int count = 0;
+        while (!reader.is_empty()) {
+            // parse a batch of data and return parameters for the batch
+            auto keys = reader.prepare_next_batch();
+            // get the batch of samples in vector
+            auto data = reader.get_data();
+            count += data.size();
+        }
+        husky::LOG_I << "read " << count << " records in total.";
     });
     engine.Submit();
     engine.Exit();
+    delete buffer;
 }

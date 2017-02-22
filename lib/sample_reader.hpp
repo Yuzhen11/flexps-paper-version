@@ -1,49 +1,46 @@
 #pragma once
 
+#include <mutex>
+#include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "boost/tokenizer.hpp"
+#include "boost/utility/string_ref.hpp"
 #include "core/constants.hpp"
 #include "husky/io/input/inputformat_store.hpp"
+#include "husky/io/input/line_inputformat.hpp"
 #include "husky/lib/ml/feature_label.hpp"
 
 namespace husky {
 namespace {
 
-class TextBuffer {
+class AsyncReadBuffer {
    public:
     using BatchT = std::vector<boost::string_ref>;
     // contructor takes 4 args: hdfs path, number of lines per batch, number of batches, initialize
-    TextBuffer(const std::string& url, int batch_size, int batch_num, bool _init = true) : 
-        eof_(false),
+    AsyncReadBuffer(const std::string& url, int batch_size, int batch_num, bool _init = true) : 
         batch_size_(batch_size),
-        batch_num_(batch_num) {
+        batch_num_(batch_num),
+        buffer_(batch_num) {
             // 1. set input format 
             infmt_ = &husky::io::InputFormatStore::create_line_inputformat();
             infmt_->set_input(url);
-            // 2. set buffer
-            buffer_ = new BatchT*[batch_num_];
-            // 3. start a new thread
+            // 2. start a new thread
             if (_init) init();
     }
 
     // destructor: stop thread and clear buffer
-    virtual ~TextBuffer() {
+    virtual ~AsyncReadBuffer() {
         batch_num_ = 0;
         load_cv_.notify_all();
         thread_->join();
         delete thread_;
-
-        for (int i = 0; i < batch_num_; ++i) {
-            delete buffer_[i];
-        }
-        delete buffer_;
     }
 
     // store batch_size_ lines in the batch and return true if success
-    bool get_batch(BatchT*& batch) {
-        delete batch;
+    bool get_batch(BatchT& batch) {
         {
             std::unique_lock<std::mutex> lock(mutex_);
             while (batch_count_ == 0 && !eof_) {
@@ -52,7 +49,7 @@ class TextBuffer {
 
             if (eof_ && batch_count_ == 0) return false;  // no more data
 
-            batch = buffer_[start_];
+            batch = std::move(buffer_[start_]);
             if (++start_ >= batch_num_) start_ -= batch_num_;
             --batch_count_;
         }
@@ -61,8 +58,10 @@ class TextBuffer {
     }
 
     void init() {
-        ASSERT_MSG(!init_, "The loading thread of TextBuffer is running!");
-        thread_ = new std::thread(&TextBuffer::main, this);
+        if (init_) return;
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (init_) return;
+        thread_ = new std::thread(&AsyncReadBuffer::main, this);
         init_ = true;
     }
 
@@ -79,15 +78,16 @@ class TextBuffer {
    protected:
     virtual void main() {
         typename io::LineInputFormat::RecordT record;
+        eof_ = false;
 
         while (!eof_) {
             if (batch_num_ == 0) return;
 
-            auto tmp = new BatchT;
-            (*tmp).reserve(batch_size_);
+            BatchT tmp;
+            tmp.reserve(batch_size_);
             for (int i = 0; i < batch_size_; ++i) {
                 if (infmt_->next(record)) {
-                    (*tmp).push_back(std::move(io::LineInputFormat::recast(record)));
+                    tmp.push_back(std::move(io::LineInputFormat::recast(record)));
                 } else {
                     eof_ = true;
                     break;
@@ -100,9 +100,9 @@ class TextBuffer {
                     if (batch_num_ == 0) return;
                     load_cv_.wait(lock);
                 }
-                if (!(*tmp).empty()) {
+                if (!tmp.empty()) {
                     ++batch_count_;
-                    buffer_[end_] = tmp;
+                    buffer_[end_] = std::move(tmp);
                     if (++end_ >= batch_num_) end_ -= batch_num_;
                 }
             }
@@ -119,7 +119,7 @@ class TextBuffer {
     bool eof_;
 
     // buffer
-    std::vector<boost::string_ref>** buffer_;
+    std::vector<BatchT> buffer_;
     int batch_size_;
     int batch_num_;
     int batch_count_ = 0;
@@ -138,17 +138,8 @@ template <typename T>
 class SampleReader {
    public:
     SampleReader() = delete;
-    SampleReader(int batch_size, int num_features, TextBuffer* tbf) : batch_size_(batch_size), batch_data_(batch_size), num_features_(num_features), tbf_(tbf) {
+    SampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : batch_size_(batch_size), num_features_(num_features), tbf_(tbf) {
         assert(tbf->get_batch_size() == batch_size_);  // may not require equality
-        for (auto s : batch_data_) {
-            s = NULL;
-        }
-    }
-
-    virtual ~SampleReader() {
-        for (auto s : batch_data_) {
-            if (s != NULL) delete s;
-        }
     }
 
     int get_batch_size() const {
@@ -156,21 +147,21 @@ class SampleReader {
     }
 
     virtual std::vector<husky::constants::Key> prepare_next_batch() {
-        for (auto& s : batch_data_) {
-            delete s;
-            s = NULL;
-        }
         index_set_.clear();
-        typename TextBuffer::BatchT* raw = NULL;
-        if (!tbf_->get_batch(raw)) return {};  // empty key
+        typename AsyncReadBuffer::BatchT raw;
+        if (!tbf_->get_batch(raw)) {
+            this->batch_data_.clear();
+            return {0};  // dummy key
+        }
         int idx = 0;
-        for (auto record : (*raw)) {
+        this->batch_data_.resize(raw.size());
+        for (auto record : raw) {
             parse_line(record, idx++);
         }
         return {index_set_.begin(), index_set_.end()};
     }
 
-    const std::vector<T*>& get_data_ptrs() {
+    const std::vector<T>& get_data() {
         return batch_data_;
     }
 
@@ -179,10 +170,10 @@ class SampleReader {
    protected:
     virtual void parse_line(const boost::string_ref& chunk, int pos) = 0;
 
-    TextBuffer* tbf_;
+    AsyncReadBuffer* tbf_;
     int batch_size_;
     int num_features_;
-    std::vector<T*> batch_data_;
+    std::vector<T> batch_data_;
     std::set<husky::constants::Key> index_set_;
 };
 
@@ -191,7 +182,7 @@ class LIBSVMSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<
    public:
     using Sample = husky::lib::ml::LabeledPointHObj<FeatureT, LabelT, is_sparse>;
 
-    LIBSVMSampleReader(int batch_size, int num_features, TextBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
+    LIBSVMSampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
     
     void parse_line(const boost::string_ref& chunk, int pos) override {
         if (chunk.empty())
@@ -199,7 +190,7 @@ class LIBSVMSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<
         boost::char_separator<char> sep(" \t");
         boost::tokenizer<boost::char_separator<char>> tok(chunk, sep);
 
-        Sample* this_obj = new Sample(this->num_features_);
+        Sample this_obj(this->num_features_);
 
         bool is_y = true;
         for (auto& w : tok) {
@@ -209,15 +200,15 @@ class LIBSVMSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<
                 auto it = tok2.begin();
                 int idx = std::stoi(*it++) - 1;  // feature index from 0 to num_fea - 1
                 double val = std::stod(*it++);
-                this_obj->x.set(idx, val);
+                this_obj.x.set(idx, val);
                 this->index_set_.insert(idx);
             } else {
-                this_obj->y = std::stod(w);
+                this_obj.y = std::stod(w);
                 is_y = false;
             }
         }
 
-        this->batch_data_[pos] = this_obj;
+        this->batch_data_[pos] = std::move(this_obj);
     }
 };
 
@@ -226,7 +217,7 @@ class TSVSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<Fea
    public:
     using Sample = husky::lib::ml::LabeledPointHObj<FeatureT, LabelT, is_sparse>;
 
-    TSVSampleReader(int batch_size, int num_features, TextBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
+    TSVSampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
 
     void parse_line(const boost::string_ref& chunk, int pos) override {
         if (chunk.empty())
@@ -234,7 +225,7 @@ class TSVSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<Fea
         boost::char_separator<char> sep(" \t");
         boost::tokenizer<boost::char_separator<char>> tok(chunk, sep);
 
-        Sample this_obj = new Sample(this->num_features_);
+        Sample this_obj(this->num_features_);
 
         int i = 0;
         for (auto& w : tok) {
@@ -246,7 +237,7 @@ class TSVSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<Fea
             }
         }
 
-        this->batch_data_[pos] = this_obj;
+        this->batch_data_[pos] = std::move(this_obj);
     }
 };
 
