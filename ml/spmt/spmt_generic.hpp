@@ -123,8 +123,44 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     }
     virtual void Clock_v2() override { Push(*keys_, delta_); }
 
-    virtual void Load() override { model_->Load(info_.get_local_id(), ""); }
-    virtual void Dump() override { model_->Dump(info_.get_local_id(), ""); }
+    virtual void Load() override {
+        if (info_.get_cluster_id() == 0) {
+            model_->Load(info_.get_local_id(), "");
+        }
+        Sync();
+    }
+
+    virtual void Dump() override {
+        Sync();
+        if (info_.get_cluster_id() == 0) {
+            model_->Dump(info_.get_local_id(), "");
+        }
+        Sync();
+    }
+
+    /*
+     * Serve as a barrier
+     */
+    virtual void Sync() override {
+        if (info_.get_cluster_id() == 0) {  // leader
+            std::vector<std::string> identity_store;
+            for (int i = 0; i < info_.get_num_local_workers() - 1; ++i) {
+                std::string s = husky::zmq_recv_string(&socket_);
+                identity_store.push_back(std::move(s));
+                husky::zmq_recv_dummy(&socket_);  // delimiter
+                husky::zmq_recv_dummy(&socket_);  // dummy msg
+            }
+            // collect all and then reply
+            for (auto& identity : identity_store) {
+                husky::zmq_sendmore_string(&socket_, identity);
+                husky::zmq_sendmore_dummy(&socket_);  // delimiter
+                husky::zmq_send_dummy(&socket_);      // dummy msg
+            }
+        } else {
+            husky::zmq_send_dummy(&socket_);
+            husky::zmq_recv_dummy(&socket_);
+        }
+    }
 
    private:
     /*

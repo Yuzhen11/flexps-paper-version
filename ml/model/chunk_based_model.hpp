@@ -4,8 +4,9 @@
 #include <vector>
 
 #include "core/constants.hpp"
-#include "ml/model/model.hpp"
 #include "kvstore/kvstore.hpp"
+#include "ml/model/dump.hpp"
+#include "ml/model/model.hpp"
 
 namespace ml {
 namespace model {
@@ -22,12 +23,17 @@ class ChunkBasedModel : public Model {
    public:
     ChunkBasedModel(int model_id, int num_params):
         Model(model_id, num_params),
-        params_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
-        is_cached_(kvstore::RangeManager::Get().GetChunkNum(model_id), false) {}
+        num_chunks_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
+        params_(num_chunks_),
+        is_cached_(num_chunks_, false) {}
 
-    void Load(int local_id, const std::string& hint) override {}
-    void Dump(int local_id, const std::string& hint) override {
-        // TODO
+    void Load(int local_id, const std::string& hint) override {
+        // TODO: load all chunks / load frequent params
+        // mark cache status
+    }
+
+    virtual void Dump(int local_id, const std::string& hint) override {
+        DumpAllChunks(local_id, model_id_, params_);
     }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
@@ -59,22 +65,21 @@ class ChunkBasedModel : public Model {
         auto& range_manager = kvstore::RangeManager::Get();
         // The keys should be in ascending order
         std::vector<size_t> chunks_to_fetch;
-        for (size_t i = 0; i < keys.size(); ++ i) {
+        for (size_t i = 0; i < keys.size(); ++i) {
             auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            if (is_cached_[loc.first] == false) {
+            if (is_cached_[loc.first] == false && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
                 chunks_to_fetch.push_back(loc.first);
                 is_cached_[loc.first] = true;
             }
         }
         int ts = fetch_chunk(chunks_to_fetch, local_id);
-        husky::LOG_I << "fetch " << chunks_to_fetch.size() << " chunks";
         wait(ts, local_id);
     }
 
     /*
      * Fetch the given chunks, return a timestamp
      */
-    int fetch_chunk(const std::vector<size_t>& chunks, int local_id) {
+    virtual int fetch_chunk(const std::vector<size_t>& chunks, int local_id) {
         assert(chunks.size() > 0);
         // 1. get kvworker
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
@@ -95,6 +100,7 @@ class ChunkBasedModel : public Model {
         kvworker->Wait(this->model_id_, ts);
     }
 
+    int num_chunks_;
     std::vector<std::vector<float>> params_;  // params in chunks
     std::vector<bool> is_cached_;  // indicate whether chunk has been pulled from kvstore
 };
