@@ -65,7 +65,7 @@ class Worker {
      */
     void send_exit() {
         // stop the model_transfer_manager_
-        model_transfer_manager_->SendHalt();
+        // model_transfer_manager_->SendHalt();
         if (worker_info.get_process_id() == 0) {
             auto& socket = cluster_manager_connector.get_send_socket();
             zmq_send_int32(&socket, constants::kClusterManagerExit);

@@ -35,41 +35,93 @@ int main(int argc, char** argv) {
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context(), 2);
 
-    const int threads_per_worker = 1;
-    // const int MAGIC = 3;
-    const int MAGIC = 480189;
-    const int num_latent_factor = 10;
-    const int chunk_size = num_latent_factor;
-    const float lambda = 0.01;
-    const int num_iters = 10;
-    const bool do_test = true;
-    const int local_read_count = 1000;
+    const int kStartFromOne = 1;  // 1 for netflix, 0 for toy
+    const int kNumUsers = 480189;
+    const int kNumItems = 17770;
+
+    // const int kStartFromOne = 0;  // 1 for netflix, 0 for toy
+    // const int kNumUsers = 3;
+    // const int kNumItems = 3;
+
+    const int kNumNodes = kNumUsers + kNumItems;
+    const int MAGIC = kNumUsers + kStartFromOne;
+
+    const int kThreadsPerWorker = 4;
+    const int kNumLatentFactor = 10;
+    const int kChunkSize = kNumLatentFactor;
+    const float kLambda = 0.01;
+    const int kNumIters = 10;
+    const bool kDoTest = true;
+    const int kLocalReadCount = 1000;
 
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    // ChunkSize: num_latent_factor
-    // MaxKey: chunk_size*num_nodes
+    // ChunkSize: kNumLatentFactor
+    // MaxKey: kChunkSize*num_nodes
     // TODO, need to partition the data nicely
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, MAGIC*2*chunk_size, chunk_size);
+    // kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, MAGIC*2*kChunkSize, kChunkSize);
+
+    // server partition setup
+    std::vector<kvstore::pslite::Range> server_key_ranges;
+    std::vector<kvstore::pslite::Range> server_chunk_ranges;
+    int num_servers = kvstore::RangeManager::Get().GetNumServers();
+    husky::constants::Key max_key = (kNumNodes + kStartFromOne) * kChunkSize;
+    const int kChunkNum = kNumNodes + kStartFromOne;
+    // 1. Partition users to 0 - num_servers/2
+    int num_half_servers = num_servers/2;
+    int chunk_num = (kNumUsers + kStartFromOne);
+    int base = chunk_num / num_half_servers;
+    int remain = chunk_num % num_half_servers;
+    for (int i = 0; i < remain; ++ i) {
+        server_chunk_ranges.push_back(kvstore::pslite::Range(i*(base+1), (i+1)*(base+1)));
+    }
+    int end = remain*(base+1);
+    for (int i = 0; i < num_half_servers - remain - 1; ++ i) {
+        server_chunk_ranges.push_back(kvstore::pslite::Range(end+i*base, end+(i+1)*(base)));
+    }
+    server_chunk_ranges.push_back(kvstore::pslite::Range(end+(num_half_servers-remain-1)*base, chunk_num));
+    // 2. Partition item to num_server/2 - num_servers
+    num_half_servers = num_servers - num_half_servers;
+    chunk_num = (kNumItems + kStartFromOne);
+    base = chunk_num / num_half_servers;
+    remain = chunk_num % num_half_servers;
+    int offset = kNumUsers + kStartFromOne;
+    for (int i = 0; i < remain; ++ i) {
+        server_chunk_ranges.push_back(kvstore::pslite::Range(offset+i*(base+1), offset+(i+1)*(base+1)));
+    }
+    end = remain*(base+1);
+    for (int i = 0; i < num_half_servers - remain - 1; ++ i) {
+        server_chunk_ranges.push_back(kvstore::pslite::Range(offset+end+i*base, offset+end+(i+1)*(base)));
+    }
+    server_chunk_ranges.push_back(kvstore::pslite::Range(offset+end+(num_half_servers-remain-1)*base, offset+chunk_num));
+    // 3. Set server_key_ranges
+    int range_counter = 0;
+    for (auto range : server_chunk_ranges) {
+        if (Context::get_process_id() == 0)
+            husky::LOG_I << range_counter << " ranges: " << range.begin() << " " << range.end();
+        server_key_ranges.push_back(kvstore::pslite::Range(range.begin()*kChunkSize, range.end()*kChunkSize));
+        range_counter += 1;
+    }
+    kvstore::RangeManager::Get().CustomizeRanges(kv1, max_key, kChunkSize, kChunkNum,
+            server_key_ranges, server_chunk_ranges);
 
     // All the process should have this task running
     auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
-    task.set_worker_num({threads_per_worker});
+    task.set_worker_num({kThreadsPerWorker});
     task.set_worker_num_type({"threads_per_worker"});
-    engine.AddTask(task, [&data_store1, kv1, lambda, num_iters](const Info& info) {
+    engine.AddTask(task, [&data_store1, kv1, kLambda, kNumIters, kNumUsers](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         auto& range_manager = kvstore::RangeManager::Get();
 
         std::vector<husky::base::BinStream> send_buffer(info.get_worker_info().get_largest_tid()+1);
         // load
-        int local_tid_ptr = 0;
-        auto parse_func = [&local_tid_ptr, &info, &send_buffer, &range_manager, kv1](boost::string_ref& chunk) {
+        auto parse_func = [&info, &send_buffer, &range_manager, kv1, kNumUsers](boost::string_ref& chunk) {
             // parse
             boost::char_separator<char> sep(" \t");
             boost::tokenizer<boost::char_separator<char>> tok(chunk, sep);
             auto it = tok.begin();
             int user = std::stoi(*it);
             it++;
-            int item = std::stoi(*it) + MAGIC;
+            int item = std::stoi(*it) + kNumUsers;
             it++;
             float rating = std::stof(*it);
             // husky::LOG_I << user << " " << item << " " << rating;
@@ -86,16 +138,14 @@ int main(int argc, char** argv) {
             pid = server_id % num_processes;
             tids = info.get_worker_info().get_tids_by_pid(pid);
             assert(tids.size() > 0);
-            dst = tids[local_tid_ptr++];
-            local_tid_ptr %= tids.size();  // TODO based on the assumption that each process has the same number of threads
+            dst = tids[0];  // TODO: BAD!!!! all source node should go to the same place, not balance at all
             send_buffer[dst] << user << item << rating;
 
             server_id = range_manager.GetServerFromChunk(kv1, item);
             pid = server_id % num_processes;
             tids = info.get_worker_info().get_tids_by_pid(pid);
             assert(tids.size() > 0);
-            dst = tids[local_tid_ptr++];
-            local_tid_ptr %= tids.size();
+            dst = tids[0];
             send_buffer[dst] << item << user << rating;
         };
         husky::io::LineInputFormat infmt;
@@ -112,7 +162,7 @@ int main(int argc, char** argv) {
                 break;
             parse_func(io::LineInputFormat::recast(record));
             count += 1;
-            if (count == local_read_count)
+            if (count == kLocalReadCount)
                 break;
         }
 
@@ -130,7 +180,7 @@ int main(int argc, char** argv) {
                 info.get_worker_info().get_local_tids(), info.get_worker_info().get_pids());
 
         // 3. Receive and Store the data
-        std::unordered_map<int, Node> local_nodes;
+        std::map<int, Node> local_nodes;  // use tree map to maintain the order
         while (mailbox->poll(0,0)) {
             auto bin = mailbox->recv(0,0);
             int from, to; float r;
@@ -148,9 +198,9 @@ int main(int argc, char** argv) {
         }
 
         // 4. Main loop
-        for (int iter = 0; iter < num_iters; ++ iter) {
-            float local_rmse = 0;  // for do_test
-            int num_local_edges = 0;  // for do_test
+        for (int iter = 0; iter < kNumIters; ++ iter) {
+            float local_rmse = 0;  // for kDoTest
+            int num_local_edges = 0;  // for kDoTest
 
             auto start_time = std::chrono::steady_clock::now();
             std::map<size_t, Eigen::VectorXf> other_factors;  // map from chunk_ids to params
@@ -162,34 +212,27 @@ int main(int argc, char** argv) {
                     for (auto& p : kv.second.nbs) {
                         keys.insert(p.first);
                     }
-                }
-                if (do_test) {  // if do test, also need the parameters
-                    keys.insert(kv.first);
+                    if (kDoTest) {  // if do test, also need the parameters
+                        keys.insert(kv.first);
+                    }
                 }
             }
-            if (iter > 1) {
+            if (iter > 0) {
                 std::vector<size_t> chunk_ids{keys.begin(), keys.end()};
                 std::vector<std::vector<float>> params(chunk_ids.size());
                 std::vector<std::vector<float>*> p_params(chunk_ids.size());
                 for (size_t i = 0; i < chunk_ids.size(); ++ i)
                     p_params[i] = &params[i];
+                // Pull from kvstore
                 int ts = kvworker->PullChunks(kv1, chunk_ids, p_params, false);
                 kvworker->Wait(kv1, ts);
-                // print
-                // for (size_t i = 0; i < chunk_ids.size(); ++ i) {
-                //     husky::LOG_I << "keys: " << chunk_ids[i];
-                //     for (auto elem : params[i]) {
-                //         std::cout << elem << " ";
-                //     }
-                //     std::cout << std::endl;
-                // }
                 for (size_t i = 0; i < chunk_ids.size(); ++ i) {
-                    other_factors.insert({chunk_ids[i], Eigen::Map<Eigen::VectorXf>(&params[i][0], num_latent_factor)});
+                    other_factors.insert({chunk_ids[i], Eigen::Map<Eigen::VectorXf>(&params[i][0], kNumLatentFactor)});
                 }
-            } else {  // if iter == 0 or 1, random generate parameter
+            } else {  // if iter == 0, random generate parameter
                 for (auto key : keys) {
                     Eigen::VectorXf v;
-                    v.resize(num_latent_factor);
+                    v.resize(kNumLatentFactor);
                     v.setRandom();
                     other_factors.insert({key, std::move(v)});
                 }
@@ -204,10 +247,10 @@ int main(int argc, char** argv) {
                 if ((iter % 2 == 0 && kv.first < MAGIC) ||
                     (iter % 2 == 1 && kv.first >= MAGIC)) {
                     Eigen::MatrixXf sum_mat;
-                    Eigen::VectorXf sum_vec = Eigen::VectorXf::Zero(num_latent_factor);
+                    Eigen::VectorXf sum_vec = Eigen::VectorXf::Zero(kNumLatentFactor);
                     for (auto p : kv.second.nbs) {  // all the neighbors
                         if (sum_mat.size() == 0) {
-                            sum_mat.resize(num_latent_factor, num_latent_factor);
+                            sum_mat.resize(kNumLatentFactor, kNumLatentFactor);
                             sum_mat.triangularView<Eigen::Upper>() = other_factors[p.first] * other_factors[p.first].transpose();
                         } else {
                             sum_mat.triangularView<Eigen::Upper>() += other_factors[p.first] * other_factors[p.first].transpose();
@@ -215,17 +258,30 @@ int main(int argc, char** argv) {
                         sum_vec += other_factors[p.first]*p.second;
 
                         // predict
-                        if (do_test) {
+                        if (kDoTest) {
                             float pred = other_factors[kv.first].dot(other_factors[p.first]);
                             if (pred > 5.) pred = 5.;
                             if (pred < 1.) pred = 1.;
-                            // husky::LOG_I << BLUE("edges: " + std::to_string(kv.first)+" "+std::to_string(p.first));
-                            // husky::LOG_I << BLUE("predict: " + std::to_string(pred) + " truth: " + std::to_string(p.second));
+                            // if (kv.first == 106859) {
+                            //     std::cout << "id: " << kv.first << " : ";
+                            //     for (int i = 0; i < kNumLatentFactor; ++ i) {
+                            //         std::cout << other_factors[kv.first][i] << " ";
+                            //     }
+                            //     std::cout << std::endl;
+                            //
+                            //     std::cout << "id: " << p.first << " : ";
+                            //     for (int i = 0; i < kNumLatentFactor; ++ i) {
+                            //         std::cout << other_factors[p.first][i] << " ";
+                            //     }
+                            //     std::cout << std::endl;
+                            //     husky::LOG_I << BLUE("edges: " + std::to_string(kv.first)+" "+std::to_string(p.first));
+                            //     husky::LOG_I << BLUE("predict: " + std::to_string(pred) + " truth: " + std::to_string(p.second));
+                            // }
                             local_rmse += (pred - p.second)*(pred - p.second);
                             num_local_edges += 1;
                         }
                     }
-                    float reg = lambda * kv.second.nbs.size();  // TODO
+                    float reg = kLambda * kv.second.nbs.size();  // TODO
                     for (int i = 0; i < sum_mat.rows(); ++ i)
                         sum_mat(i,i) += reg;
                     Eigen::VectorXf factor = sum_mat.selfadjointView<Eigen::Upper>().ldlt().solve(sum_vec);
@@ -233,19 +289,12 @@ int main(int argc, char** argv) {
                     send_params.push_back(std::vector<float>(factor.data(), factor.data()+factor.rows()*factor.cols()));  // copy
                 }
             }
+
             p_send_params.reserve(send_chunk_ids.size());
             for (auto& vec : send_params) {
                 p_send_params.push_back(&vec);
             }
             // 7. Push to kvstore
-            // print
-            // for (int i = 0; i < send_chunk_ids.size(); ++ i) {
-            //     husky::LOG_I << "sending: " << send_chunk_ids[i];
-            //     for (auto elem : send_params[i]) {
-            //         std::cout << elem << " ";
-            //     }
-            //     std::cout << std::endl;
-            // }
             int ts = kvworker->PushChunks(kv1, send_chunk_ids, p_send_params, false);
             kvworker->Wait(kv1, ts);
 
@@ -257,7 +306,8 @@ int main(int argc, char** argv) {
             }
             
             // 9. Test error
-            if (do_test) {
+            if (kDoTest) {
+                // if (info.get_cluster_id() == 0)
                 if (num_local_edges != 0)
                     husky::LOG_I << BLUE("cluster id: " + std::to_string(info.get_cluster_id()) + 
                             "; nums of local edges: " + std::to_string(num_local_edges) + 

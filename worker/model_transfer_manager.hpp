@@ -29,6 +29,9 @@ class ModelTransferManager {
         worker_info_(worker_info) {
         Serve(el);
     }
+    ~ModelTransferManager() {
+        SendHalt();
+    }
     ModelTransferManager(const ModelTransferManager&) = delete;
     ModelTransferManager& operator=(const ModelTransferManager&) = delete;
 

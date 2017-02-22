@@ -475,7 +475,7 @@ class KVWorker {
         pos[0] = 0;
         int pos_id = 1;
         for (size_t i = 0; i < chunk_ids.size(); ++ i) {
-            if (chunk_ids[i]*chunk_size >= ranges[range_id].end()) {
+            while (chunk_ids[i]*chunk_size >= ranges[range_id].end()) {
                 pos[pos_id] = i;
                 pos_id += 1;
                 range_id += 1;

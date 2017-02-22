@@ -118,6 +118,33 @@ class RangeManager {
         server_chunk_ranges_[kv_id].push_back(
             pslite::Range((end + (num_servers_ - remain - 1) * base), chunk_num));
     }
+    
+    /*
+     * A complicated function for user to directly register the partitions
+     */
+    void CustomizeRanges(int kv_id,
+            husky::constants::Key max_key,
+            int chunk_size,
+            int chunk_num,
+            const std::vector<pslite::Range>& server_key_ranges,
+            const std::vector<pslite::Range>& server_chunk_ranges) {
+        assert(num_servers_ > 0);
+        assert(server_key_ranges.size() == num_servers_);
+        assert(server_chunk_ranges.size() == num_servers_);
+        if (kv_id >= server_key_ranges_.size()) {
+            server_key_ranges_.resize(kv_id + 1);
+            server_chunk_ranges_.resize(kv_id + 1);
+            max_keys_.resize(kv_id+1);
+            chunk_sizes_.resize(kv_id+1);
+            chunk_nums_.resize(kv_id+1);
+        }
+        // Set
+        server_key_ranges_[kv_id] = server_key_ranges;
+        server_chunk_ranges_[kv_id] = server_chunk_ranges;
+        chunk_sizes_[kv_id] = chunk_size;
+        chunk_nums_[kv_id] = chunk_num;
+        max_keys_[kv_id] = max_key;
+    }
 
     /*
      * Get the server id for a given key

@@ -94,5 +94,35 @@ TEST_F(TestRangeManager, GetServer) {
     EXPECT_EQ(range_manager.GetServerFromChunk(0, 4), 2);
 }
 
+TEST_F(TestRangeManager, CustomizeRanges) {
+    // num_servers: 3, chunk_size: 2, max_key: 9
+    // the result should be:
+    // 5 chunks
+    // {2, 2, 1}
+    // {[0, 4), [4, 8), [8, 9)}
+    auto& range_manager = kvstore::RangeManager::Get();
+    range_manager.SetNumServers(3);
+    int chunk_size = 2;
+    int chunk_num = 5;
+    husky::constants::Key max_key = 9;
+    std::vector<kvstore::pslite::Range> server_key_ranges({{0, 4}, {4, 8}, {8, 9}});
+    std::vector<kvstore::pslite::Range> server_chunk_ranges({{0, 2}, {2, 4}, {4, 5}});
+    range_manager.CustomizeRanges(0, max_key, chunk_size, 
+            chunk_num, server_key_ranges, server_chunk_ranges);
+
+    for (int i = 0; i < 4; ++ i)
+        EXPECT_EQ(range_manager.GetServerFromKey(0, i), 0);
+    for (int i = 4; i < 8; ++ i)
+        EXPECT_EQ(range_manager.GetServerFromKey(0, i), 1);
+    for (int i = 8; i < 9; ++ i)
+        EXPECT_EQ(range_manager.GetServerFromKey(0, i), 2);
+
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 0), 0);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 1), 0);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 2), 1);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 3), 1);
+    EXPECT_EQ(range_manager.GetServerFromChunk(0, 4), 2);
+}
+
 }  // namespace
 }  // namespace husky
