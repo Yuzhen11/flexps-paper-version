@@ -28,11 +28,12 @@ add_definitions(${HUSKY_EXTERNAL_DEFINITION})
 add_subdirectory(worker)
 add_subdirectory(core)
 add_subdirectory(kvstore)
+add_subdirectory(cluster_manager)
 
 
 # build libhusky-ml.a
 set(husky-ml-objs $<TARGET_OBJECTS:mlworker-objs> $<TARGET_OBJECTS:mlcore-objs> 
-                  $<TARGET_OBJECTS:mlkvstore-objs>)
+    $<TARGET_OBJECTS:mlkvstore-objs> $<TARGET_OBJECTS:mlmanager-objs> $<TARGET_OBJECTS:mlmanager-scheduler-objs>)
 add_library(husky-ml STATIC ${husky-ml-objs})
 
 add_library(husky-ml-master STATIC $<TARGET_OBJECTS:mlcore-objs>)
