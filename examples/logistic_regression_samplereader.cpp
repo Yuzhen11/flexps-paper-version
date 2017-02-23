@@ -144,7 +144,8 @@ int main(int argc, char** argv) {
 
     // create a AsyncReadBuffer
     int batch_size = 100, batch_num = 50;
-    auto buffer = new AsyncReadBuffer(Context::get_param("input"), batch_size, batch_num, false);
+    auto buffer = new AsyncReadBuffer(batch_size, batch_num);
+    buffer->set_input(Context::get_param("input"), num_load_workers, task1.get_id());
 
     engine.AddTask(std::move(task1), [num_iters, alpha, num_params, num_features, buffer](const Info& info) {
         buffer->init();
