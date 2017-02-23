@@ -28,13 +28,6 @@ int main(int argc, char** argv) {
     if (!rt)
         return 1;
 
-    auto& engine = Engine::Get();
-    // Create DataStore
-    datastore::DataStore<std::string> data_store1(Context::get_worker_info().get_num_local_workers());
-    // Start kvstore, should start after mailbox is up
-    kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
-                                  Context::get_zmq_context(), 2);
-
     const int kStartFromOne = 1;  // 1 for netflix, 0 for toy
     const int kNumUsers = 480189;
     const int kNumItems = 17770;
@@ -46,13 +39,21 @@ int main(int argc, char** argv) {
     const int kNumNodes = kNumUsers + kNumItems;
     const int MAGIC = kNumUsers + kStartFromOne;
 
-    const int kThreadsPerWorker = 4;
+    const int kServersPerWorker = 10;  // 10 is the largest
+    const int kThreadsPerWorker = 10;
     const int kNumLatentFactor = 10;
     const int kChunkSize = kNumLatentFactor;
     const float kLambda = 0.01;
-    const int kNumIters = 10;
+    const int kNumIters = 40;
     const bool kDoTest = true;
-    const int kLocalReadCount = 1000;
+    const int kLocalReadCount = -1;
+
+    auto& engine = Engine::Get();
+    // Create DataStore
+    datastore::DataStore<std::string> data_store1(Context::get_worker_info().get_num_local_workers());
+    // Start kvstore, should start after mailbox is up
+    kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
+                                  Context::get_zmq_context(), kServersPerWorker);
 
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
     // ChunkSize: kNumLatentFactor
@@ -136,16 +137,16 @@ int main(int argc, char** argv) {
 
             server_id = range_manager.GetServerFromChunk(kv1, user);
             pid = server_id % num_processes;
-            tids = info.get_worker_info().get_tids_by_pid(pid);
-            assert(tids.size() > 0);
-            dst = tids[0];  // TODO: BAD!!!! all source node should go to the same place, not balance at all
+            tids = info.get_worker_info().get_tids_by_pid(pid);  // the result tids must be the same in each machine
+            assert(tids.size() == kThreadsPerWorker);
+            dst = tids[user % kThreadsPerWorker];  // first locate the process, then hash partition
             send_buffer[dst] << user << item << rating;
 
             server_id = range_manager.GetServerFromChunk(kv1, item);
             pid = server_id % num_processes;
             tids = info.get_worker_info().get_tids_by_pid(pid);
-            assert(tids.size() > 0);
-            dst = tids[0];
+            assert(tids.size() == kThreadsPerWorker);
+            dst = tids[item % kThreadsPerWorker];
             send_buffer[dst] << item << user << rating;
         };
         husky::io::LineInputFormat infmt;
@@ -311,7 +312,8 @@ int main(int argc, char** argv) {
                 if (num_local_edges != 0)
                     husky::LOG_I << BLUE("cluster id: " + std::to_string(info.get_cluster_id()) + 
                             "; nums of local edges: " + std::to_string(num_local_edges) + 
-                            "; local rmse: "+std::to_string(local_rmse));
+                            "; local rmse: " + std::to_string(local_rmse) +
+                            "; aveg rmse: " + std::to_string(local_rmse/num_local_edges));
             }
 
             auto end_time = std::chrono::steady_clock::now();
