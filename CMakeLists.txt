@@ -1,4 +1,4 @@
-# Copyright 2016 Husky Team
+# Copyright 2017 Husky Team
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,25 @@ set(dep_DIR ${PROJECT_SOURCE_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 
 
-# add_subdirectory(base)
-# add_subdirectory(core)
-# add_subdirectory(worker)
-# add_subdirectory(master)
+# use submodule
 add_subdirectory(husky)
+
+# use the definition
+add_definitions(${HUSKY_EXTERNAL_DEFINITION})
+
+# all the components
+add_subdirectory(worker)
+add_subdirectory(core)
+add_subdirectory(kvstore)
+
+
+# build libhusky-ml.a
+set(husky-ml-objs $<TARGET_OBJECTS:mlworker-objs> $<TARGET_OBJECTS:mlcore-objs> 
+                  $<TARGET_OBJECTS:mlkvstore-objs>)
+add_library(husky-ml STATIC ${husky-ml-objs})
+
+add_library(husky-ml-master STATIC $<TARGET_OBJECTS:mlcore-objs>)
+
+# build the examples and test
 add_subdirectory(examples)
 add_subdirectory(test)

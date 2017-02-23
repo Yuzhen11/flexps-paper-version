@@ -14,13 +14,13 @@
 
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${Boost_INCLUDE_DIRS})
 
-file(GLOB mlworker-src-files
-    instance_runner.cpp
-    model_transfer_manager.cpp
-    model_transfer_store.cpp
-    engine.cpp
-    worker.cpp)
-husky_cache_variable(mlworker-src-files ${mlworker-src-files})
+file(GLOB mlkvstore-src-files
+    kvstore.cpp
+    range_manager.cpp
+    workercustomer.cpp
+    servercustomer.cpp
+    )
+husky_cache_variable(mlkvstore-src-files ${mlkvstore-src-files})
 
-add_library(mlworker-objs OBJECT ${mlworker-src-files})
-husky_default_properties(mlworker-objs)
+add_library(mlkvstore-objs OBJECT ${mlkvstore-src-files})
+husky_default_properties(mlkvstore-objs)

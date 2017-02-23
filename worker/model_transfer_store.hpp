@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <unordered_map>
 #include <mutex>
 
@@ -15,20 +16,12 @@ class ModelTransferStore {
     /*
      * Add a model
      */
-    void Add(int id, std::vector<float>&& param) {
-        std::lock_guard<std::mutex> lck(mtx_);
-        model_store_.insert({id, std::move(param)});
-    }
+    void Add(int id, std::vector<float>&& param);
+
     /*
      * Pop the model
      */
-    std::vector<float> Pop(int id) {
-        std::lock_guard<std::mutex> lck(mtx_);
-        assert(model_store_.find(id) != model_store_.end());
-        std::vector<float> tmp = std::move(model_store_[id]);
-        model_store_.erase(id);
-        return std::move(tmp);
-    }
+    std::vector<float> Pop(int id);
 
     ModelTransferStore(const ModelTransferStore&) = delete;
     ModelTransferStore& operator=(const ModelTransferStore&) = delete;

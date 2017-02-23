@@ -176,8 +176,8 @@ class HuskyTask : public Task {
 
 namespace task {
 namespace {
-// Conversion functions to cast down along the task hierarchy
 
+// Conversion functions to cast down along the task hierarchy
 std::unique_ptr<Task> deserialize(BinStream& bin) {
     Task::Type type;
     bin >> type;
@@ -212,6 +212,7 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
     }
     return ret;
 }
+
 /*
  * Serialize task bin to std::vector<std::shared_ptr<tasks>>
  *

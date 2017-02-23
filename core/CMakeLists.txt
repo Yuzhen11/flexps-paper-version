@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${Boost_INCLUDE_DIRS})
 
-file(GLOB mlworker-src-files
-    instance_runner.cpp
-    model_transfer_manager.cpp
-    model_transfer_store.cpp
-    engine.cpp
-    worker.cpp)
-husky_cache_variable(mlworker-src-files ${mlworker-src-files})
+file(GLOB mlcore-src-files
+    instance.cpp
+    )
+husky_cache_variable(mlcore-src-files ${mlcore-src-files})
 
-add_library(mlworker-objs OBJECT ${mlworker-src-files})
-husky_default_properties(mlworker-objs)
+add_library(mlcore-objs OBJECT ${mlcore-src-files})
+husky_default_properties(mlcore-objs)
