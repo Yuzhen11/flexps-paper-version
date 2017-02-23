@@ -96,6 +96,8 @@ class KVStore {
                 k += 1;
             }
         }
+        // Set the Rangemanager's NumServers, so RangeManager is ready
+        RangeManager::Get().SetNumServers(kvservers.size()*num_processes_);
     }
     /*
      * \brief kvstore stop function
@@ -104,6 +106,7 @@ class KVStore {
         is_started_ = false;
         kv_id = 0;
         num_processes_ = -1;
+        // Clear the RangeManager
         RangeManager::Get().Clear();
         // 1. delete the kvworkers
         for (auto* p : kvworkers) {
@@ -137,7 +140,6 @@ class KVStore {
     int CreateKVStore(const std::string& hint = "") {
         assert(is_started_);
         // set the default max key and chunk size
-        RangeManager::Get().SetNumServers(kvservers.size()*num_processes_);
         RangeManager::Get().SetMaxKeyAndChunkSize(kv_id);  
         for (auto* kvserver : kvservers) {
             kvserver->CreateKVManager<Val>(kv_id, hint);

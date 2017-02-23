@@ -95,9 +95,6 @@ class RangeManager {
         size_t base = chunk_num / num_servers_;
         size_t remain = chunk_num % num_servers_;
         for (size_t i = 0; i < remain; ++ i) {
-            server_key_ranges_[kv_id].push_back(
-                pslite::Range(i * (base + 1) * chunk_size,
-                              (i + 1) * (base + 1) * chunk_size));
             server_chunk_ranges_[kv_id].push_back(
                 pslite::Range(i * (base + 1),
                               (i + 1) * (base + 1)));
@@ -105,18 +102,38 @@ class RangeManager {
         // [remain, num_servers_-1)
         size_t end = remain * (base + 1);
         for (size_t i = 0; i < num_servers_ - remain - 1; ++ i) {
-            server_key_ranges_[kv_id].push_back(
-                pslite::Range((end + i * base) * chunk_size,
-                              (end + (i + 1) * base) * chunk_size));
             server_chunk_ranges_[kv_id].push_back(
                 pslite::Range((end + i * base),
                               (end + (i + 1) * base)));
         }
         // num_servers_
-        server_key_ranges_[kv_id].push_back(
-            pslite::Range((end + (num_servers_ - remain - 1) * base) * chunk_size, max_key));
         server_chunk_ranges_[kv_id].push_back(
             pslite::Range((end + (num_servers_ - remain - 1) * base), chunk_num));
+
+        for (auto range : server_chunk_ranges_[kv_id]) {
+            server_key_ranges_[kv_id].push_back(pslite::Range(range.begin()*chunk_size, range.end()*chunk_size));
+        }
+        server_key_ranges_[kv_id].back() = pslite::Range(server_key_ranges_[kv_id].back().begin(), max_key);  // the last one may overflow
+
+        // Go from the last one to make some modification for the case:
+        // max_key: 3, chunk_size: 10, num_server: 3
+        // [0,1), [1,1), [1,1)
+        // [0,10), [10,10), [10,10) -> [0,3), [3,3), [3,3)
+        auto& last_one = server_key_ranges_[kv_id].back();
+        if (last_one.begin() > last_one.end())
+            last_one = pslite::Range(max_key, max_key);
+        for (int i = server_key_ranges_[kv_id].size() - 2; i >= 0; -- i) {
+            auto& this_one = server_key_ranges_[kv_id][i];
+            auto& next_one = server_key_ranges_[kv_id][i+1];
+            if (this_one.end() > next_one.begin()) {
+                this_one = pslite::Range(this_one.begin(), next_one.begin());
+                if (this_one.begin() > this_one.end()) {
+                    this_one = pslite::Range(this_one.end(), this_one.end());
+                }
+            } else {
+                break;
+            }
+        }
     }
     
     /*
@@ -185,6 +202,9 @@ class RangeManager {
     }
     size_t GetChunkNum(int kv_id) {
         return chunk_nums_[kv_id];
+    }
+    husky::constants::Key GetMaxKey(int kv_id) {
+        return max_keys_[kv_id];
     }
     size_t GetLastChunkSize(int kv_id) {
         if (max_keys_[kv_id]%chunk_sizes_[kv_id] != 0)

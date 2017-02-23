@@ -23,6 +23,25 @@ class TestRangeManager: public testing::Test {
     }
 };
 
+TEST_F(TestRangeManager, DefaultSetting) {
+    auto& range_manager = kvstore::RangeManager::Get();
+    range_manager.SetNumServers(1);
+    range_manager.SetMaxKeyAndChunkSize(0);
+    auto max = std::numeric_limits<husky::constants::Key>::max();
+    EXPECT_EQ(range_manager.GetMaxKey(0), max);
+    EXPECT_EQ(range_manager.GetChunkSize(0), 100);
+    EXPECT_EQ(range_manager.GetChunkNum(0), (max-1)/100+1);
+    auto server_key_ranges = range_manager.GetServerKeyRanges(0);
+    EXPECT_EQ(server_key_ranges.size(), 1);
+    EXPECT_EQ(server_key_ranges[0].begin(), 0);
+    EXPECT_EQ(server_key_ranges[0].end(), max);
+    auto server_chunk_ranges = range_manager.GetServerChunkRanges(0);
+    EXPECT_EQ(server_chunk_ranges.size(), 1);
+    EXPECT_EQ(server_chunk_ranges[0].begin(), 0);
+    EXPECT_EQ(server_chunk_ranges[0].end(), range_manager.GetChunkNum(0));
+}
+
+
 TEST_F(TestRangeManager, SetNumServers) {
     auto& range_manager = kvstore::RangeManager::Get();
     int num_servers = range_manager.GetNumServers();
@@ -44,6 +63,30 @@ TEST_F(TestRangeManager, GetNumRanges) {
     EXPECT_EQ(range_manager.GetNumRanges(), 0);
 }
 
+TEST_F(TestRangeManager, SetMaxKeyAndChunkSizeStrange) {
+    auto& range_manager = kvstore::RangeManager::Get();
+    range_manager.SetNumServers(3);
+    range_manager.SetMaxKeyAndChunkSize(0, 3, 10);
+    // num_servers: 3, chunk_size: 10, max_key: 3
+    // the result should be:
+    // 1 chunks
+    // {1, 0, 0} -> {[0, 1), [1, 1), [1, 1)}
+    // {[0, 3), [3, 3), [3, 3)}
+    auto ranges = range_manager.GetServerKeyRanges(0);
+    EXPECT_EQ(ranges[0].begin(), 0);
+    EXPECT_EQ(ranges[0].end(), 3);
+    EXPECT_EQ(ranges[1].begin(), 3);
+    EXPECT_EQ(ranges[1].end(), 3);
+    EXPECT_EQ(ranges[2].begin(), 3);
+    EXPECT_EQ(ranges[2].end(), 3);
+    auto chunk_ranges = range_manager.GetServerChunkRanges(0);
+    EXPECT_EQ(chunk_ranges[0].begin(), 0);
+    EXPECT_EQ(chunk_ranges[0].end(), 1);
+    EXPECT_EQ(chunk_ranges[1].begin(), 1);
+    EXPECT_EQ(chunk_ranges[1].end(), 1);
+    EXPECT_EQ(chunk_ranges[2].begin(), 1);
+    EXPECT_EQ(chunk_ranges[2].end(), 1);
+}
 TEST_F(TestRangeManager, SetMaxKeyAndChunkSize) {
     auto& range_manager = kvstore::RangeManager::Get();
     range_manager.SetNumServers(3);
@@ -52,7 +95,7 @@ TEST_F(TestRangeManager, SetMaxKeyAndChunkSize) {
     // num_servers: 3, chunk_size: 2, max_key: 9
     // the result should be:
     // 5 chunks
-    // {2, 2, 1}
+    // {2, 2, 1} -> {[0, 2), [2, 4), [4, 5)}
     // {[0, 4), [4, 8), [8, 9)}
     range_manager.SetMaxKeyAndChunkSize(0, 9, 2);
     auto ranges = range_manager.GetServerKeyRanges(0);
