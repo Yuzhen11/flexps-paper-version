@@ -9,8 +9,10 @@
 #include "boost/tokenizer.hpp"
 #include "boost/utility/string_ref.hpp"
 #include "core/constants.hpp"
+#include "husky/io/input/line_inputformat.hpp"
 #include "io/input/line_inputformat_ml.hpp"
 #include "husky/lib/ml/feature_label.hpp"
+#include "core/color.hpp"
 
 namespace husky {
 namespace {
@@ -18,7 +20,10 @@ namespace {
 class AsyncReadBuffer {
    public:
     using BatchT = std::vector<boost::string_ref>;
-    // contructor takes 4 args: hdfs path, number of lines per batch, number of batches, initialize
+
+    /* 
+     * contructor takes 2 args: number of lines per batch, number of batches
+     */
     AsyncReadBuffer(int batch_size, int batch_num) : 
         batch_size_(batch_size),
         batch_num_(batch_num),
@@ -28,15 +33,21 @@ class AsyncReadBuffer {
     virtual ~AsyncReadBuffer() {
         batch_num_ = 0;
         load_cv_.notify_all();
-        thread_->join();
-        delete thread_;
-        delete infmt_;
+        thread_.join();
     }
 
+    /*
+     * All the AsyncReadBuffer should set_input before use
+     *
+     * \param url the file url in hdfs
+     * \param num_threads the number of worker threads we are using
+     * \param task_id identifier to this running task
+     * \param whether start the thread now
+     */
     void set_input(const std::string& url, int num_threads, int task_id, bool _init = true) {
         // 1. set input format 
-        infmt_ = new io::LineInputFormatML(num_threads, task_id);
-	infmt_->set_input(url);
+        infmt_.reset(new io::LineInputFormatML(num_threads, task_id));
+        infmt_->set_input(url);
         // 2. start a new thread
         if (_init) init();
     }
@@ -59,11 +70,14 @@ class AsyncReadBuffer {
         return true;
     }
 
+    /*
+     * Function to initialize the reader threads
+     */
     void init() {
         if (init_) return;
         std::lock_guard<std::mutex> lock(mutex_);
         if (init_) return;
-        thread_ = new std::thread(&AsyncReadBuffer::main, this);
+        thread_ = std::thread(&AsyncReadBuffer::main, this);
         init_ = true;
     }
 
@@ -85,11 +99,12 @@ class AsyncReadBuffer {
         while (!eof_) {
             if (batch_num_ == 0) return;
 
+            // Try to fill a batch
             BatchT tmp;
             tmp.reserve(batch_size_);
             for (int i = 0; i < batch_size_; ++i) {
                 if (infmt_->next(record)) {
-                    tmp.push_back(std::move(io::LineInputFormatML::recast(record)));
+                    tmp.push_back(std::move(io::LineInputFormat::recast(record)));
                 } else {
                     eof_ = true;
                     break;
@@ -97,6 +112,7 @@ class AsyncReadBuffer {
             }
 
             {
+                // Block if the buffer is full
                 std::unique_lock<std::mutex> lock(mutex_);
                 while (batch_count_ == batch_num_) {
                     if (batch_num_ == 0) return;
@@ -110,26 +126,22 @@ class AsyncReadBuffer {
             }
             get_cv_.notify_one();
         }
-
-        init_ = false;
     }
 
-    using LineInputFormat = husky::io::LineInputFormat;
-
     // input
-    io::LineInputFormatML* infmt_ = nullptr;
+    std::unique_ptr<io::LineInputFormat> infmt_;
     bool eof_;
 
     // buffer
     std::vector<BatchT> buffer_;
-    int batch_size_;
-    int batch_num_;
-    int batch_count_ = 0;
-    int end_ = 0;
-    int start_ = 0;
+    int batch_size_;  // the size of each batch
+    int batch_num_;  // max buffered batch number
+    int batch_count_ = 0;  // unread buffered batch number
+    int end_ = 0;  // writer appends to the end_
+    int start_ = 0;  // reader reads from the start_
     
     // thread
-    std::thread* thread_ = nullptr;
+    std::thread thread_;
     std::mutex mutex_;
     std::condition_variable load_cv_;
     std::condition_variable get_cv_;

@@ -23,9 +23,11 @@ int main(int argc, char** argv) {
     auto task = TaskFactory::Get().CreateTask<HuskyTask>(2, 2); // 2 epoch, 2 workers
     AsyncReadBuffer buffer(batch_size, batch_num);
     // input=hdfs:///datasets/classification/a9
-    buffer.set_input(Context::get_param("input"), 4, task.get_id());
+    buffer.set_input(Context::get_param("input"), 4, task.get_id(), false);
     engine.AddTask(std::move(task), [&buffer, &batch_size, &batch_num, &num_features](const Info& info) {
         buffer.init();  // start buffer
+        // TODO: it's possible that threads cannot read any data in the first epoch
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         /* load with AsyncReadBuffer
         std::vector<boost::string_ref> batch;
@@ -54,7 +56,7 @@ int main(int argc, char** argv) {
     // create the buffer for loading data from hdfs (a shared buffer in a process)
     auto task1 = TaskFactory::Get().CreateTask<HuskyTask>(1, 3); // 1 epoch, 3 workers
     AsyncReadBuffer buffer1(batch_size, batch_num);
-    buffer1.set_input(Context::get_param("input"), 4, task1.get_id());
+    buffer1.set_input(Context::get_param("input"), 4, task1.get_id(), false);
     engine.AddTask(std::move(task1), [&buffer1, &batch_size, &batch_num, &num_features](const Info& info) {
         buffer1.init();  // start buffer
 
