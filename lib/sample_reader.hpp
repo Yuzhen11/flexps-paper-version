@@ -9,8 +9,7 @@
 #include "boost/tokenizer.hpp"
 #include "boost/utility/string_ref.hpp"
 #include "core/constants.hpp"
-#include "husky/io/input/inputformat_store.hpp"
-#include "husky/io/input/line_inputformat.hpp"
+#include "io/input/line_inputformat_ml.hpp"
 #include "husky/lib/ml/feature_label.hpp"
 
 namespace husky {
@@ -20,16 +19,10 @@ class AsyncReadBuffer {
    public:
     using BatchT = std::vector<boost::string_ref>;
     // contructor takes 4 args: hdfs path, number of lines per batch, number of batches, initialize
-    AsyncReadBuffer(const std::string& url, int batch_size, int batch_num, bool _init = true) : 
+    AsyncReadBuffer(int batch_size, int batch_num) : 
         batch_size_(batch_size),
         batch_num_(batch_num),
-        buffer_(batch_num) {
-            // 1. set input format 
-            infmt_ = &husky::io::InputFormatStore::create_line_inputformat();
-            infmt_->set_input(url);
-            // 2. start a new thread
-            if (_init) init();
-    }
+        buffer_(batch_num) {}
 
     // destructor: stop thread and clear buffer
     virtual ~AsyncReadBuffer() {
@@ -37,6 +30,15 @@ class AsyncReadBuffer {
         load_cv_.notify_all();
         thread_->join();
         delete thread_;
+        delete infmt_;
+    }
+
+    void set_input(const std::string& url, int num_threads, int task_id, bool _init = true) {
+        // 1. set input format 
+        infmt_ = new io::LineInputFormatML(num_threads, task_id);
+	infmt_->set_input(url);
+        // 2. start a new thread
+        if (_init) init();
     }
 
     // store batch_size_ lines in the batch and return true if success
@@ -87,7 +89,7 @@ class AsyncReadBuffer {
             tmp.reserve(batch_size_);
             for (int i = 0; i < batch_size_; ++i) {
                 if (infmt_->next(record)) {
-                    tmp.push_back(std::move(io::LineInputFormat::recast(record)));
+                    tmp.push_back(std::move(io::LineInputFormatML::recast(record)));
                 } else {
                     eof_ = true;
                     break;
@@ -115,7 +117,7 @@ class AsyncReadBuffer {
     using LineInputFormat = husky::io::LineInputFormat;
 
     // input
-    LineInputFormat* infmt_ = nullptr;
+    io::LineInputFormatML* infmt_ = nullptr;
     bool eof_;
 
     // buffer
