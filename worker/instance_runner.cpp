@@ -99,8 +99,9 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
                           std::to_string(local_threads.size()) + "/" + std::to_string(instance->get_num_threads()) +
                           " run on process " + std::to_string(worker_info_.get_process_id()));
     for (auto tid_cid : local_threads) {
-        // worker threads
-        units_[tid_cid.first] = std::move(Unit([this, instance, tid_cid] {
+        // worker threads must not be joinable (must be free)
+        assert(units_[tid_cid.first].joinable() == false);
+        units_[tid_cid.first] = std::thread([this, instance, tid_cid] {
             // set the info
             Info info = info_factory(instance, tid_cid);
 
@@ -125,7 +126,7 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
             zmq_sendmore_int32(&socket, constants::kThreadFinished);
             zmq_sendmore_int32(&socket, instance->get_id());
             zmq_send_int32(&socket, tid_cid.first);
-        }));
+        });
     }
     std::unordered_set<int> local_threads_set;
     for (auto tid_cid : local_threads)
@@ -141,7 +142,7 @@ void InstanceRunner::finish_thread(int instance_id, int tid) {
     instance_keeper_[instance_id].erase(tid);
     // husky::LOG_I << "[InstanceRunner]: instance_id: " + std::to_string(instance_id) + " tid: "+
     // std::to_string(tid) + " finished");
-    units_[tid] = std::move(Unit());  // join the unit
+    units_[tid].join();
 }
 
 bool InstanceRunner::is_instance_done(int instance_id) { 

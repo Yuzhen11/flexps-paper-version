@@ -16,9 +16,9 @@ void ModelTransferManager::Serve(MailboxEventLoop* const el) {
 
     // Set the mailbox
     // The kvstore will use mailboxes [num_workers,2*num_workers + num_processes_*num_servers_per_process)
-    // The assumption here is that num_servers_per_process will not be larger than 10!!!
-    // The following mailboxes [2*num_workers + num_processes_*10, 2*num_workers + num_processes_*10 + num_processes_)
-    int max_servers_per_process = 10;  // Magic number here
+    // The assumption here is that num_servers_per_process will not be larger than 20!!!
+    // The following mailboxes [2*num_workers + num_processes_*20, 2*num_workers + num_processes_*20 + num_processes_)
+    int max_servers_per_process = 20;  // Magic number here
     int num_processes = worker_info_.get_num_processes();
     int num_workers = worker_info_.get_num_workers();
     int base = 2*num_workers + num_processes * max_servers_per_process;

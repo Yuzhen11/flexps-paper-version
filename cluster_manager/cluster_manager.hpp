@@ -165,7 +165,7 @@ class ClusterManager {
             assert(kv.second.at(0).second == 0);
         }
         assert(src != -1);
-        // Get destination
+        // Get destination: global tid of the instance with cluster_id == 0
         int dst = -1;
         assert(instance->get_cluster().size() == 1);
         for (auto& kv : instance->get_cluster()) {

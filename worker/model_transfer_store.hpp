@@ -23,6 +23,18 @@ class ModelTransferStore {
      */
     std::vector<float> Pop(int id);
 
+    /*
+     * Clear the ModelTransferStore
+     */
+    void Clear();
+
+    /*
+     * Return the params size
+     */
+    size_t Size() {
+        return model_store_.size();
+    }
+
     ModelTransferStore(const ModelTransferStore&) = delete;
     ModelTransferStore& operator=(const ModelTransferStore&) = delete;
     ModelTransferStore(ModelTransferStore&&) = delete;

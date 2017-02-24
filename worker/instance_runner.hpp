@@ -14,7 +14,6 @@
 #include "core/utility.hpp"
 #include "worker/cluster_manager_connector.hpp"
 #include "worker/task_store.hpp"
-#include "worker/unit.hpp"
 
 #include "ml/ml.hpp"
 
@@ -64,7 +63,7 @@ class InstanceRunner {
     TaskStore& task_store_;
     std::unordered_map<int, std::shared_ptr<Instance>> instances_;
     std::unordered_map<int, std::unordered_set<int>> instance_keeper_;
-    std::vector<Unit> units_;
+    std::vector<std::thread> units_;
 };
 
 }  // namespace husky

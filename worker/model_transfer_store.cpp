@@ -20,4 +20,8 @@ std::vector<float> ModelTransferStore::Pop(int id) {
     return std::move(tmp);
 }
 
+void ModelTransferStore::Clear() {
+    model_store_.clear();
+}
+
 }  // namespace husky
