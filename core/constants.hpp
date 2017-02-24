@@ -23,6 +23,11 @@ const uint32_t kClusterManagerFinished = 102;
 
 const uint32_t kIOHDFSSubsetLoad = 301;
 
+// storage type
+constexpr const char* const kStorageType = "storage_type";
+constexpr const char* const kVectorStorage = "vector_storage";
+constexpr const char* const kUnorderedMapStorage = "unordered_storage";
+
 // type
 constexpr const char* const kType = "type";
 constexpr const char* const kSingle = "Single";

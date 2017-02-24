@@ -35,21 +35,25 @@ template <typename Val>
 class KVServer : public KVServerBase {
    public:
     KVServer() = delete;
-    KVServer(int server_id, const std::map<std::string, std::string>& hint) {
+    KVServer(int kv_id, int server_id, const std::map<std::string, std::string>& hint) {
         try {
             if (hint.find(husky::constants::kType) == hint.end()) {  // if kType is not set
-                // The default is assign assign
-                server_base_.reset(new DefaultAssignServer<Val>(server_id));
+                if (hint.find(husky::constants::kStorageType) == hint.end()) {
+                    // The default is assign
+                    server_base_.reset(new DefaultAssignServer<Val>(kv_id, server_id));
+                } else if (hint.at(husky::constants::kStorageType) == husky::constants::kVectorStorage) {
+                    server_base_.reset(new VectorAssignServer<Val>(kv_id, server_id));
+                }
             } else {
                 if (hint.at(husky::constants::kType) == husky::constants::kSingle
                         || hint.at(husky::constants::kType) == husky::constants::kHogwild
                         || hint.at(husky::constants::kType) == husky::constants::kSPMT) {
                     // assign
-                    server_base_.reset(new DefaultAssignServer<Val>(server_id));
+                    server_base_.reset(new DefaultAssignServer<Val>(kv_id, server_id));
                 } else if (hint.at(husky::constants::kType) == husky::constants::kPS
                         && hint.at(husky::constants::kConsistency) == husky::constants::kASP) {
                     // add
-                    server_base_.reset(new DefaultAddServer<Val>(server_id));
+                    server_base_.reset(new DefaultAddServer<Val>(kv_id, server_id));
                 } else if (hint.at(husky::constants::kType) == husky::constants::kPS
                         && hint.at(husky::constants::kConsistency) == husky::constants::kBSP) {
                     int num_workers = stoi(hint.at(husky::constants::kNumWorkers));
@@ -106,7 +110,7 @@ class KVManager {
      */
     template <typename Val>
     void CreateKVManager(int kv_id, const std::map<std::string, std::string>& hint) {
-        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(server_id_, hint))));
+        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(kv_id, server_id_, hint))));
     }
 
    private:
