@@ -17,43 +17,55 @@
 namespace husky {
 namespace {
 
-class AsyncReadBuffer {
+class AsyncReadBuffer final {
    public:
     using BatchT = std::vector<boost::string_ref>;
 
     /* 
      * contructor takes 2 args: number of lines per batch, number of batches
      */
-    AsyncReadBuffer(int batch_size, int batch_num) : 
-        batch_size_(batch_size),
-        batch_num_(batch_num),
-        buffer_(batch_num) {}
+    AsyncReadBuffer() = default;
+
+    AsyncReadBuffer(const AsyncReadBuffer&) = delete;
+    AsyncReadBuffer& operator=(const AsyncReadBuffer&) = delete;
+    AsyncReadBuffer(AsyncReadBuffer&&) = delete;
+    AsyncReadBuffer& operator=(AsyncReadBuffer&&) = delete;
 
     // destructor: stop thread and clear buffer
-    virtual ~AsyncReadBuffer() {
+    ~AsyncReadBuffer() {
         batch_num_ = 0;
         load_cv_.notify_all();
         thread_.join();
     }
 
     /*
-     * All the AsyncReadBuffer should set_input before use
+     * Function to initialize the reader threads,
+     * the first thread will do the initialization
      *
      * \param url the file url in hdfs
-     * \param num_threads the number of worker threads we are using
      * \param task_id identifier to this running task
-     * \param whether start the thread now
+     * \param num_threads the number of worker threads we are using
+     * \param batch_size the size of each batch
+     * \param batch_num the number of each batch
      */
-    void set_input(const std::string& url, int num_threads, int task_id, bool _init = true) {
-        // 1. set input format 
+    void init(const std::string& url, int task_id, int num_threads, int batch_size, int batch_num) {
+        if (init_) return;
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (init_) return;
+
+        // The initialization work
+        batch_size_ = batch_size;
+        batch_num_ = batch_num;
+        buffer_.resize(batch_num);
         infmt_.reset(new io::LineInputFormatML(num_threads, task_id));
         infmt_->set_input(url);
-        // 2. start a new thread
-        if (_init) init();
+        thread_ = std::thread(&AsyncReadBuffer::main, this);
+        init_ = true;
     }
 
     // store batch_size_ lines in the batch and return true if success
     bool get_batch(BatchT& batch) {
+        assert(init_ == true);
         {
             std::unique_lock<std::mutex> lock(mutex_);
             while (batch_count_ == 0 && !eof_) {
@@ -70,26 +82,22 @@ class AsyncReadBuffer {
         return true;
     }
 
-    /*
-     * Function to initialize the reader threads
-     */
-    void init() {
-        if (init_) return;
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (init_) return;
-        thread_ = std::thread(&AsyncReadBuffer::main, this);
-        init_ = true;
-    }
-
     // return the number of batches buffered
     int ask() {
+        assert(init_ == true);
         std::lock_guard<std::mutex> lock(mutex_);
         return batch_count_;
     }
 
-    inline bool end_of_file() const { return eof_; }
+    inline bool end_of_file() const { 
+        assert(init_ == true);
+        return eof_; 
+    }
 
-    inline int get_batch_size() const { return batch_size_; }
+    inline int get_batch_size() const { 
+        assert(init_ == true);
+        return batch_size_; 
+    }
 
    protected:
     virtual void main() {
@@ -130,7 +138,7 @@ class AsyncReadBuffer {
 
     // input
     std::unique_ptr<io::LineInputFormat> infmt_;
-    bool eof_;
+    std::atomic<bool> eof_{false};
 
     // buffer
     std::vector<BatchT> buffer_;

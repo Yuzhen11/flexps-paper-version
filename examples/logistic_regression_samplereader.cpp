@@ -27,11 +27,10 @@ using husky::lib::ml::LabeledPointHObj;
  * ### hint should be single/hogwild/PS:BSP/PS:SSP/PS:ASP
  * hint=PS:BSP
  * num_train_workers=4
- * num_load_workers=4
  * 
  * input=hdfs:///datasets/classification/a9
  * alpha=0.5
- * num_iters=100
+ * num_iters=10
  * num_features=123
  * train_epoch=1
  *
@@ -113,7 +112,7 @@ int main(int argc, char** argv) {
                                        "hdfs_namenode", "hdfs_namenode_port",
                                        "input", "num_features", "alpha", "num_iters",
                                        "train_epoch",
-                                       "hint", "num_train_workers", "num_load_workers"});
+                                       "hint", "num_train_workers"});
 
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     float alpha = std::stof(Context::get_param("alpha"));
@@ -122,7 +121,6 @@ int main(int argc, char** argv) {
     int num_params = num_features + 1; // +1 for intercept
     std::string hint = Context::get_param("hint");
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
-    int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
     
     if (!rt)
         return 1;
@@ -144,26 +142,23 @@ int main(int argc, char** argv) {
 
     // create a AsyncReadBuffer
     int batch_size = 100, batch_num = 50;
-    auto buffer = new AsyncReadBuffer(batch_size, batch_num);
-    buffer->set_input(Context::get_param("input"), num_load_workers, task1.get_id());
-
-    engine.AddTask(std::move(task1), [num_iters, alpha, num_params, num_features, buffer](const Info& info) {
-        buffer->init();
+    AsyncReadBuffer buffer;
+    engine.AddTask(std::move(task1), [num_train_workers, batch_size, batch_num, num_iters, alpha, num_params, num_features, &buffer](const Info& info) {
+        buffer.init(Context::get_param("input"), info.get_task_id(), num_train_workers, batch_size, batch_num);
         int batch_size = 100;
         // create a reader
-        SampleReader<LabeledPointHObj<float,float,true>> * reader = new LIBSVMSampleReader<float, float, true>(batch_size, num_features, buffer);
+        std::unique_ptr<SampleReader<LabeledPointHObj<float,float,true>>> reader(new LIBSVMSampleReader<float, float, true>(batch_size, num_features, &buffer));
 
         if (reader->is_empty()) return;  // return if there's no data
         auto& worker = info.get_mlworker();
 
         // main loop
         for (int iter = 0; iter < num_iters; ++ iter) {
-            batch_sgd_update(worker, reader, alpha, num_params);
+            batch_sgd_update(worker, reader.get(), alpha, num_params);
         }
 
-        auto accuracy = get_test_error_v2(worker, reader, num_params);
+        auto accuracy = get_test_error_v2(worker, reader.get(), num_params);
         husky::LOG_I << "accuracy: " << accuracy;
-        delete reader;
     });
     auto start_time = std::chrono::steady_clock::now();
     engine.Submit();
@@ -173,5 +168,4 @@ int main(int argc, char** argv) {
 
     engine.Exit();
     kvstore::KVStore::Get().Stop();
-    delete buffer;
 }
