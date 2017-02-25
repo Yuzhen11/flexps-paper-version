@@ -92,7 +92,7 @@ TEST_F(TestFrequencyModel, PushPull) {
     EXPECT_EQ(vals, res);
 }
 
-TEST_F(TestFrequencyModel, Dump) {  // TODO: cannot test independently?
+TEST_F(TestFrequencyModel, Dump) {
     ChunkBasedFrequencyModel model1(kv, num_params);
     ChunkBasedFrequencyModel model2(kv, num_params);
 
