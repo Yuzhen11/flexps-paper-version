@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "core/instance.hpp"
 #include "core/task.hpp"
+#include "husky/core/worker_info.hpp"
 
 namespace husky {
 

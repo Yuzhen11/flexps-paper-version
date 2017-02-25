@@ -13,5 +13,13 @@
 # limitations under the License.
 
 
-include_directories(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${HUSKY_EXTERNAL_INCLUDE})
 
+add_subdirectory(task_scheduler)
+
+file(GLOB mlmanager-src-files
+    cluster_manager.cpp)
+husky_cache_variable(mlmanager-src-files ${mlmanager-src-files})
+
+add_library(mlmanager-objs OBJECT ${mlmanager-src-files})
+husky_default_properties(mlmanager-objs)
