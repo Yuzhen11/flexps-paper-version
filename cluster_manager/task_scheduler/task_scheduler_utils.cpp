@@ -58,8 +58,9 @@ std::vector<std::pair<int, int>> select_threads(std::shared_ptr<Instance>& insta
 	       husky::LOG_I << "illegal worker_num_type!";
         }
     } else if (instance->get_type() == Task::Type::MLTaskType) {
-        std::string hint = static_cast<const MLTask*>(instance->get_task())->get_hint();
-        if (hint == "hogwild" || hint == "SPMT:BSP" || hint == "SPMT:SSP" || hint == "SPMT:ASP") {
+        auto& hint = instance->get_task()->get_hint();
+        if (hint.at(husky::constants::kType) == husky::constants::kHogwild
+            || hint.at(husky::constants::kType) == husky::constants::kSPMT) {
             // extract from one process
             pid_tids = available_workers.get_local_workers(instance->get_num_workers());
         } else {
@@ -82,8 +83,10 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
     std::vector<std::pair<int, int>> pid_tids;
     //TODO: schedule for other task type
     if (instance->get_type() == Task::Type::MLTaskType) {
-        std::string hint = static_cast<const MLTask*>(instance->get_task())->get_hint();
-        if (hint == "hogwild" || hint == "SPMT:BSP" || hint == "SPMT:SSP" || hint == "SPMT:ASP" || hint == "single") {
+        auto& hint = instance->get_task()->get_hint();
+        if (hint.at(husky::constants::kType) == husky::constants::kSingle
+            || hint.at(husky::constants::kType) == husky::constants::kHogwild
+            || hint.at(husky::constants::kType) == husky::constants::kSPMT) {
             for (auto &pid : candidate_proc) {
                 pid_tids = available_workers.get_workers_exact_process(required_num_threads, pid, num_processes);
                 if (pid_tids.size() == required_num_threads) {

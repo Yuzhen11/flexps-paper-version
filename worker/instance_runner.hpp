@@ -1,8 +1,7 @@
 #pragma once
 
 #include <thread>
-
-#include <boost/algorithm/string.hpp>
+#include <boost/thread/thread.hpp>
 
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
@@ -63,7 +62,7 @@ class InstanceRunner {
     TaskStore& task_store_;
     std::unordered_map<int, std::shared_ptr<Instance>> instances_;
     std::unordered_map<int, std::unordered_set<int>> instance_keeper_;
-    std::vector<std::thread> units_;
+    std::vector<boost::thread> units_;
 };
 
 }  // namespace husky

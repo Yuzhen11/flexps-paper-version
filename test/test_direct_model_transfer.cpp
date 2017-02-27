@@ -17,13 +17,12 @@ int main(int argc, char** argv) {
                                   Context::get_zmq_context());
 
     int num_params = 5;
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, num_params);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, num_params, num_params);
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_total_epoch(10);
     task1.set_dimensions(num_params);
     task1.set_kvstore(kv1);
-    task1.set_hint("single");  // set the running type explicitly
+    task1.set_hint({{husky::constants::kType, husky::constants::kSingle}});  // set the running type explicitly
     engine.AddTask(task1, [num_params](const Info& info) {
         auto& worker = info.get_mlworker();
         std::vector<husky::constants::Key> keys(num_params);

@@ -52,10 +52,11 @@ class KVStore {
      * @return: kvstore id created
      */
     template <typename Val>
-    int CreateKVStore(const std::string& hint = "") {
+    int CreateKVStore(const std::map<std::string, std::string>& hint = {}, husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max(),
+            int chunk_size = RangeManager::GetDefaultChunkSize()) {
         assert(is_started_);
         // set the default max key and chunk size
-        RangeManager::Get().SetMaxKeyAndChunkSize(kv_id);  
+        RangeManager::Get().SetMaxKeyAndChunkSize(kv_id, max_key, chunk_size);  
         for (auto* kvserver : kvservers) {
             kvserver->CreateKVManager<Val>(kv_id, hint);
         }

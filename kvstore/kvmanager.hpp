@@ -4,8 +4,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <boost/algorithm/string.hpp>
-
 #include "kvpairs.hpp"
 
 #include "husky/base/exception.hpp"
@@ -37,29 +35,38 @@ template <typename Val>
 class KVServer : public KVServerBase {
    public:
     KVServer() = delete;
-    KVServer(int server_id, const std::string& hint) {
-        if (hint == "") {
-            server_base_.reset(new DefaultAssignServer<Val>(server_id));
-        } else {
-            std::vector<std::string> instructions;
-            boost::split(instructions, hint, boost::is_any_of(":"));
-            try {
-                std::string& first = instructions.at(0);
-                if (first == "Add") {
+    KVServer(int server_id, const std::map<std::string, std::string>& hint) {
+        try {
+            if (hint.find(husky::constants::kType) == hint.end()) {  // if kType is not set
+                // The default is assign assign
+                server_base_.reset(new DefaultAssignServer<Val>(server_id));
+            } else {
+                if (hint.at(husky::constants::kType) == husky::constants::kSingle
+                        || hint.at(husky::constants::kType) == husky::constants::kHogwild
+                        || hint.at(husky::constants::kType) == husky::constants::kSPMT) {
+                    // assign
+                    server_base_.reset(new DefaultAssignServer<Val>(server_id));
+                } else if (hint.at(husky::constants::kType) == husky::constants::kPS
+                        && hint.at(husky::constants::kConsistency) == husky::constants::kASP) {
+                    // add
                     server_base_.reset(new DefaultAddServer<Val>(server_id));
-                } else if (first == "SSP") {
-                    int worker_num = stoi(instructions.at(1));
-                    int staleness = stoi(instructions.at(2));
-                    server_base_.reset(new SSPServer<Val>(server_id, worker_num, staleness));
-                } else if (first == "BSP") {
-                    int worker_num = stoi(instructions.at(1));
-                    server_base_.reset(new BSPServer<Val>(server_id, worker_num));
+                } else if (hint.at(husky::constants::kType) == husky::constants::kPS
+                        && hint.at(husky::constants::kConsistency) == husky::constants::kBSP) {
+                    int num_workers = stoi(hint.at(husky::constants::kNumWorkers));
+                    // bsp
+                    server_base_.reset(new BSPServer<Val>(server_id, num_workers));
+                } else if (hint.at(husky::constants::kType) == husky::constants::kPS
+                        && hint.at(husky::constants::kConsistency) == husky::constants::kSSP) {
+                    int num_workers = stoi(hint.at(husky::constants::kNumWorkers));
+                    // ssp
+                    int staleness = stoi(hint.at(husky::constants::kStaleness));
+                    server_base_.reset(new SSPServer<Val>(server_id, num_workers, staleness));
                 } else {
                     throw;
                 }
-            } catch (...) {
-                throw husky::base::HuskyException("Unknown KVServer hint: "+hint);
             }
+        } catch (...) {
+            throw husky::base::HuskyException("Unknown KVServer hint");
         }
     }
     ~KVServer() = default;
@@ -98,7 +105,7 @@ class KVManager {
      * make sure all the kvstore is set up before the actual workload
      */
     template <typename Val>
-    void CreateKVManager(int kv_id, const std::string& hint) {
+    void CreateKVManager(int kv_id, const std::map<std::string, std::string>& hint) {
         kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(server_id_, hint))));
     }
 

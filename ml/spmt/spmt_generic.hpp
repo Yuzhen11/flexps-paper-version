@@ -53,11 +53,11 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         }
         if (info_.get_cluster_id() == 0) {
             SPMTState* state = new SPMTState;
-            if (type == "BSP") {
+            if (type == husky::constants::kBSP) {
                 state->p_controller_  = new BSPConsistencyController;
-            } else if (type == "SSP") {
+            } else if (type == husky::constants::kSSP) {
                 state->p_controller_ = new SSPConsistencyController;
-            } else if (type == "ASP") {
+            } else if (type == husky::constants::kASP) {
                 state->p_controller_ = new ASPConsistencyController;
             } else {
                 assert(false);

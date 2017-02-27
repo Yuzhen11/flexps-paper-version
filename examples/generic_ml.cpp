@@ -36,12 +36,15 @@ int main(int argc, char** argv) {
     // Didn't specify the epoch num and thread num, leave cluster_manager to decide them
 
     //  A Hogwild! Task
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, 10);
+    std::map<std::string, std::string> hint = 
+    { 
+        {husky::constants::kType, husky::constants::kHogwild} 
+    };
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(10);
     task1.set_kvstore(kv1);
-    task1.set_hint("hogwild");  // set the running type explicitly
+    task1.set_hint(hint);  // set the running type explicitly
     task1.set_total_epoch(2);                             // 2 epochs
     task1.set_num_workers(4);                             // 4 workers
     engine.AddTask(task1, [](const Info& info) {
@@ -59,12 +62,16 @@ int main(int argc, char** argv) {
     });
 
     // A Single Task
-    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>();
+    hint = 
+    {
+        {husky::constants::kType, husky::constants::kSingle}
+    };
+    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv2, 10);
     auto task2 = TaskFactory::Get().CreateTask<MLTask>();
-    task2.set_dimensions(5);
+    task2.set_dimensions(10);
     task2.set_kvstore(kv2);
-    task2.set_hint("single");  // set the running type explicitly
+    task2.set_hint(hint);
     engine.AddTask(task2, [](const Info& info) {
         auto& worker = info.get_mlworker();
         worker->Push({2}, {3});
@@ -74,15 +81,18 @@ int main(int argc, char** argv) {
     });
 
     // A PS Task
-    // int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(kvstore::KVServerDefaultAddHandle<float>());
     // BSP
-    int kv3 =
-        kvstore::KVStore::Get().CreateKVStore<float>("BSP:4");  // for bsp server
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv3, 10);
+    hint = 
+    {
+        {husky::constants::kType, husky::constants::kPS},
+        {husky::constants::kConsistency, husky::constants::kBSP},
+        {husky::constants::kNumWorkers, "4"}
+    };
+    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);  // for bsp server
     auto task3 = TaskFactory::Get().CreateTask<MLTask>();
-    task3.set_dimensions(5);
+    task3.set_dimensions(10);
     task3.set_kvstore(kv3);
-    task3.set_hint("PS:BSP");  // set the running type explicitly
+    task3.set_hint(hint);
     task3.set_num_workers(4);                           // 4 workers
     engine.AddTask(task3, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -91,12 +101,18 @@ int main(int argc, char** argv) {
     });
 
     // SSP
-    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>("SSP:4:1");  // staleness: 1
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv4, 10);
+    hint = 
+    {
+        {husky::constants::kType, husky::constants::kPS},
+        {husky::constants::kConsistency, husky::constants::kSSP},
+        {husky::constants::kNumWorkers, "4"},
+        {husky::constants::kStaleness, "1"}
+    };
+    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     auto task4 = TaskFactory::Get().CreateTask<MLTask>();
     task4.set_dimensions(5);
     task4.set_kvstore(kv4);
-    task4.set_hint("PS:SSP");  // set the running type explicitly
+    task4.set_hint(hint);
     task4.set_num_workers(4);                           // 4 workers
     engine.AddTask(task4, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -105,12 +121,17 @@ int main(int argc, char** argv) {
     });
 
     // ASP
-    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>("Add");  // use the default add handle
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv5, 10);
+    hint = 
+    {
+        {husky::constants::kType, husky::constants::kPS},
+        {husky::constants::kConsistency, husky::constants::kASP},
+        {husky::constants::kNumWorkers, "4"}
+    };
+    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     auto task5 = TaskFactory::Get().CreateTask<MLTask>();
     task5.set_dimensions(5);
     task5.set_kvstore(kv5);
-    task5.set_hint("PS:ASP");  // set the running type explicitly
+    task5.set_hint(hint);
     task5.set_num_workers(4);                           // 4 workers
     engine.AddTask(task5, [](const Info& info) {
         if (info.get_cluster_id() == 0)
@@ -119,12 +140,16 @@ int main(int argc, char** argv) {
     });
 
     //  A SPMT Task
-    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>();
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv6, 10);
+    hint = 
+    {
+        {husky::constants::kType, husky::constants::kSPMT},
+        {husky::constants::kConsistency, husky::constants::kASP}
+    };
+    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     auto task6 = TaskFactory::Get().CreateTask<MLTask>();
     task6.set_dimensions(10);
     task6.set_kvstore(kv6);
-    task6.set_hint("SPMT:ASP");  // set the running type explicitly
+    task6.set_hint(hint);
     task6.set_num_workers(4);                             // 4 workers
     engine.AddTask(task6, [](const Info& info) {
         test_mlworker_lambda(info);

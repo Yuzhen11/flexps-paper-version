@@ -43,12 +43,16 @@ int main(int argc, char** argv) {
         load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, num_features, local_id);
     });
 
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kType, husky::constants::kSingle}
+    };
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>(hint);  // didn't set max_key and chunk_size
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(num_params);
     task1.set_kvstore(kv1);
     task1.set_total_epoch(train_epoch);
-    task1.set_hint("single");
+    task1.set_hint(hint);
     task1.set_total_epoch(1);
     task1.set_num_workers(1);
     engine.AddTask(std::move(task1), [&data_store, num_iters, alpha, num_params](const Info& info) {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <boost/algorithm/string.hpp>
-
 #include "husky/base/exception.hpp"
 #include "husky/base/log.hpp"
 #include "husky/core/worker_info.hpp"

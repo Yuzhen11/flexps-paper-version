@@ -133,6 +133,9 @@ class RangeManager {
         loc.second = key % chunk_sizes_[kv_id];
         return loc;
     }
+    static int GetDefaultChunkSize() {
+        return default_chunk_size_;
+    }
 
    private:
     RangeManager() = default;

@@ -130,11 +130,10 @@ void ClusterManager:: send_instances(const std::vector<std::shared_ptr<Instance>
  * Possibly enable the ModelTransferManager
  */
 void ClusterManager::send_last_instance(const std::shared_ptr<Instance>& instance) {
-    std::string hint = instance->get_task()->get_hint();
-    std::vector<std::string> instructions;
-    boost::split(instructions, hint, boost::is_any_of(":"));
-    std::string& first = instructions.at(0);
-    if (first != "single")
+    auto& hint = instance->get_task()->get_hint();
+    if (hint.find(husky::constants::kType) == hint.end())
+        return;
+    if (hint.at(husky::constants::kType) != husky::constants::kSingle)  // TODO, support more type
         return;
     if (instance->get_epoch() == 0)
         return;

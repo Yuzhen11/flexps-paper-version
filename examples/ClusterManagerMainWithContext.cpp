@@ -1,4 +1,5 @@
 #include <thread>
+#include <boost/thread/thread.hpp>
 
 #include "cluster_manager/cluster_manager_context.hpp"
 #include "husky/core/context.hpp"
@@ -27,7 +28,7 @@ int main(int argc, char** argv) {
     });
 
     // thread for ClusterManager
-    std::thread cluster_manager_thread([] {
+    boost::thread cluster_manager_thread([] {
         auto& cluster_manager = husky::ClusterManagerContext::Get();
         cluster_manager.serve();
     });

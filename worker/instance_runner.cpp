@@ -23,49 +23,42 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
     // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
     // cluster_manager
     if (info.get_task()->get_type() == Task::Type::MLTaskType) {
-        std::string hint = instance->get_task()->get_hint();
+        auto& hint = instance->get_task()->get_hint();
         
-        std::vector<std::string> instructions;
-        boost::split(instructions, hint, boost::is_any_of(":"));
-
         try {
-            std::string& first = instructions.at(0);
-            if (first == "PS") {
-                std::string& second = instructions.at(1);
-                if (instructions.size() == 2) {
-                    info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
-                                                                  info.get_local_id()));
-                } else if (instructions.at(2) == "SSPWorker") {  // use special SSPWorker to enable thread-cache, e.g. PS:SSP:SSPWorker:2
-                    int staleness = std::stoi(instructions.at(3));
+            if (hint.at(husky::constants::kType) == husky::constants::kPS) {
+                if (hint.find(husky::constants::kWorkerType) != hint.end()
+                    && hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
+                    int staleness = std::stoi(hint.at(husky::constants::kStaleness));
                     info.set_mlworker(new ml::ps::SSPWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(), 
                                                             info.get_local_id(),
                                                             staleness));
                 } else {
-                    throw;
+                    info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
+                                                                  info.get_local_id()));
                 }
-            } else if (first == "hogwild") {
-                info.set_mlworker(new ml::hogwild::HogwildGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
-            } else if (first == "single") {
+            } else if (hint.at(husky::constants::kType) == husky::constants::kSingle) {
                 info.set_mlworker(new ml::single::SingleGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), info,
                     static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
-            } else if (first == "SPMT") {
-                std::string& second = instructions.at(1);
+            } else if (hint.at(husky::constants::kType) == husky::constants::kHogwild) {
+                info.set_mlworker(new ml::hogwild::HogwildGenericWorker(
+                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
+                    info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                info.get_mlworker()->Load();
+            } else if (hint.at(husky::constants::kType) == husky::constants::kSPMT) {
+                std::string consistency = hint.at(husky::constants::kConsistency);
                 info.set_mlworker(new ml::spmt::SPMTGenericWorker(
                     static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, second, static_cast<MLTask*>(info.get_task())->get_dimensions()));
+                    info, consistency, static_cast<MLTask*>(info.get_task())->get_dimensions()));
                 info.get_mlworker()->Load();
             } else {
                 throw;
             }
         } catch(...) {
-            throw base::HuskyException("Unknown hint: " + hint);
+            throw base::HuskyException("Unknown hint");
         }
-        husky::LOG_I << CLAY("[run_instance] set to " + hint);
     }
 
     return info;
@@ -76,8 +69,8 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
  */
 void InstanceRunner::postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
     if (info.get_task()->get_type() == Task::Type::MLTaskType) {
-        std::string hint = static_cast<const MLTask*>(instance->get_task())->get_hint();
-        if (hint == "single" || hint == "hogwild") {  // some types need to do dump
+        std::string hint = instance->get_task()->get_hint().at(husky::constants::kType);
+        if (hint == husky::constants::kSingle || hint == husky::constants::kHogwild) {  // some types need to do dump
             info.get_mlworker()->Dump();
         }
     }
@@ -101,7 +94,7 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
     for (auto tid_cid : local_threads) {
         // worker threads must not be joinable (must be free)
         assert(units_[tid_cid.first].joinable() == false);
-        units_[tid_cid.first] = std::thread([this, instance, tid_cid] {
+        units_[tid_cid.first] = boost::thread([this, instance, tid_cid] {
             // set the info
             Info info = info_factory(instance, tid_cid);
 

@@ -55,8 +55,12 @@ TEST_F(TestPriorityTaskScheduler, TestInitTasks) {
 
 TEST_F(TestPriorityTaskScheduler, TestExtractInstancesSingle) {
     HistoryManager::get().clear_history();
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kType, husky::constants::kSingle}, 
+    };
     for (auto& task_ptr : tasks) {
-        task_ptr->set_hint("single");
+        task_ptr->set_hint(hint);
     }
     HistoryManager::get().start(num_process);
     PriorityTaskScheduler pts(worker_info);
@@ -66,8 +70,13 @@ TEST_F(TestPriorityTaskScheduler, TestExtractInstancesSingle) {
 
 TEST_F(TestPriorityTaskScheduler, TestExtractInstancesPS) {
     HistoryManager::get().clear_history();
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kType, husky::constants::kPS}, 
+        {husky::constants::kConsistency, husky::constants::kBSP}
+    };
     for (auto& task_ptr : tasks) {
-        task_ptr->set_hint("PS:BSP");
+        task_ptr->set_hint(hint);
     }
     HistoryManager::get().start(num_process);
     PriorityTaskScheduler pts(worker_info);

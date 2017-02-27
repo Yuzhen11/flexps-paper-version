@@ -59,12 +59,16 @@ int main(int argc, char** argv) {
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
 
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>();
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv, 10, 5);
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kType, husky::constants::kSPMT},
+        {husky::constants::kConsistency, husky::constants::kBSP}
+    };
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 5);
     auto task = TaskFactory::Get().CreateTask<MLTask>();
     task.set_dimensions(10);
     task.set_kvstore(kv);
-    task.set_hint("SPMT:BSP");  // set the running type explicitly
+    task.set_hint(hint);  // set the running type explicitly
     task.set_num_workers(3);
     engine.AddTask(task, [](const Info& info) {
         test(info);

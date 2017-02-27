@@ -18,10 +18,9 @@ int main(int argc, char** argv) {
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context(), 2);
     auto task = TaskFactory::Get().CreateTask<Task>(1, 1);
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
     int num_params = 100;
     int chunk_size = 10;
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, num_params, chunk_size);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, num_params, chunk_size);
     engine.AddTask(task, [kv1, num_params, chunk_size](const Info& info) {
         {
             // Test LoadAllIntegral, DumpAllIntegral

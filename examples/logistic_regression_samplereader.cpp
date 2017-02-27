@@ -24,8 +24,8 @@ using husky::lib::ml::LabeledPointHObj;
  * Example:
  *
  * ### Mode
- * ### hint should be single/hogwild/PS:BSP/PS:SSP/PS:ASP
- * hint=PS:BSP
+ * kType=PS
+ * kConsistency=BSP
  * num_train_workers=4
  * 
  * input=hdfs:///datasets/classification/a9
@@ -112,15 +112,22 @@ int main(int argc, char** argv) {
                                        "hdfs_namenode", "hdfs_namenode_port",
                                        "input", "num_features", "alpha", "num_iters",
                                        "train_epoch",
-                                       "hint", "num_train_workers"});
+                                       "kType", "kConsistency", "num_train_workers"});
 
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     float alpha = std::stof(Context::get_param("alpha"));
     int num_iters = std::stoi(Context::get_param("num_iters"));
     int num_features = std::stoi(Context::get_param("num_features"));
     int num_params = num_features + 1; // +1 for intercept
-    std::string hint = Context::get_param("hint");
+    std::string kType = Context::get_param("kType");
+    std::string kConsistency = Context::get_param("kConsistency");
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kType, kType},
+        {husky::constants::kConsistency, kConsistency},
+        {husky::constants::kNumWorkers, std::to_string(num_train_workers)}
+    };
     
     if (!rt)
         return 1;
@@ -135,7 +142,7 @@ int main(int argc, char** argv) {
     task1.set_total_epoch(train_epoch);  // set epoch number
     task1.set_num_workers(num_train_workers);
     // Create KVStore and Set hint
-    int kv1 = create_kvstore_and_set_hint(hint, task1, num_train_workers);
+    int kv1 = create_kvstore_and_set_hint(hint, task1);
     assert(kv1 != -1);
     // Set max key, to make the keys distributed
     kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, num_params);
