@@ -8,6 +8,7 @@ add_executable(HuskyMLUnitTest ${UNITTEST_FILES} unittest_main.cpp)
 add_dependencies(HuskyMLUnitTest gtest)
 target_link_libraries(HuskyMLUnitTest husky)
 target_link_libraries(HuskyMLUnitTest husky-ml)
+target_link_libraries(HuskyMLUnitTest husky-ml-master)
 target_link_libraries(HuskyMLUnitTest ${HUSKY_EXTERNAL_LIB})
 # hard code GTEST_LIBRARIES and GMOCK_LIBRARIES
 set(GTEST_LIBRARIES_TMP
