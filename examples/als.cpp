@@ -7,6 +7,10 @@
 #include <Eigen/Dense>
 #include <chrono>
 
+#ifdef USE_PROFILER
+#include <gperftools/profiler.h>
+#endif
+
 using namespace husky;
 /*
  *
@@ -39,12 +43,12 @@ int main(int argc, char** argv) {
     const int kNumNodes = kNumUsers + kNumItems;
     const int MAGIC = kNumUsers + kStartFromOne;
 
-    const int kServersPerWorker = 10;  // 10 is the largest
-    const int kThreadsPerWorker = 10;
+    const int kServersPerWorker = 10;  // 20 is the largest
+    const int kThreadsPerWorker = 20;
     const int kNumLatentFactor = 10;
     const int kChunkSize = kNumLatentFactor;
     const float kLambda = 0.01;
-    const int kNumIters = 40;
+    const int kNumIters = 4;
     const bool kDoTest = true;
     const int kLocalReadCount = -1;
 
@@ -151,7 +155,7 @@ int main(int argc, char** argv) {
         };
         husky::io::LineInputFormat infmt;
         infmt.set_input(husky::Context::get_param("input"));
-
+        
         auto start_time = std::chrono::steady_clock::now();
         // 1. Load the data and push into send_buffer
         typename io::LineInputFormat::RecordT record;
@@ -200,6 +204,13 @@ int main(int argc, char** argv) {
 
         // 4. Main loop
         for (int iter = 0; iter < kNumIters; ++ iter) {
+
+#ifdef USE_PROFILER
+            if (info.get_cluster_id() == 0) {
+                ProfilerStart(("/data/opt/tmp/yuzhen/als2/train-"+std::to_string(iter)+".prof").c_str());
+            }
+#endif
+
             float local_rmse = 0;  // for kDoTest
             int num_local_edges = 0;  // for kDoTest
 
@@ -305,6 +316,12 @@ int main(int argc, char** argv) {
             while (mailbox->poll(0, iter+1)) {
                 mailbox->recv(0, iter+1);
             }
+
+#ifdef USE_PROFILER
+            if (info.get_cluster_id() == 0) {
+                ProfilerStop();
+            }
+#endif
             
             // 9. Test error
             if (kDoTest) {

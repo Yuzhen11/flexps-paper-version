@@ -40,6 +40,12 @@ add_library(husky-ml STATIC ${husky-ml-objs})
 add_library(husky-ml-master STATIC $<TARGET_OBJECTS:mlcore-objs> 
     $<TARGET_OBJECTS:mlmanager-objs> $<TARGET_OBJECTS:mlmanager-scheduler-objs>)
 
+# Use Profiler
+option(USE_PROFILER "Use profier" OFF)
+if(USE_PROFILER)
+    add_definitions(-DUSE_PROFILER)
+endif(USE_PROFILER)
+
 # build the examples and test
 add_subdirectory(examples)
 add_subdirectory(test)
