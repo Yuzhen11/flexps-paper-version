@@ -16,6 +16,7 @@
 #include "ml/spmt/bsp_consistency_controller.hpp"
 #include "ml/model/integral_model.hpp"
 #include "ml/model/chunk_based_mt_model.hpp"
+#include "ml/shared/shared_state.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -24,80 +25,70 @@
 namespace ml {
 namespace spmt {
 
+struct SPMTState {
+    // pointer to consistency controller
+    AbstractConsistencyController* p_controller_;
+    // pointer to model
+    model::Model* p_model_;
+};
+
 class SPMTGenericWorker : public common::GenericMLWorker {
    public:
     SPMTGenericWorker() = delete;
+    SPMTGenericWorker(const SPMTGenericWorker&) = delete;
+    SPMTGenericWorker& operator=(const SPMTGenericWorker&) = delete;
+    SPMTGenericWorker(SPMTGenericWorker&&) = delete;
+    SPMTGenericWorker& operator=(SPMTGenericWorker&&) = delete;
 
     /*
      * @param type: 0 for ssp, 1 for bsp
      */
-    template <typename... Args>
-    SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, const std::string& type, Args&&... args)
-        : info_(info),
-          context_(context),
-          socket_(context, info.get_cluster_id() == 0 ? ZMQ_ROUTER : ZMQ_REQ) {
-        int task_id = info_.get_task()->get_id();
+    SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, const std::string& type, size_t num_params)
+        : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
+          info_(info) {
         // check valid
         if (!isValid()) {
             throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
-                                              std::to_string(task_id));
+                                              std::to_string(info.get_task_id()));
         }
-        // bind and connect
-        if (info_.get_cluster_id() == 0) {  // leader
-            socket_.bind("inproc://tmp-" + std::to_string(task_id));
-        } else {
-            socket_.connect("inproc://tmp-" + std::to_string(task_id));
-        }
-
         if (info_.get_cluster_id() == 0) {
+            SPMTState* state = new SPMTState;
             if (type == "BSP") {
-                p_controller_  = new BSPConsistencyController;
+                state->p_controller_  = new BSPConsistencyController;
             } else if (type == "SSP") {
-                p_controller_ = new SSPConsistencyController;
+                state->p_controller_ = new SSPConsistencyController;
             } else if (type == "ASP") {
-                p_controller_ = new ASPConsistencyController;
+                state->p_controller_ = new ASPConsistencyController;
             } else {
                 assert(false);
             }
-            p_controller_->Init(info.get_num_local_workers());
+            state->p_controller_->Init(info.get_num_local_workers());
 
-            model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, std::forward<Args>(args)...);
+            state->p_model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, num_params);
+            // 1. Init shared_state_
+            shared_state_.Init(state);
         }
+        // 2. Sync shared_state_
+        shared_state_.SyncState();
+    }
+    ~SPMTGenericWorker() {
+        shared_state_.Barrier();
         if (info_.get_cluster_id() == 0) {
-            std::vector<std::string> identity_store;
-            auto ptr = reinterpret_cast<std::uintptr_t>(p_controller_);
-            auto ptr2 = reinterpret_cast<std::uintptr_t>(model_);
-            for (int i = 0; i < info_.get_num_local_workers() - 1; ++i) {
-                std::string s = husky::zmq_recv_string(&socket_);
-                identity_store.push_back(std::move(s));
-                husky::zmq_recv_dummy(&socket_);  // delimiter
-                husky::zmq_recv_int32(&socket_);
-            }
-            // collect all and then reply
-            for (auto& identity : identity_store) {
-                husky::zmq_sendmore_string(&socket_, identity);
-                husky::zmq_sendmore_dummy(&socket_);  // delimiter
-                husky::zmq_sendmore_int64(&socket_, ptr);
-                husky::zmq_send_int64(&socket_, ptr2);
-            }
-        } else {
-            husky::zmq_send_int32(&socket_, int());
-            auto ptr = husky::zmq_recv_int64(&socket_);
-            auto ptr2 = husky::zmq_recv_int64(&socket_);
-            p_controller_ = reinterpret_cast<AbstractConsistencyController*>(ptr);
-            model_ = reinterpret_cast<model::Model*>(ptr2);
+            delete shared_state_.Get()->p_controller_;
+            delete shared_state_.Get()->p_model_;
+            delete shared_state_.Get();
         }
     }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
-        p_controller_->BeforePush(info_.get_cluster_id());
-        model_->Push(keys, vals);
-        p_controller_->AfterPush(info_.get_cluster_id());
+        shared_state_.Get()->p_controller_->BeforePush(info_.get_cluster_id());
+        shared_state_.Get()->p_model_->Push(keys, vals);
+        shared_state_.Get()->p_controller_->AfterPush(info_.get_cluster_id());
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
-        p_controller_->BeforePull(info_.get_cluster_id());
-        model_->Pull(keys, vals, info_.get_local_id());
-        p_controller_->AfterPull(info_.get_cluster_id());
+        shared_state_.Get()->p_controller_->BeforePull(info_.get_cluster_id());
+        shared_state_.Get()->p_model_->Pull(keys, vals, info_.get_local_id());
+        shared_state_.Get()->p_controller_->AfterPull(info_.get_cluster_id());
     }
 
     // For v2
@@ -125,41 +116,24 @@ class SPMTGenericWorker : public common::GenericMLWorker {
 
     virtual void Load() override {
         if (info_.get_cluster_id() == 0) {
-            model_->Load(info_.get_local_id(), "");
+            shared_state_.Get()->p_model_->Load(info_.get_local_id(), "");
         }
-        Sync();
+        shared_state_.Barrier();
     }
 
     virtual void Dump() override {
-        Sync();
+        shared_state_.Barrier();
         if (info_.get_cluster_id() == 0) {
-            model_->Dump(info_.get_local_id(), "");
+            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), "");
         }
-        Sync();
+        shared_state_.Barrier();
     }
 
     /*
      * Serve as a barrier
      */
     virtual void Sync() override {
-        if (info_.get_cluster_id() == 0) {  // leader
-            std::vector<std::string> identity_store;
-            for (int i = 0; i < info_.get_num_local_workers() - 1; ++i) {
-                std::string s = husky::zmq_recv_string(&socket_);
-                identity_store.push_back(std::move(s));
-                husky::zmq_recv_dummy(&socket_);  // delimiter
-                husky::zmq_recv_dummy(&socket_);  // dummy msg
-            }
-            // collect all and then reply
-            for (auto& identity : identity_store) {
-                husky::zmq_sendmore_string(&socket_, identity);
-                husky::zmq_sendmore_dummy(&socket_);  // delimiter
-                husky::zmq_send_dummy(&socket_);      // dummy msg
-            }
-        } else {
-            husky::zmq_send_dummy(&socket_);
-            husky::zmq_recv_dummy(&socket_);
-        }
+        shared_state_.Barrier();
     }
 
    private:
@@ -170,14 +144,8 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         return info_.get_num_local_workers() == info_.get_num_workers();
     }
 
-    // pointer to the real model
-    model::Model* model_ = nullptr;
-
     const husky::Info& info_;
-    zmq::context_t& context_;
-    zmq::socket_t socket_;
-
-    AbstractConsistencyController* p_controller_;
+    SharedState<SPMTState> shared_state_;
 
     // For v2
     // Pointer to keys

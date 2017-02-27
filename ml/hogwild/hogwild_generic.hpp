@@ -10,6 +10,7 @@
 #include "ml/common/mlworker.hpp"
 #include "ml/model/load.hpp"
 #include "ml/model/dump.hpp"
+#include "ml/shared/shared_state.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -24,61 +25,39 @@ namespace hogwild {
 class HogwildGenericWorker : public common::GenericMLWorker {
    public:
     HogwildGenericWorker() = delete;
+    HogwildGenericWorker(const HogwildGenericWorker&) = delete;
+    HogwildGenericWorker& operator=(const HogwildGenericWorker&) = delete;
+    HogwildGenericWorker(HogwildGenericWorker&&) = delete;
+    HogwildGenericWorker& operator=(HogwildGenericWorker&&) = delete;
+
     /*
      * constructor to construct a hogwild model
      * \param context zmq_context
      * \param info info in this instance
      */
-    template <typename... Args>
     HogwildGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, size_t num_params)
-        : info_(info),
-          model_id_(model_id),
-          context_(context),
-          socket_(context, info.get_cluster_id() == 0 ? ZMQ_ROUTER : ZMQ_REQ) {
+        : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
+          info_(info),
+          model_id_(model_id) {
+
         if (info.get_cluster_id() == 0) {
             husky::LOG_I << CLAY("[Hogwild] model_id: "+std::to_string(model_id)
                     +" local_id: "+std::to_string(info.get_local_id()));
         }
 
-        int task_id = info_.get_task()->get_id();
         // check valid
         if (!isValid()) {
             throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
-                                              std::to_string(task_id));
-        }
-        // bind and connect
-        if (info_.get_cluster_id() == 0) {  // leader
-            socket_.bind("inproc://tmp-" + std::to_string(task_id));
-        } else {
-            socket_.connect("inproc://tmp-" + std::to_string(task_id));
+                                              std::to_string(info.get_task_id()));
         }
 
         if (info_.get_cluster_id() == 0) {
-            // use args to initialize the variable
-            model_ = new std::vector<float>(num_params);
+            std::vector<float>* state = new std::vector<float>(num_params);
+            // 1. Init shared_state_
+            shared_state_.Init(state);
         }
-
-        // TODO may not be portable, pointer size problem
-        if (info_.get_cluster_id() == 0) {  // leader
-            std::vector<std::string> identity_store;
-            auto ptr = reinterpret_cast<std::uintptr_t>(model_);
-            for (int i = 0; i < info_.get_num_local_workers() - 1; ++i) {
-                std::string s = husky::zmq_recv_string(&socket_);
-                identity_store.push_back(std::move(s));
-                husky::zmq_recv_dummy(&socket_);  // delimiter
-                husky::zmq_recv_int32(&socket_);
-            }
-            // collect all and then reply
-            for (auto& identity : identity_store) {
-                husky::zmq_sendmore_string(&socket_, identity);
-                husky::zmq_sendmore_dummy(&socket_);  // delimiter
-                husky::zmq_send_int64(&socket_, ptr);
-            }
-        } else {
-            husky::zmq_send_int32(&socket_, int());
-            auto ptr = husky::zmq_recv_int64(&socket_);
-            model_ = reinterpret_cast<std::vector<float>*>(ptr);
-        }
+        // 2. Sync shared_state_
+        shared_state_.SyncState();
     }
 
     /*
@@ -86,16 +65,16 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      * 1. Sync() and 2. leader delete the model
      */
     ~HogwildGenericWorker() {
-        Sync();
+        shared_state_.Barrier();
         if (info_.get_cluster_id() == 0) {
-            delete model_;
+            delete shared_state_.Get();
         }
     }
 
     void print_model() const {
         // debug
-        for (size_t i = 0; i < model_->size(); ++i)
-            husky::LOG_I << std::to_string((*model_)[i]);
+        for (size_t i = 0; i < shared_state_.Get()->size(); ++i)
+            husky::LOG_I << std::to_string((*shared_state_.Get())[i]);
     }
 
     /*
@@ -103,88 +82,71 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      */
     virtual void Load() override {
         if (info_.get_cluster_id() == 0) {
-            model::LoadAllIntegral(info_.get_local_id(), model_id_, model_->size(), model_);
+            model::LoadAllIntegral(info_.get_local_id(), model_id_, shared_state_.Get()->size(), shared_state_.Get());
         }
         // Other threads should wait
-        Sync();
+        shared_state_.Barrier();
     }
     /*
      * Put the parameters to global kvstore
      */
     virtual void Dump() override {
-        Sync();
+        shared_state_.Barrier();
         if (info_.get_cluster_id() == 0) {
-            model::DumpAllIntegral(info_.get_local_id(), model_id_, model_->size(), *model_);
+            model::DumpAllIntegral(info_.get_local_id(), model_id_, shared_state_.Get()->size(), *shared_state_.Get());
         }
-        Sync();
+        shared_state_.Barrier();
     }
 
     /*
      * Put/Get Push/Pull APIs
      */
     virtual void Put(size_t key, float val) {
-        assert(key < model_->size());
-        (*model_)[key] += val;
+        assert(key < shared_state_.Get()->size());
+        (*shared_state_.Get())[key] += val;
     }
     virtual float Get(size_t key) {
-        assert(key < model_->size());
-        return (*model_)[key];
+        assert(key < shared_state_.Get()->size());
+        return (*shared_state_.Get())[key];
     }
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(keys.size() == vals.size());
         for (size_t i = 0; i < keys.size(); i++) {
-            assert(keys[i] < model_->size());
-            (*model_)[keys[i]] += vals[i];
+            assert(keys[i] < shared_state_.Get()->size());
+            (*shared_state_.Get())[keys[i]] += vals[i];
         }
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
         vals->resize(keys.size());
         for (size_t i = 0; i < keys.size(); i++) {
-            assert(keys[i] < model_->size());
-            (*vals)[i] = (*model_)[keys[i]];
+            assert(keys[i] < shared_state_.Get()->size());
+            (*vals)[i] = (*shared_state_.Get())[keys[i]];
         }
     }
 
     /*
      * Get the model
      */
-    std::vector<float>* get() { return model_; }
+    std::vector<float>* get() { return shared_state_.Get(); }
 
     /*
      * Serve as a barrier
      */
     virtual void Sync() override {
-        if (info_.get_cluster_id() == 0) {  // leader
-            std::vector<std::string> identity_store;
-            for (int i = 0; i < info_.get_num_local_workers() - 1; ++i) {
-                std::string s = husky::zmq_recv_string(&socket_);
-                identity_store.push_back(std::move(s));
-                husky::zmq_recv_dummy(&socket_);  // delimiter
-                husky::zmq_recv_dummy(&socket_);  // dummy msg
-            }
-            // collect all and then reply
-            for (auto& identity : identity_store) {
-                husky::zmq_sendmore_string(&socket_, identity);
-                husky::zmq_sendmore_dummy(&socket_);  // delimiter
-                husky::zmq_send_dummy(&socket_);      // dummy msg
-            }
-        } else {
-            husky::zmq_send_dummy(&socket_);
-            husky::zmq_recv_dummy(&socket_);
-        }
+        shared_state_.Barrier();
     }
 
     // For v2
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
     }
-    virtual float Get_v2(size_t idx) override { return (*model_)[(*keys_)[idx]]; }
-    virtual void Update_v2(size_t idx, float val) override { (*model_)[(*keys_)[idx]] += val; }
+    virtual float Get_v2(size_t idx) override { return (*shared_state_.Get())[(*keys_)[idx]]; }
+    virtual void Update_v2(size_t idx, float val) override { (*shared_state_.Get())[(*keys_)[idx]] += val; }
     virtual void Update_v2(const std::vector<float>& vals) override {
         assert(vals.size() == keys_->size());
         for (size_t i = 0; i < keys_->size(); ++i) {
-            assert((*keys_)[i] < model_->size());
-            (*model_)[(*keys_)[i]] += vals[i];
+            assert((*keys_)[i] < shared_state_.Get()->size());
+            (*shared_state_.Get())[(*keys_)[i]] += vals[i];
         }
     }
 
@@ -199,12 +161,7 @@ class HogwildGenericWorker : public common::GenericMLWorker {
     }
 
     const husky::Info& info_;
-    zmq::context_t& context_;
-    zmq::socket_t socket_;
-
-    // pointer to the real model
-    std::vector<float>* model_ = nullptr;
-
+    SharedState<std::vector<float>> shared_state_;
     int model_id_;
 
     // For v2
