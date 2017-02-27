@@ -31,12 +31,14 @@ add_subdirectory(kvstore)
 add_subdirectory(cluster_manager)
 
 
-# build libhusky-ml.a
+# build libhusky-ml.a for applications
 set(husky-ml-objs $<TARGET_OBJECTS:mlworker-objs> $<TARGET_OBJECTS:mlcore-objs> 
-    $<TARGET_OBJECTS:mlkvstore-objs> $<TARGET_OBJECTS:mlmanager-objs> $<TARGET_OBJECTS:mlmanager-scheduler-objs>)
+    $<TARGET_OBJECTS:mlkvstore-objs>)
 add_library(husky-ml STATIC ${husky-ml-objs})
 
-add_library(husky-ml-master STATIC $<TARGET_OBJECTS:mlcore-objs>)
+# build libhusky-ml-master.a for ClusterManager
+add_library(husky-ml-master STATIC $<TARGET_OBJECTS:mlcore-objs> 
+    $<TARGET_OBJECTS:mlmanager-objs> $<TARGET_OBJECTS:mlmanager-scheduler-objs>)
 
 # build the examples and test
 add_subdirectory(examples)
