@@ -31,11 +31,10 @@ public:
     }
 
     inline std::vector<int> get_task_history(int task_id) {
-        auto it = history_.find(task_id);
-        if (it != history_.end()) {
-            return history_[task_id];
+        if (history_.find(task_id) == history_.end()) {
+            history_.emplace(task_id, std::vector<int>(num_processes_));
         }
-        return {};
+        return history_[task_id];
     }
 
 private:

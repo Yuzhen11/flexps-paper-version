@@ -61,24 +61,16 @@ std::vector<int> TaskManager::order_by_priority() {
 std::vector<int> TaskManager::get_preferred_proc(int task_id) {
     std::vector<int> task_history = HistoryManager::get().get_task_history(task_id);
     std::vector<int> plan;
-    int smallest = 9999;
-    int largest = 0;
-    if (task_history.size() == 0) {
-        return {};// no history then no preferrence let scheduler choose
-    } else {
-        for (int i=0; i<task_history.size(); i++) {
-            if (task_history[i] < smallest) {
-                smallest = task_history[i];
-            }
-            if (task_history[i] > largest) {
-                largest = task_history[i];
-            }
+    int smallest = std::numeric_limits<int>::max();
+    for (int i=0; i<task_history.size(); i++) {
+        if (task_history[i] < smallest) {
+            smallest = task_history[i];
         }
+    }
 
-        for (int i=0; i<task_history.size(); i++) {
-            if (task_history[i] == smallest) {
-                plan.push_back(i);
-            }
+    for (int i=0; i<task_history.size(); i++) {
+        if (task_history[i] == smallest) {
+            plan.push_back(i);
         }
     }
     return plan;

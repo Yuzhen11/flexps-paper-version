@@ -14,16 +14,12 @@ void HistoryManager::start(int num_processes) {
 }
 
 void HistoryManager::update_history(int task_id, const std::vector<std::pair<int, int>>& pid_tids) {
-    // if the task with this task_id runs first time, init its history first
-    auto it = history_.find(task_id);
-    if (it == history_.end()) {
-        std::cout<<task_id<< "is initilizing history\n";
+    // 1. If the task with this task_id runs first time, init its history first
+    if (history_.find(task_id) == history_.end()) {
         history_.emplace(task_id, std::vector<int>(num_processes_));
-    } else {
-        std::cout<<task_id<< "is updating history\n";
     }
 
-    // remove repeated
+    // 2. Remove repeated
     std::vector<int> pids;
     for(int i = 0; i < pid_tids.size(); i++) {
         pids.push_back(pid_tids[i].first);
@@ -32,7 +28,7 @@ void HistoryManager::update_history(int task_id, const std::vector<std::pair<int
     std::sort(pids.begin(), pids.end());
     pids.erase(std::unique(pids.begin(), pids.end()), pids.end());
 
-    // update history
+    // 3. Update history
     for (auto pid : pids) {
         history_.at(task_id).at(pid) += 1;
     }

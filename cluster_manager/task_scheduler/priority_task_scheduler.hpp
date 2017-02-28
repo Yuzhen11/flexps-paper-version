@@ -44,7 +44,4 @@ class PriorityTaskScheduler : public TaskScheduler {
     int num_processes_;
 };
 
-
-
-
 }  // namespace husky

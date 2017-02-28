@@ -25,9 +25,9 @@ void PriorityTaskScheduler::finish_thread(int instance_id, int global_thread_id)
 std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances() {
     std::vector<std::shared_ptr<Instance>> instances;
     std::unordered_set<int>  process_lock;
-    // handle angry tasks first, lock preferred process if the task is not scheduled
+    // 1. Handle angry tasks first, lock preferred process if the task is not scheduled
     if (task_manager_.exist_angry_tasks()) {
-        std::cout<<"angry"<<std::endl;
+        husky::DLOG_I << "angry";
         auto begin = task_manager_.angry_list_begin();
         auto end = task_manager_.angry_list_end();
         while (begin != end) {
@@ -35,11 +35,6 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
             std::shared_ptr<Instance> instance(new Instance);
             instance_basic_setup(instance, *(task_manager_.get_task_by_id(id)));
             std::vector<int> proc_ids = task_manager_.get_preferred_proc(id);
-            // this task has no preference
-            if (proc_ids.empty()) {
-                for (int i=0; i<num_processes_; i++)
-                    proc_ids.push_back(i);
-            }
 
             std::vector<int> candidate_pids;
             for (auto& pid : proc_ids) {
@@ -79,12 +74,6 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
         std::shared_ptr<Instance> instance(new Instance);
         instance_basic_setup(instance, *(task_manager_.get_task_by_id(id)));
         std::vector<int> proc_ids = task_manager_.get_preferred_proc(id);
-
-        // this task has no preference
-        if (proc_ids.empty()) {
-            for (int i=0; i<num_processes_; i++)
-                proc_ids.push_back(i);
-        }
 
         std::vector<int> candidate_pids;
         // filter out locked processes
