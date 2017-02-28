@@ -38,11 +38,14 @@ class KVServer : public KVServerBase {
     KVServer(int kv_id, int server_id, const std::map<std::string, std::string>& hint) {
         try {
             if (hint.find(husky::constants::kType) == hint.end()) {  // if kType is not set
-                if (hint.find(husky::constants::kStorageType) == hint.end()) {
+                if (hint.find(husky::constants::kStorageType) == hint.end() 
+                        || hint.at(husky::constants::kStorageType) == husky::constants::kUnorderedMapStorage) {
                     // The default is assign
                     server_base_.reset(new DefaultAssignServer<Val>(kv_id, server_id));
                 } else if (hint.at(husky::constants::kStorageType) == husky::constants::kVectorStorage) {
                     server_base_.reset(new VectorAssignServer<Val>(kv_id, server_id));
+                } else {
+                    throw;
                 }
             } else {
                 if (hint.at(husky::constants::kType) == husky::constants::kSingle

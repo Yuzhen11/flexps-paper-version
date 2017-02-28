@@ -49,8 +49,8 @@ class KVWorker {
      */
     template <typename Val>
     int Push(int kv_id, const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals,
-             bool send_all = true, const Callback& cb = nullptr) {
-        return ZPush(kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), send_all, cb);
+             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
+        return ZPush(kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), send_all, local_zero_copy, cb);
     }
 
     /*
@@ -58,7 +58,7 @@ class KVWorker {
      */
     template <typename Val>
     int ZPush(int kv_id, const pslite::SArray<husky::constants::Key>& keys, const pslite::SArray<Val>& vals,
-              bool send_all = true, const Callback& cb = nullptr) {
+              bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
         // 1. slice
         KVPairs<Val> kvs;
         kvs.keys = keys;
@@ -66,9 +66,9 @@ class KVWorker {
         SlicedKVs<Val> sliced;
         Slice_(kvs, RangeManager::Get().GetServerKeyRanges(kv_id), &sliced);
         // 2. get ts
-        int ts = GetTimestamp_(kv_id, sliced, send_all);
+        int ts = GetTimestamp_(kv_id, sliced);
         // 3. send
-        Send_(kv_id, ts, true, sliced, send_all);
+        Send_(kv_id, ts, true, sliced, send_all, local_zero_copy);
         return ts;
     }
 
@@ -79,8 +79,8 @@ class KVWorker {
      */
     template <typename Val>
     int Pull(int kv_id, const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals,
-             bool send_all = true, const Callback& cb = nullptr) {
-        return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, send_all, cb);
+             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
+        return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, send_all, local_zero_copy, cb);
     }
 
     /*
@@ -88,8 +88,8 @@ class KVWorker {
      */
     template <typename Val>
     int ZPull(int kv_id, const pslite::SArray<husky::constants::Key>& keys, pslite::SArray<Val>* vals,
-              bool send_all = true, const Callback& cb = nullptr) {
-        return Pull_<Val>(kv_id, keys, vals, send_all, cb);
+              bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
+        return Pull_<Val>(kv_id, keys, vals, send_all, local_zero_copy, cb);
     }
 
     /*
@@ -100,14 +100,14 @@ class KVWorker {
      */
     template <typename Val>
     int PushChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
-             bool send_all = true, const Callback& cb = nullptr) {
+             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
         assert(chunk_ids.size() == chunks.size());
         // 1. partition
         std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
         // 2. get ts
         int ts = GetTimestampChunk_(kv_id, pos, send_all);
         // 3. send
-        SendChunks_(kv_id, ts, true, chunk_ids, chunks, pos, send_all);
+        SendChunks_(kv_id, ts, true, chunk_ids, chunks, pos, send_all, local_zero_copy);
         return ts;
     }
 
@@ -119,7 +119,7 @@ class KVWorker {
      */
     template<typename Val>
     int PullChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
-             bool send_all = true, const Callback& cb = nullptr) {
+             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
         assert(chunk_ids.size() == chunks.size());
         // 1. partition
         std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
@@ -158,7 +158,7 @@ class KVWorker {
             if (cb)
                 cb();
         });
-        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, send_all);
+        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, send_all, local_zero_copy);
         return ts;
     }
 
@@ -313,14 +313,14 @@ class KVWorker {
     }
 
     template <typename Val, typename C>
-    int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, bool send_all, const Callback& cb) {
+    int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, bool send_all, bool local_zero_copy, const Callback& cb) {
         // 1. slice the message
         KVPairs<Val> kvs;
         kvs.keys = keys;
         SlicedKVs<Val> sliced;
         Slice_(kvs, RangeManager::Get().GetServerKeyRanges(kv_id), &sliced);
         // 2. get ts
-        int ts = GetTimestamp_(kv_id, sliced, send_all);
+        int ts = GetTimestamp_(kv_id, sliced);
         // 3. add callback
         AddCallback(kv_id, ts, [this, kv_id, ts, keys, vals, cb]() mutable {
             mu_.lock();
@@ -354,7 +354,7 @@ class KVWorker {
                 cb();
         });
         // 4. send
-        Send_(kv_id, ts, false, sliced, send_all);
+        Send_(kv_id, ts, false, sliced, send_all, local_zero_copy);
         return ts;
     }
 
@@ -409,7 +409,7 @@ class KVWorker {
      * Identify wait_num
      */
     template<typename Val>
-    int GetTimestamp_(int kv_id, const SlicedKVs<Val>& sliced, bool send_all) { 
+    int GetTimestamp_(int kv_id, const SlicedKVs<Val>& sliced) { 
         int wait_num = 0;
         for (size_t i = 0; i < sliced.size(); ++ i) {
             if (sliced[i].first) wait_num += 1;
@@ -426,7 +426,7 @@ class KVWorker {
      * @return ts 
      */
     template <typename Val>
-    void Send_(int kv_id, int ts, bool push, const SlicedKVs<Val>& sliced, bool send_all) {
+    void Send_(int kv_id, int ts, bool push, const SlicedKVs<Val>& sliced, bool send_all, bool local_zero_copy) {
         bool isRequest = true;
         int src = info_.global_id;
         int cmd = 0;  // cmd 0 for normal
@@ -436,16 +436,7 @@ class KVWorker {
             }
             husky::base::BinStream bin;
             bin << isRequest << kv_id << ts;
-            if (info_.local_server_ids.find(i) == info_.local_server_ids.end()) {
-                bin << cmd << push << src;
-                if (sliced[i].first) {  // if no empty, don't send the size
-                    auto& kvs = sliced[i].second;
-                    if (push)
-                        bin << kvs.keys << kvs.vals;
-                    else
-                        bin << kvs.keys;
-                }
-            } else {  // if it is local server, zero-copy enabled
+            if (local_zero_copy == true && info_.local_server_ids.find(i) != info_.local_server_ids.end()) {  // if enable local_zero_copy
                 bin << static_cast<int>(2) << push << src;
                 if (sliced[i].first) {  // if no empty, don't send the size
                     auto& kvs = sliced[i].second;
@@ -454,6 +445,15 @@ class KVWorker {
                     p->keys = kvs.keys;
                     p->vals = kvs.vals;
                     bin << reinterpret_cast<std::uintptr_t>(p);
+                }
+            } else {
+                bin << cmd << push << src;
+                if (sliced[i].first) {  // if no empty, don't send the size
+                    auto& kvs = sliced[i].second;
+                    if (push)
+                        bin << kvs.keys << kvs.vals;
+                    else
+                        bin << kvs.keys;
                 }
             }
             // husky::LOG_I << CLAY("sending to "+std::to_string(i)+" size: "+std::to_string(bin.size()));
@@ -512,7 +512,7 @@ class KVWorker {
     template<typename Val>
     void SendChunks_(int kv_id, int ts, bool push,
             const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks, 
-            const std::vector<size_t>& pos, int send_all) {
+            const std::vector<size_t>& pos, bool send_all, bool local_zero_copy) {
         const std::vector<pslite::Range>& ranges = RangeManager::Get().GetServerKeyRanges(kv_id);
         size_t n = ranges.size();
 
@@ -525,15 +525,35 @@ class KVWorker {
                 continue;
             }
             husky::base::BinStream bin;
-            bin << isRequest << kv_id << ts << cmd << push << src;
-            if (pos[i] != pos[i+1]) {  // if empty, don't send the size
-                bin << static_cast<size_t>(pos[i+1]-pos[i]);
-                for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunk_ids
-                    bin << chunk_ids[j];
+            bin << isRequest << kv_id << ts;
+            if (local_zero_copy == true && info_.local_server_ids.find(i) != info_.local_server_ids.end()) {
+                bin << static_cast<int>(3) << push << src;
+                if (pos[i] != pos[i+1]) {  // if empty, don't send the size
+                    auto* p = new std::pair<std::vector<size_t>, std::vector<std::vector<Val>>>();
+                    // TODO, still need to copy once
+                    p->first.reserve(pos[i+1]-pos[i]);
+                    for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunks_ids
+                        p->first.push_back(chunk_ids[j]);
+                    }
+                    if (push) {
+                        p->second.reserve(pos[i+1]-pos[i]);
+                        for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunks
+                            p->second.push_back(*chunks[j]);
+                        }
+                    }
+                    bin << reinterpret_cast<std::uintptr_t>(p);
                 }
-                if (push) {
-                    for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunks
-                        bin << *chunks[j];
+            } else {
+                bin << cmd << push << src;
+                if (pos[i] != pos[i+1]) {  // if empty, don't send the size
+                    bin << static_cast<size_t>(pos[i+1]-pos[i]);
+                    for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunk_ids
+                        bin << chunk_ids[j];
+                    }
+                    if (push) {
+                        for (size_t j = pos[i]; j < pos[i+1]; ++ j) {  // chunks
+                            bin << *chunks[j];
+                        }
                     }
                 }
             }
