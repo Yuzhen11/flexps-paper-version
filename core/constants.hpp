@@ -1,6 +1,6 @@
-#pragma once
+#pragma once 
 
-#include <cstdint>
+#include <cstdint> 
 
 namespace husky {
 namespace constants {
@@ -23,19 +23,35 @@ const uint32_t kClusterManagerFinished = 102;
 
 const uint32_t kIOHDFSSubsetLoad = 301;
 
-// storage type
+/*
+ * storage type
+ *
+ * If Users want to use kvstore directly, they may set the kStorageType explicitly to
+ * control the storage format of the kvstore.
+ *
+ * The default storage type is kUnorderedMapStorage. 
+ */
 constexpr const char* const kStorageType = "storage_type";
 constexpr const char* const kVectorStorage = "vector_storage";
-constexpr const char* const kUnorderedMapStorage = "unordered_storage";
+constexpr const char* const kUnorderedMapStorage = "unordered_map_storage";
 
-// type
+/*
+ * type
+ *
+ * ML user needs set the worker type explicitly.
+ */
 constexpr const char* const kType = "type";
 constexpr const char* const kSingle = "Single";
 constexpr const char* const kHogwild = "Hogwild";
 constexpr const char* const kSPMT = "SPMT";
 constexpr const char* const kPS = "PS";
 
-// consistency
+/*
+ * consistency
+ *
+ * The consistency level can be kSSP, kBSP, kASP.
+ * User using PS and SPMT may need to set kConsistency
+ */
 constexpr const char* const kConsistency = "consistency";
 constexpr const char* const kSSP = "SSP";
 constexpr const char* const kBSP = "BSP";
@@ -49,7 +65,17 @@ constexpr const char* const kNumWorkers = "num_workers";
 constexpr const char* const kStaleness = "staleness";
 
 
-}  // namespace anonymous
+constexpr const char* const kEnableDirectModelTransfer = "direct_model_transfer";
+constexpr const char* const kKVStore = "kvstore";
+constexpr const char* const kTransfer = "transfer";
 
+/*
+ * param_type
+ */
+constexpr const char* const kParamType = "param_type";
+constexpr const char* const kIntegralType = "integral_type";
+constexpr const char* const kChunkType = "chunk_type";
+
+}  // namespace anonymous
 }  // namespace constants
 }  // namespace husky

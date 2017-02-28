@@ -35,13 +35,14 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      * \param context zmq_context
      * \param info info in this instance
      */
-    HogwildGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, size_t num_params)
+    HogwildGenericWorker(const husky::Info& info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
           info_(info),
-          model_id_(model_id) {
+          model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
 
+        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         if (info.get_cluster_id() == 0) {
-            husky::LOG_I << CLAY("[Hogwild] model_id: "+std::to_string(model_id)
+            husky::LOG_I << CLAY("[Hogwild] model_id: "+std::to_string(model_id_)
                     +" local_id: "+std::to_string(info.get_local_id()));
         }
 
@@ -58,6 +59,8 @@ class HogwildGenericWorker : public common::GenericMLWorker {
         }
         // 2. Sync shared_state_
         shared_state_.SyncState();
+        // 3. Load
+        Load();
     }
 
     /*

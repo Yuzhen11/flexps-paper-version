@@ -43,9 +43,11 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     /*
      * @param type: 0 for ssp, 1 for bsp
      */
-    SPMTGenericWorker(int model_id, zmq::context_t& context, const husky::Info& info, const std::string& type, size_t num_params)
+    SPMTGenericWorker(const husky::Info& info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
           info_(info) {
+        int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
+        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         // check valid
         if (!isValid()) {
             throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
@@ -53,6 +55,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         }
         if (info_.get_cluster_id() == 0) {
             SPMTState* state = new SPMTState;
+            std::string type = info.get_task()->get_hint().at(husky::constants::kConsistency);
             if (type == husky::constants::kBSP) {
                 state->p_controller_  = new BSPConsistencyController;
             } else if (type == husky::constants::kSSP) {
@@ -70,6 +73,8 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         }
         // 2. Sync shared_state_
         shared_state_.SyncState();
+        // 3. Load ??
+        Load();
     }
     ~SPMTGenericWorker() {
         shared_state_.Barrier();

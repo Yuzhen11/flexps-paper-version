@@ -29,30 +29,18 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
             if (hint.at(husky::constants::kType) == husky::constants::kPS) {
                 if (hint.find(husky::constants::kWorkerType) != hint.end()
                     && hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
-                    int staleness = std::stoi(hint.at(husky::constants::kStaleness));
-                    info.set_mlworker(new ml::ps::SSPWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(), 
-                                                            info.get_local_id(),
-                                                            staleness));
+                    info.set_mlworker(new ml::ps::SSPWorker(info));
                 } else {
-                    info.set_mlworker(new ml::ps::PSGenericWorker(static_cast<MLTask*>(info.get_task())->get_kvstore(),
-                                                                  info.get_local_id()));
+                    info.set_mlworker(new ml::ps::PSGenericWorker(info));
                 }
             } else if (hint.at(husky::constants::kType) == husky::constants::kSingle) {
-                info.set_mlworker(new ml::single::SingleGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), info,
-                    static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
+                info.set_mlworker(new ml::single::SingleGenericWorker(info));
             } else if (hint.at(husky::constants::kType) == husky::constants::kHogwild) {
-                info.set_mlworker(new ml::hogwild::HogwildGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
+                info.set_mlworker(new ml::hogwild::HogwildGenericWorker(info,
+                    cluster_manager_connector_.get_context()));
             } else if (hint.at(husky::constants::kType) == husky::constants::kSPMT) {
-                std::string consistency = hint.at(husky::constants::kConsistency);
-                info.set_mlworker(new ml::spmt::SPMTGenericWorker(
-                    static_cast<MLTask*>(info.get_task())->get_kvstore(), cluster_manager_connector_.get_context(),
-                    info, consistency, static_cast<MLTask*>(info.get_task())->get_dimensions()));
-                info.get_mlworker()->Load();
+                info.set_mlworker(new ml::spmt::SPMTGenericWorker(info,
+                    cluster_manager_connector_.get_context()));
             } else {
                 throw;
             }

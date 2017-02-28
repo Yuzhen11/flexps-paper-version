@@ -38,9 +38,9 @@ class IntegralModel : public Model {
     }
 
     virtual void Load(int local_id, const std::string& hint) override {  // coordination and sync are handled by MLWorker
-        if (hint == "kvstore") {
+        if (hint == husky::constants::kKVStore) {
             LoadAllIntegral(local_id, model_id_, num_params_, &params_);
-        } else if (hint == "transfer") {
+        } else if (hint == husky::constants::kTransfer) {
             LoadIntegralFromStore(local_id, model_id_, &params_);
         } else {
             throw husky::base::HuskyException("Unknown hint in IntegralModel");
@@ -48,18 +48,15 @@ class IntegralModel : public Model {
     }
 
     virtual void Dump(int local_id, const std::string& hint) override {
-        if (hint == "kvstore") {
+        if (hint == husky::constants::kKVStore) {
             DumpAllIntegral(local_id, model_id_, num_params_, params_);
-        } else if (hint == "transfer") {
+        } else if (hint == husky::constants::kTransfer) {
             DumpIntegralToStore(model_id_, std::move(params_));
         } else {
             throw husky::base::HuskyException("Unknown hint in IntegralModel");
         }
     }
 
-    std::vector<float>* GetParamsPtr() {
-        return &params_;
-    }
    protected:
     std::vector<float> params_;
 };

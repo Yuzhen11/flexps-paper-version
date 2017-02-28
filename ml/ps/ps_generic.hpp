@@ -18,8 +18,18 @@ namespace ps {
 class PSGenericWorker : public common::GenericMLWorker {
    public:
     PSGenericWorker() = delete;
-    PSGenericWorker(int model_id, int local_id)
-        : model_id_(model_id), kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)) {}
+    PSGenericWorker(const PSGenericWorker&) = delete;
+    PSGenericWorker& operator=(const PSGenericWorker&) = delete;
+    PSGenericWorker(PSGenericWorker&&) = delete;
+    PSGenericWorker& operator=(PSGenericWorker&&) = delete;
+
+    PSGenericWorker(const husky::Info& info) 
+        : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+        // set kvworker
+        int local_id = info.get_local_id();
+        kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
+    }
+
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
@@ -75,8 +85,19 @@ class PSGenericWorker : public common::GenericMLWorker {
 class SSPWorker : public common::GenericMLWorker {
    public:
     SSPWorker() = delete;
-    SSPWorker(int model_id, int local_id, int staleness)
-        : model_id_(model_id), kvworker_(kvstore::KVStore::Get().get_kvworker(local_id)), staleness_(staleness) {}
+    SSPWorker(const SSPWorker&) = delete;
+    SSPWorker& operator=(const SSPWorker&) = delete;
+    SSPWorker(SSPWorker&&) = delete;
+    SSPWorker& operator=(SSPWorker&&) = delete;
+
+    SSPWorker(const husky::Info& info)
+        : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+        // set staleness
+        staleness_ = stoi(info.get_task()->get_hint().at(husky::constants::kStaleness));
+        // set kvworker
+        int local_id = info.get_local_id();
+        kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
+    }
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;

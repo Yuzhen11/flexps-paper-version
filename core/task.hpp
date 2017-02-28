@@ -97,7 +97,7 @@ class MLTask : public Task {
     void set_dimensions(int dim) { dim_ = dim; }
     void set_kvstore(int kv_id) { kv_id_ = kv_id; }
 
-    int get_dimensions() const { return dim_; }
+    size_t get_dimensions() const { return dim_; }
     int get_kvstore() const { return kv_id_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
@@ -114,7 +114,7 @@ class MLTask : public Task {
    protected:
 
     int kv_id_ = -1;  // the corresponding kvstore id
-    int dim_ = -1;  // the parameter dimensions
+    size_t dim_ = -1;  // the parameter dimensions
 };
 
 /*

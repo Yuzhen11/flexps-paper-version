@@ -55,7 +55,6 @@ class ChunkBasedModel : public Model {
         }
     }
 
-   protected:
     /*
      * Prepare function to prepare the chunks for the provided keys
      *
@@ -72,10 +71,13 @@ class ChunkBasedModel : public Model {
                 is_cached_[loc.first] = true;
             }
         }
+        if (chunks_to_fetch.empty())
+            return;
         int ts = fetch_chunk(chunks_to_fetch, local_id);
         wait(ts, local_id);
     }
 
+   protected:
     /*
      * Fetch the given chunks, return a timestamp
      */
@@ -104,5 +106,6 @@ class ChunkBasedModel : public Model {
     std::vector<std::vector<float>> params_;  // params in chunks
     std::vector<bool> is_cached_;  // indicate whether chunk has been pulled from kvstore
 };
+
 }  // namespace model
 }  // namespace ml
