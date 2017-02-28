@@ -104,6 +104,18 @@ class RangeManager {
         return server_chunk_ranges_.at(kv_id);
     }
 
+    // get the interval based on kv_id and server_id
+    int GetServerInterval(int kv_id, int server_id) {
+        assert(kv_id < server_key_ranges_.size());
+        return server_key_ranges_.at(kv_id).at(server_id).begin();
+    }
+
+    // get the size based on kv_id and server_id
+    int GetServerSize(int kv_id, int server_id) {
+        assert(kv_id < server_key_ranges_.size());
+        return server_key_ranges_.at(kv_id).at(server_id).size();
+    }
+
     size_t GetNumRanges() const {
         return server_key_ranges_.size();
     }
