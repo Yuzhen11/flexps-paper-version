@@ -8,6 +8,7 @@
 namespace husky {
 
 void TaskManager::add_tasks(const std::vector<std::shared_ptr<Task>>& tasks) {
+    // Here I assume tasks are indexed by their ids
     for (auto task : tasks) {
         task_priority_.push_back(std::make_pair(task->get_id(), 0));
         tasks_.push_back(task);
@@ -43,6 +44,7 @@ void TaskManager::finish_thread(int task_id, int pid, int global_thread_id) {
     }
 }
 
+// return the ready task ids order by decreasing priority
 std::vector<int> TaskManager::order_by_priority() {
     std::sort(task_priority_.begin(), task_priority_.end(), 
             [](const std::pair<int, int>& left, const std::pair<int, int>& right) {
@@ -58,6 +60,7 @@ std::vector<int> TaskManager::order_by_priority() {
     return sorted_ready_id;
 }
 
+// return the least frequently visited processes for this task id
 std::vector<int> TaskManager::get_preferred_proc(int task_id) {
     std::vector<int> task_history = HistoryManager::get().get_task_history(task_id);
     std::vector<int> plan;
@@ -76,6 +79,10 @@ std::vector<int> TaskManager::get_preferred_proc(int task_id) {
     return plan;
 }
 
+/*
+ *  1. change the status of task to running and decrease its priority
+ *  2. possibly erase it from angry task list
+ */ 
 void TaskManager::suc_sched(int task_id) {
     assert(task_id>=0 && task_id < num_tasks_);
     task_status_[task_id] = 1; // running
@@ -91,6 +98,11 @@ void TaskManager::suc_sched(int task_id) {
     }
 }
 
+/*  
+ *  1. increase the rejected times by 1
+ *  2. increase its priority  
+ *  3. possibly add it into angry list
+ */
 void TaskManager::fail_sched(int task_id) {
     assert(task_id>=0 && task_id<num_tasks_);
     task_rejected_times_.at(task_id) += 1;
@@ -106,7 +118,10 @@ void TaskManager::fail_sched(int task_id) {
         }
     }
 }
-
+/*
+ *  1. update the history of the task 
+ *  2. track the threads in task_id_pid_tids
+ */
 void TaskManager::record_and_track(int task_id, std::vector<std::pair<int, int>>& pid_tids) {
     assert(task_id>=0 && task_id<num_tasks_);
     HistoryManager::get().update_history(task_id, pid_tids);

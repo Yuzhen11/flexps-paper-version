@@ -6,6 +6,7 @@
 
 #include "cluster_manager/cluster_manager_connection.hpp"
 #include "cluster_manager/task_scheduler/task_scheduler.hpp"
+#include "cluster_manager/scheduler_trigger.hpp"
 #include "core/instance.hpp"
 
 namespace husky {
@@ -67,6 +68,9 @@ class ClusterManager {
 
     // task scheduler
     std::unique_ptr<TaskScheduler> task_scheduler_;
+
+    // decide when to trigger task scheduler
+    std::unique_ptr<SchedulerTrigger> scheduler_trigger_; 
 
     bool is_setup = false;
 };

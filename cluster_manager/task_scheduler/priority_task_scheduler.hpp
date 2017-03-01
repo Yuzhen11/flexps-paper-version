@@ -32,15 +32,25 @@ class PriorityTaskScheduler : public TaskScheduler {
 
     void init_tasks(const std::vector<std::shared_ptr<Task>>& tasks) override;
 
+    // 1. add this thread to available_worker
+    // 2. untrack this thread for that instance
     void finish_thread(int instance_id, int global_thread_id) override;
 
+    // 1. assign available threads to ready tasks
+    // 2. produce actual instances
     std::vector<std::shared_ptr<Instance>> extract_instances() override;
 
+    // check whether all the tasks have finished all epochs
     bool is_finished() override;
 
    private:
+    // maintain available workers 
     AvailableWorkers available_workers_;
+
+    // maintain the status of tasks and help find their preference
     TaskManager task_manager_;
+
+    // number of processes in the cluster
     int num_processes_;
 };
 

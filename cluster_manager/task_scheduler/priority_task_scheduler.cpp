@@ -66,11 +66,9 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
         }
     }
 
-    // for tasks that are not angry and ready to run
+    // 2. handle tasks that are not angry and ready to run
     auto ordered_task = task_manager_.order_by_priority();
     for (auto& id : ordered_task) {
-        std::cout<<"\n";
-        std::cout<<"<<<<<<<<<<<Task "<<id<<"<<<<<<<<<<<<\n";
         std::shared_ptr<Instance> instance(new Instance);
         instance_basic_setup(instance, *(task_manager_.get_task_by_id(id)));
         std::vector<int> proc_ids = task_manager_.get_preferred_proc(id);
@@ -82,11 +80,6 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
                 candidate_pids.push_back(pid);
             }
         }
-
-        for (auto& pid : proc_ids) {
-            std::cout<<pid<<",";
-        }
-        std::cout<<" are added into candidate list\n";
 
         std::vector<std::pair<int, int>> pid_tids = 
             select_threads_from_subset(instance, available_workers_, num_processes_, instance->get_num_workers(), candidate_pids);
@@ -101,7 +94,6 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
             instances.push_back(std::move(instance));
         } else {
             task_manager_.fail_sched(id);
-            std::cout<<"fail_to_sched"<<std::endl;
         }
     }
     return instances;

@@ -134,12 +134,6 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
         }
     }
 
-    if (!pid_tids.empty()) {
-        std::cout<<"task "<<instance->get_id()<<" selcted:\n";
-        for (auto& pid_tid : pid_tids) {
-            std::cout<<pid_tid.first<<" "<<pid_tid.second<<std::endl;
-        }
-    }
     return pid_tids;
 }
 
