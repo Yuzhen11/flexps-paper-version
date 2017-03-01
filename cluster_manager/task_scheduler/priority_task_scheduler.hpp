@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 
+#include "core/constants.hpp"
 #include "cluster_manager/task_scheduler/available_workers.hpp"
 #include "cluster_manager/task_scheduler/task_manager.hpp"
 #include "cluster_manager/task_scheduler/task_scheduler.hpp"

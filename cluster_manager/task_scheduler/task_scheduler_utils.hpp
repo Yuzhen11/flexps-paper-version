@@ -6,6 +6,7 @@
 #include "cluster_manager/task_scheduler/available_workers.hpp"
 #include "core/instance.hpp"
 #include "core/task.hpp"
+#include "core/constants.hpp"
 
 namespace husky {
 

@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "ml/hogwild/hogwild_generic.hpp"
+#include "ml/mlworker/hogwild.hpp"
 
 #include "core/instance.hpp"
 #include "core/info.hpp"
@@ -20,26 +20,28 @@ class TestHogwild: public testing::Test {
 
    protected:
     void SetUp() {
+        zmq_context = new zmq::context_t;
         // 1. Create WorkerInfo
         worker_info.add_worker(0,0,0);
         worker_info.add_worker(0,1,1);
         worker_info.set_process_id(0);
 
         // 2. Create Mailbox
-        el = new MailboxEventLoop(&zmq_context);
+        el = new MailboxEventLoop(zmq_context);
         el->set_process_id(0);
-        recver = new CentralRecver(&zmq_context, "inproc://test");
+        recver = new CentralRecver(zmq_context, "inproc://test");
         // 3. Start KVStore
-        kvstore::KVStore::Get().Start(worker_info, el, &zmq_context);
+        kvstore::KVStore::Get().Start(worker_info, el, zmq_context);
     }
     void TearDown() {
         kvstore::KVStore::Get().Stop();
         delete el;
         delete recver;
+        delete zmq_context;
     }
 
     WorkerInfo worker_info;
-    zmq::context_t zmq_context;
+    zmq::context_t* zmq_context;
     MailboxEventLoop* el;
     CentralRecver * recver;
 };
@@ -58,11 +60,11 @@ TEST_F(TestHogwild, Construct) {
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
     info.set_task(&task);
-    // Create HogwildGenericWorker
-    ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+    // Create HogwildWorker
+    ml::mlworker::HogwildWorker worker(info, *zmq_context);
 }
 
-void testPushPull(ml::hogwild::HogwildGenericWorker& worker, bool check = false) {
+void testPushPull(ml::mlworker::HogwildWorker& worker, bool check = false) {
     // PushPull
     std::vector<husky::constants::Key> keys = {1,3,5};
     std::vector<float> vals;
@@ -77,7 +79,7 @@ void testPushPull(ml::hogwild::HogwildGenericWorker& worker, bool check = false)
     if (check)
         EXPECT_EQ(vals, params);
 }
-void testV2(ml::hogwild::HogwildGenericWorker& worker, bool check = false) {
+void testV2(ml::mlworker::HogwildWorker& worker, bool check = false) {
     // v2 APIs
     std::vector<husky::constants::Key> keys = {1,3,5};
     worker.Prepare_v2(keys);
@@ -108,13 +110,13 @@ TEST_F(TestHogwild, Integral) {
 
     // Test Push/Pull API
     {
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
         testPushPull(worker, true);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));  // TODO, may have problem in SharedState, the destruction of socket may not release the bind address
     // Test V2 API
     {
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
         testV2(worker, true);
     }
 }
@@ -136,7 +138,7 @@ TEST_F(TestHogwild, IntegralMultiThreads) {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
         info.set_task(&task);
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
         testV2(worker, false);
@@ -145,7 +147,7 @@ TEST_F(TestHogwild, IntegralMultiThreads) {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {1, 1});
         info.set_task(&task);
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
         testV2(worker, false);
@@ -184,13 +186,13 @@ TEST_F(TestHogwild, Chunk) {
 
     // Test Push/Pull API
     {
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
         testPushPull(worker, true);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));  // TODO, may have problem in SharedState, the destruction of socket may not release the bind address
     // Test V2 API
     {
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
         testV2(worker, true);
     }
 }
@@ -217,7 +219,7 @@ TEST_F(TestHogwild, ChunkMultiThreads) {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
         info.set_task(&task);
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
         testV2(worker, false);
@@ -226,7 +228,7 @@ TEST_F(TestHogwild, ChunkMultiThreads) {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {1, 1});
         info.set_task(&task);
-        ml::hogwild::HogwildGenericWorker worker(info, zmq_context);
+        ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
         testV2(worker, false);

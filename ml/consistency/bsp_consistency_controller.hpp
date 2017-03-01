@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace ml {
-namespace spmt {
+namespace consistency {
 
 class BSPConsistencyController : public AbstractConsistencyController {
    public:
@@ -63,5 +63,5 @@ class BSPConsistencyController : public AbstractConsistencyController {
     std::condition_variable cv_;
 };
 
-}  // namespace spmt
+}  // namespace consistency
 }  // namespace ml

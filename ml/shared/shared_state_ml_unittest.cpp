@@ -13,22 +13,26 @@ class TestSharedState : public testing::Test {
     ~TestSharedState() {}
 
    protected:
-    void SetUp() {}
-    void TearDown() {}
+    void SetUp() {
+        context = new zmq::context_t;
+    }
+    void TearDown() {
+        delete context;
+    }
+
+    zmq::context_t* context;
 };
 
 TEST_F(TestSharedState, Create) {
-    zmq::context_t context;
-    SharedState<int> s(0, 0, 1, context);
+    SharedState<int> s(0, 0, 1, *context);
 }
 
 TEST_F(TestSharedState, Init) {
-    zmq::context_t context;
     std::vector<std::thread> ths;
     int num_threads = 2;
     for (int i = 0; i < num_threads; ++ i) {
-        ths.push_back(std::thread([&context, i, num_threads]() {
-            SharedState<int> s(0, i, num_threads, context);
+        ths.push_back(std::thread([this, i, num_threads]() {
+            SharedState<int> s(0, i, num_threads, *context);
             if (i == 0) {
                 int* p = new int;
                 s.Init(p);
@@ -43,12 +47,11 @@ TEST_F(TestSharedState, Init) {
 }
 
 TEST_F(TestSharedState, SyncState) {
-    zmq::context_t context;
     std::vector<std::thread> ths;
     int num_threads = 2;
     for (int i = 0; i < num_threads; ++ i) {
-        ths.push_back(std::thread([&context, i, num_threads]() {
-            SharedState<int> s(0, i, num_threads, context);
+        ths.push_back(std::thread([this, i, num_threads]() {
+            SharedState<int> s(0, i, num_threads, *context);
             if (i == 0) {
                 int* p = new int;
                 *p = 10;
@@ -67,12 +70,11 @@ TEST_F(TestSharedState, SyncState) {
 }
 
 TEST_F(TestSharedState, Barrier) {
-    zmq::context_t context;
     std::vector<std::thread> ths;
     int num_threads = 2;
     for (int i = 0; i < num_threads; ++ i) {
-        ths.push_back(std::thread([&context, i, num_threads]() {
-            SharedState<int> s(0, i, num_threads, context);
+        ths.push_back(std::thread([this, i, num_threads]() {
+            SharedState<int> s(0, i, num_threads, *context);
             if (i == 0) {
                 int* p = new int;
                 *p = 10;

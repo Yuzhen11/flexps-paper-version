@@ -8,8 +8,6 @@
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
 
-#include "ml/common/mlworker.hpp"
-
 #include "core/color.hpp"
 
 namespace husky {

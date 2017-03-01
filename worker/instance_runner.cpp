@@ -29,17 +29,17 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
             if (hint.at(husky::constants::kType) == husky::constants::kPS) {
                 if (hint.find(husky::constants::kWorkerType) != hint.end()
                     && hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
-                    info.set_mlworker(new ml::ps::SSPWorker(info));
+                    info.set_mlworker(new ml::mlworker::SSPWorker(info));
                 } else {
-                    info.set_mlworker(new ml::ps::PSGenericWorker(info));
+                    info.set_mlworker(new ml::mlworker::PSWorker(info));
                 }
             } else if (hint.at(husky::constants::kType) == husky::constants::kSingle) {
-                info.set_mlworker(new ml::single::SingleGenericWorker(info));
+                info.set_mlworker(new ml::mlworker::SingleWorker(info));
             } else if (hint.at(husky::constants::kType) == husky::constants::kHogwild) {
-                info.set_mlworker(new ml::hogwild::HogwildGenericWorker(info,
+                info.set_mlworker(new ml::mlworker::HogwildWorker(info,
                     cluster_manager_connector_.get_context()));
             } else if (hint.at(husky::constants::kType) == husky::constants::kSPMT) {
-                info.set_mlworker(new ml::spmt::SPMTGenericWorker(info,
+                info.set_mlworker(new ml::mlworker::SPMTWorker(info,
                     cluster_manager_connector_.get_context()));
             } else {
                 throw;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ml/common/mlworker.hpp"
-#include "ml/hogwild/hogwild_generic.hpp"
-#include "ml/spmt/spmt_generic.hpp"
-#include "ml/ps/ps_generic.hpp"
-#include "ml/single/single_generic.hpp"
+#include "ml/mlworker/mlworker.hpp"
+#include "ml/mlworker/hogwild.hpp"
+#include "ml/mlworker/spmt.hpp"
+#include "ml/mlworker/ps.hpp"
+#include "ml/mlworker/single.hpp"

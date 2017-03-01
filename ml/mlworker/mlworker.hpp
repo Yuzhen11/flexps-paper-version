@@ -7,7 +7,7 @@
 #include "husky/base/exception.hpp"
 
 namespace ml {
-namespace common {
+namespace mlworker {
 
 /*
  * It serves as an interface for all the parameter-update model in ML
@@ -57,5 +57,5 @@ class GenericMLWorker {
     virtual void Clock_v2(){};  // only for PS
 };
 
-}  // namespace common
+}  // namespace mlworker
 }  // namespace ml

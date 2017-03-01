@@ -7,7 +7,7 @@
 #include "husky/base/log.hpp"
 #include "husky/core/worker_info.hpp"
 
-#include "ml/common/mlworker.hpp"
+#include "ml/mlworker/mlworker.hpp"
 
 namespace husky {
 
@@ -28,8 +28,8 @@ class Info {
     int get_current_epoch() const { return current_epoch_; }
     int get_total_epoch() const { return task_->get_total_epoch(); }
 
-    const std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() const { return mlworker_; }
-    std::unique_ptr<ml::common::GenericMLWorker>& get_mlworker() { return mlworker_; }
+    const std::unique_ptr<ml::mlworker::GenericMLWorker>& get_mlworker() const { return mlworker_; }
+    std::unique_ptr<ml::mlworker::GenericMLWorker>& get_mlworker() { return mlworker_; }
     Task* const get_task() const { return task_; }
     inline int const get_task_id() const { return task_->get_id(); }
     const std::unordered_map<int, int>& get_cluster_global() const { return cluster_id_to_global_id_; }
@@ -50,7 +50,7 @@ class Info {
     void set_cluster_id(int cluster_id) { cluster_id_ = cluster_id; }
     void set_worker_info(const WorkerInfo& worker_info) { worker_info_ = worker_info; }
     void set_worker_info(WorkerInfo&& worker_info) { worker_info_ = std::move(worker_info); }
-    void set_mlworker(ml::common::GenericMLWorker* p) { mlworker_.reset(p); }
+    void set_mlworker(ml::mlworker::GenericMLWorker* p) { mlworker_.reset(p); }
     void set_task(Task* task) { task_ = task; }
     void set_cluster_global(const std::unordered_map<int, int>& rhs) { cluster_id_to_global_id_ = rhs; }
     void set_cluster_global(std::unordered_map<int, int>&& rhs) { cluster_id_to_global_id_ = std::move(rhs); }
@@ -65,7 +65,7 @@ class Info {
 
     WorkerInfo worker_info_;
     Task* task_;
-    std::unique_ptr<ml::common::GenericMLWorker> mlworker_;
+    std::unique_ptr<ml::mlworker::GenericMLWorker> mlworker_;
 
     std::unordered_map<int, int> cluster_id_to_global_id_;  // {cluster_id, global_id}
 };

@@ -1,7 +1,7 @@
 #include "consistency_controller.hpp"
 
 namespace ml {
-namespace spmt {
+namespace consistency {
 
 class ASPConsistencyController : public AbstractConsistencyController {
    public:
@@ -17,5 +17,5 @@ class ASPConsistencyController : public AbstractConsistencyController {
     }
 };
 
-}  // namespace spmt
+}  // namespace consistency
 }  // namespace ml

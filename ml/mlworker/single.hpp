@@ -4,7 +4,7 @@
 
 #include <utility>
 
-#include "ml/common/mlworker.hpp"
+#include "ml/mlworker/mlworker.hpp"
 #include "ml/model/load.hpp"
 #include "ml/model/dump.hpp"
 #include "ml/model/integral_model_with_ptr.hpp"
@@ -15,17 +15,17 @@
 
 
 namespace ml {
-namespace single {
+namespace mlworker {
 
-class SingleGenericWorker : public common::GenericMLWorker {
+class SingleWorker : public mlworker::GenericMLWorker {
    public:
-    SingleGenericWorker() = delete;
-    SingleGenericWorker(const SingleGenericWorker&) = delete;
-    SingleGenericWorker& operator=(const SingleGenericWorker&) = delete;
-    SingleGenericWorker(SingleGenericWorker&&) = delete;
-    SingleGenericWorker& operator=(SingleGenericWorker&&) = delete;
+    SingleWorker() = delete;
+    SingleWorker(const SingleWorker&) = delete;
+    SingleWorker& operator=(const SingleWorker&) = delete;
+    SingleWorker(SingleWorker&&) = delete;
+    SingleWorker& operator=(SingleWorker&&) = delete;
 
-    SingleGenericWorker(const husky::Info& info)
+    SingleWorker(const husky::Info& info)
         : info_(info) {
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
@@ -118,5 +118,5 @@ class SingleGenericWorker : public common::GenericMLWorker {
     std::vector<husky::constants::Key>* keys_;
 };
 
-}  // namespace single
+}  // namespace mlworker
 }  // namespace ml

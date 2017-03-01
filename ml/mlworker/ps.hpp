@@ -3,7 +3,7 @@
 #include "kvstore/kvstore.hpp"
 
 namespace ml {
-namespace ps {
+namespace mlworker {
 
 /*
  * Generic model for PS
@@ -15,15 +15,15 @@ namespace ps {
  *
  * Assume that in each epoch, Pull will be invoked first and then the Push.
  */
-class PSGenericWorker : public common::GenericMLWorker {
+class PSWorker : public mlworker::GenericMLWorker {
    public:
-    PSGenericWorker() = delete;
-    PSGenericWorker(const PSGenericWorker&) = delete;
-    PSGenericWorker& operator=(const PSGenericWorker&) = delete;
-    PSGenericWorker(PSGenericWorker&&) = delete;
-    PSGenericWorker& operator=(PSGenericWorker&&) = delete;
+    PSWorker() = delete;
+    PSWorker(const PSWorker&) = delete;
+    PSWorker& operator=(const PSWorker&) = delete;
+    PSWorker(PSWorker&&) = delete;
+    PSWorker& operator=(PSWorker&&) = delete;
 
-    PSGenericWorker(const husky::Info& info) 
+    PSWorker(const husky::Info& info) 
         : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
         // set kvworker
         int local_id = info.get_local_id();
@@ -82,7 +82,7 @@ class PSGenericWorker : public common::GenericMLWorker {
     std::vector<float> delta_;
 };
 
-class SSPWorker : public common::GenericMLWorker {
+class SSPWorker : public mlworker::GenericMLWorker {
    public:
     SSPWorker() = delete;
     SSPWorker(const SSPWorker&) = delete;
@@ -199,5 +199,5 @@ class SSPWorker : public common::GenericMLWorker {
     std::vector<float> delta_;
 };
 
-}  // namespace ps
+}  // namespace mlworker
 }  // namespace ml

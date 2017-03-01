@@ -2,8 +2,6 @@
 #include <chrono>
 
 #include "worker/engine.hpp"
-#include "ml/common/mlworker.hpp"
-
 #include "lib/sample_reader.hpp"
 #include "lib/task_utils.hpp"
 
@@ -37,7 +35,7 @@ using husky::lib::ml::LabeledPointHObj;
  */
 
 template <template <typename> typename ContainerT>
-void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker,
+void batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
         ContainerT<LabeledPointHObj<float, float, true>>* container, float alpha, int num_params) {
     alpha /= container->get_batch_size();
     auto keys = container->prepare_next_batch();
@@ -74,7 +72,7 @@ void batch_sgd_update(const std::unique_ptr<ml::common::GenericMLWorker>& worker
 }
 
 template <template <typename> typename ContainerT>
-float get_test_error_v2(const std::unique_ptr<ml::common::GenericMLWorker>& worker, 
+float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker, 
         ContainerT<LabeledPointHObj<float, float, true>>* container,
         int num_params, int test_samples = -1) {
     test_samples = 100;
@@ -104,6 +102,7 @@ float get_test_error_v2(const std::unique_ptr<ml::common::GenericMLWorker>& work
         }
     }
     worker->Clock_v2();
+    assert(count != 0);
     return c_count/count;
 }
 

@@ -4,7 +4,7 @@
 #include <condition_variable>
 
 namespace ml {
-namespace spmt {
+namespace consistency {
 
 enum class ConsistencyProtocol {
     BSP, SSP, ASP
@@ -21,5 +21,5 @@ class AbstractConsistencyController {
     virtual ConsistencyProtocol GetProtocol() = 0;
 };
 
-}  // namespace spmt
+}  // namespace consistency
 }  // namespace ml

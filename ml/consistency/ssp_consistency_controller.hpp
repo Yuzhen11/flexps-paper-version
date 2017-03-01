@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace ml {
-namespace spmt {
+namespace consistency {
 
 class SSPConsistencyController : public AbstractConsistencyController {
    public:
@@ -65,5 +65,5 @@ class SSPConsistencyController : public AbstractConsistencyController {
     int min_clock_ = 0;
 };
 
-}  // namespace spmt
+}  // namespace consistency
 }  // namespace ml

@@ -12,23 +12,25 @@ class TestBasicServer: public testing::Test {
 
    protected:
     void SetUp() {
+        zmq_context = new zmq::context_t;
         // 1. Create WorkerInfo
         worker_info.add_worker(0,0,0);
         worker_info.add_worker(0,1,1);
         worker_info.set_process_id(0);
 
         // 2. Create Mailbox
-        el = new MailboxEventLoop(&zmq_context);
+        el = new MailboxEventLoop(zmq_context);
         el->set_process_id(0);
-        recver = new CentralRecver(&zmq_context, "inproc://test");
+        recver = new CentralRecver(zmq_context, "inproc://test");
     }
     void TearDown() {
         delete el;
         delete recver;
+        delete zmq_context;
     }
 
     WorkerInfo worker_info;
-    zmq::context_t zmq_context;
+    zmq::context_t* zmq_context;
     MailboxEventLoop* el;
     CentralRecver * recver;
 };
@@ -79,7 +81,7 @@ void TestPushPullChunk(int kv,
 // Test Server when change the storage(unordered_map->vector)
 TEST_F(TestBasicServer, PushPullUnorderedMap) {
     // Start KVStore with 3 servers on each process
-    kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 3);
+    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
     auto* kvworker1 = kvstore::KVStore::Get().get_kvworker(0);
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 18, 4);
@@ -111,7 +113,7 @@ TEST_F(TestBasicServer, PushPullUnorderedMap) {
 // Test Server when change the storage(unordered_map->vector)
 TEST_F(TestBasicServer, PushPullVector) {
     // Start KVStore with 3 servers on each process
-    kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 3);
+    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
     auto* kvworker1 = kvstore::KVStore::Get().get_kvworker(0);
     std::map<std::string, std::string> hint = 
@@ -146,7 +148,7 @@ TEST_F(TestBasicServer, PushPullVector) {
 
 TEST_F(TestBasicServer, PushPullChunkUnorderedMap) {
     // Start KVStore with 3 servers on each process
-    kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 3);
+    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
     auto* kvworker2 = kvstore::KVStore::Get().get_kvworker(0);
     int kv2 = kvstore::KVStore::Get().CreateKVStore<float>({}, 18,4);
@@ -192,7 +194,7 @@ TEST_F(TestBasicServer, PushPullChunkUnorderedMap) {
 
 TEST_F(TestBasicServer, PushPullChunkVector) {
     // Start KVStore with 3 servers on each process
-    kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 3);
+    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
     auto* kvworker2 = kvstore::KVStore::Get().get_kvworker(0);
     std::map<std::string, std::string> hint = 

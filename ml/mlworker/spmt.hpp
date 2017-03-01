@@ -9,11 +9,11 @@
 #include "husky/base/serialization.hpp"
 #include "husky/core/zmq_helpers.hpp"
 
-#include "ml/common/mlworker.hpp"
-#include "ml/spmt/consistency_controller.hpp"
-#include "ml/spmt/asp_consistency_controller.hpp"
-#include "ml/spmt/ssp_consistency_controller.hpp"
-#include "ml/spmt/bsp_consistency_controller.hpp"
+#include "ml/mlworker/mlworker.hpp"
+#include "ml/consistency/consistency_controller.hpp"
+#include "ml/consistency/asp_consistency_controller.hpp"
+#include "ml/consistency/ssp_consistency_controller.hpp"
+#include "ml/consistency/bsp_consistency_controller.hpp"
 #include "ml/model/integral_model.hpp"
 #include "ml/model/chunk_based_mt_model.hpp"
 #include "ml/shared/shared_state.hpp"
@@ -23,27 +23,27 @@
 #include "core/color.hpp"
 
 namespace ml {
-namespace spmt {
+namespace mlworker {
 
 struct SPMTState {
     // pointer to consistency controller
-    AbstractConsistencyController* p_controller_;
+    consistency::AbstractConsistencyController* p_controller_;
     // pointer to model
     model::Model* p_model_;
 };
 
-class SPMTGenericWorker : public common::GenericMLWorker {
+class SPMTWorker : public mlworker::GenericMLWorker {
    public:
-    SPMTGenericWorker() = delete;
-    SPMTGenericWorker(const SPMTGenericWorker&) = delete;
-    SPMTGenericWorker& operator=(const SPMTGenericWorker&) = delete;
-    SPMTGenericWorker(SPMTGenericWorker&&) = delete;
-    SPMTGenericWorker& operator=(SPMTGenericWorker&&) = delete;
+    SPMTWorker() = delete;
+    SPMTWorker(const SPMTWorker&) = delete;
+    SPMTWorker& operator=(const SPMTWorker&) = delete;
+    SPMTWorker(SPMTWorker&&) = delete;
+    SPMTWorker& operator=(SPMTWorker&&) = delete;
 
     /*
      * @param type: 0 for ssp, 1 for bsp
      */
-    SPMTGenericWorker(const husky::Info& info, zmq::context_t& context)
+    SPMTWorker(const husky::Info& info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
           info_(info) {
         int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
@@ -57,11 +57,11 @@ class SPMTGenericWorker : public common::GenericMLWorker {
             SPMTState* state = new SPMTState;
             std::string type = info.get_task()->get_hint().at(husky::constants::kConsistency);
             if (type == husky::constants::kBSP) {
-                state->p_controller_  = new BSPConsistencyController;
+                state->p_controller_  = new consistency::BSPConsistencyController;
             } else if (type == husky::constants::kSSP) {
-                state->p_controller_ = new SSPConsistencyController;
+                state->p_controller_ = new consistency::SSPConsistencyController;
             } else if (type == husky::constants::kASP) {
-                state->p_controller_ = new ASPConsistencyController;
+                state->p_controller_ = new consistency::ASPConsistencyController;
             } else {
                 assert(false);
             }
@@ -76,7 +76,7 @@ class SPMTGenericWorker : public common::GenericMLWorker {
         // 3. Load ??
         Load();
     }
-    ~SPMTGenericWorker() {
+    ~SPMTWorker() {
         shared_state_.Barrier();
         if (info_.get_cluster_id() == 0) {
             delete shared_state_.Get()->p_controller_;
@@ -159,5 +159,5 @@ class SPMTGenericWorker : public common::GenericMLWorker {
     std::vector<float> delta_;
 };
 
-}  // namespace spmt
+}  // namespace mlworker
 }  // namespace ml

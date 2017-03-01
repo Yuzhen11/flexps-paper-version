@@ -7,7 +7,7 @@
 #include "husky/base/serialization.hpp"
 #include "husky/core/zmq_helpers.hpp"
 
-#include "ml/common/mlworker.hpp"
+#include "ml/mlworker/mlworker.hpp"
 #include "ml/model/load.hpp"
 #include "ml/model/dump.hpp"
 #include "ml/shared/shared_state.hpp"
@@ -19,7 +19,7 @@
 #include "core/color.hpp"
 
 namespace ml {
-namespace hogwild {
+namespace mlworker {
 
 /*
  * The shared state needed by Hogwild
@@ -29,22 +29,22 @@ struct HogwildState {
 };
 
 /*
- * For the HogwildGenericWorker, the type ModelType is now fixed to std::vector<float>
+ * For the HogwildWorker, the type ModelType is now fixed to std::vector<float>
  */
-class HogwildGenericWorker : public common::GenericMLWorker {
+class HogwildWorker : public mlworker::GenericMLWorker {
    public:
-    HogwildGenericWorker() = delete;
-    HogwildGenericWorker(const HogwildGenericWorker&) = delete;
-    HogwildGenericWorker& operator=(const HogwildGenericWorker&) = delete;
-    HogwildGenericWorker(HogwildGenericWorker&&) = delete;
-    HogwildGenericWorker& operator=(HogwildGenericWorker&&) = delete;
+    HogwildWorker() = delete;
+    HogwildWorker(const HogwildWorker&) = delete;
+    HogwildWorker& operator=(const HogwildWorker&) = delete;
+    HogwildWorker(HogwildWorker&&) = delete;
+    HogwildWorker& operator=(HogwildWorker&&) = delete;
 
     /*
      * constructor to construct a hogwild model
      * \param context zmq_context
      * \param info info in this instance
      */
-    HogwildGenericWorker(const husky::Info& info, zmq::context_t& context)
+    HogwildWorker(const husky::Info& info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
           info_(info) {
         int model_id = static_cast<husky::MLTask*>(info.get_task())->get_kvstore();
@@ -107,7 +107,7 @@ class HogwildGenericWorker : public common::GenericMLWorker {
      * destructor
      * 1. Sync() and 2. leader delete the model
      */
-    ~HogwildGenericWorker() {
+    ~HogwildWorker() {
         shared_state_.Barrier();
         if (info_.get_cluster_id() == 0) {
             delete shared_state_.Get()->p_model_;
@@ -196,5 +196,5 @@ class HogwildGenericWorker : public common::GenericMLWorker {
     std::vector<husky::constants::Key>* keys_;
 };
 
-}  // namespace hogwild
+}  // namespace mlworker
 }  // namespace ml

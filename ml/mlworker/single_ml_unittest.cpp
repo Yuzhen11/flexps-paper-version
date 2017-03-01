@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "ml/single/single_generic.hpp"
+#include "ml/mlworker/single.hpp"
 
 #include "core/instance.hpp"
 #include "core/info.hpp"
@@ -20,26 +20,28 @@ class TestSingle: public testing::Test {
 
    protected:
     void SetUp() {
+        zmq_context = new zmq::context_t;
         // 1. Create WorkerInfo
         worker_info.add_worker(0,0,0);
         worker_info.add_worker(0,1,1);
         worker_info.set_process_id(0);
 
         // 2. Create Mailbox
-        el = new MailboxEventLoop(&zmq_context);
+        el = new MailboxEventLoop(zmq_context);
         el->set_process_id(0);
-        recver = new CentralRecver(&zmq_context, "inproc://test");
+        recver = new CentralRecver(zmq_context, "inproc://test");
         // 3. Start KVStore
-        kvstore::KVStore::Get().Start(worker_info, el, &zmq_context);
+        kvstore::KVStore::Get().Start(worker_info, el, zmq_context);
     }
     void TearDown() {
         kvstore::KVStore::Get().Stop();
         delete el;
         delete recver;
+        delete zmq_context;
     }
 
     WorkerInfo worker_info;
-    zmq::context_t zmq_context;
+    zmq::context_t* zmq_context;
     MailboxEventLoop* el;
     CentralRecver * recver;
 };
@@ -58,11 +60,11 @@ TEST_F(TestSingle, Construct) {
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
     info.set_task(&task);
-    // Create SingleGenericWorker
-    ml::single::SingleGenericWorker worker(info);
+    // Create SingleWorker
+    ml::mlworker::SingleWorker worker(info);
 }
 
-void testPushPull(ml::single::SingleGenericWorker& worker) {
+void testPushPull(ml::mlworker::SingleWorker& worker) {
     // PushPull
     std::vector<husky::constants::Key> keys = {1,3,5};
     std::vector<float> vals;
@@ -75,7 +77,7 @@ void testPushPull(ml::single::SingleGenericWorker& worker) {
     params = {0.1,0.1,0.1};
     EXPECT_EQ(vals, params);
 }
-void testV2(ml::single::SingleGenericWorker& worker) {
+void testV2(ml::mlworker::SingleWorker& worker) {
     // v2 APIs
     std::vector<husky::constants::Key> keys = {1,3,5};
     worker.Prepare_v2(keys);
@@ -102,12 +104,12 @@ TEST_F(TestSingle, Integral) {
 
     // Test Push/Pull API
     {
-        ml::single::SingleGenericWorker worker(info);
+        ml::mlworker::SingleWorker worker(info);
         testPushPull(worker);
     }
     // Test V2 API
     {
-        ml::single::SingleGenericWorker worker(info);
+        ml::mlworker::SingleWorker worker(info);
         testV2(worker);
     }
 }
@@ -134,12 +136,12 @@ TEST_F(TestSingle, Chunk) {
 
     // Test Push/Pull API
     {
-        ml::single::SingleGenericWorker worker(info);
+        ml::mlworker::SingleWorker worker(info);
         testPushPull(worker);
     }
     // Test V2 API
     {
-        ml::single::SingleGenericWorker worker(info);
+        ml::mlworker::SingleWorker worker(info);
         testV2(worker);
     }
 }
