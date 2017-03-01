@@ -87,7 +87,6 @@ class ChunkBasedMTModel : public ChunkBasedModel {
         ChunkBasedModel(model_id, num_params),
         chunk_lock_(kvstore::RangeManager::Get().GetChunkNum(model_id)) {}
 
-   protected:
     /*
      * Override the Prepare function in ChunkBasedModel
      *
@@ -150,6 +149,7 @@ class ChunkBasedMTModel : public ChunkBasedModel {
         }
     }
 
+   protected:
     ChunkLock chunk_lock_;
 };
 

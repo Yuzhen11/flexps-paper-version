@@ -5,6 +5,16 @@
 
 namespace ml {
 
+/*
+ * A class to store the shared_state
+ *
+ * One task can only have one SharedState
+ *
+ * Only tid 0 call Init and SyncState, then others can 
+ * use Get() method to get the pointer to the shared_state
+ *
+ * User is in charge of take care of the shared_state memroy
+ */
 template <typename T>
 class SharedState {
    public:

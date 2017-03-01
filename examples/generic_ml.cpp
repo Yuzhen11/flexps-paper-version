@@ -53,9 +53,11 @@ int main(int argc, char** argv) {
         // worker->Put(k, 0.456);
         // float v = worker->Get(k);
         // base::log_msg("k: " + std::to_string(k) + " v: " + std::to_string(v));
-        int start = info.get_cluster_id();
+        husky::constants::Key start = info.get_cluster_id();
+        std::vector<float> vals;
         for (int i = 0; i < 10000; ++i) {
-            worker->Put(start, 0.01);
+            worker->Pull({start}, &vals);
+            worker->Push({start}, {0.01});
             start += 1;
             start %= static_cast<MLTask*>(info.get_task())->get_dimensions();
         }

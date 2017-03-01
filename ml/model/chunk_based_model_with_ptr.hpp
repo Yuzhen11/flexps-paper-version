@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ml/model/chunk_based_model.hpp"
+#include "ml/model/chunk_based_mt_model.hpp"
 
 namespace ml {
 namespace model {
@@ -9,6 +10,16 @@ class ChunkBasedModelWithPtr : public ChunkBasedModel {
    public:
     ChunkBasedModelWithPtr(int model_id, int num_params)
         : ChunkBasedModel(model_id, num_params) {}
+
+    std::vector<std::vector<float>>* GetParamsPtr() {
+        return &params_;
+    }
+};
+
+class ChunkBasedMTModelWithPtr : public ChunkBasedMTModel {
+   public:
+    ChunkBasedMTModelWithPtr(int model_id, int num_params)
+        : ChunkBasedMTModel(model_id, num_params) {}
 
     std::vector<std::vector<float>>* GetParamsPtr() {
         return &params_;

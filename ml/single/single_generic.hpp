@@ -44,20 +44,23 @@ class SingleGenericWorker : public common::GenericMLWorker {
             chunk_size_ = kvstore::RangeManager::Get().GetChunkSize(model_id);
         } else {
             // Use Integral model
-            model_.reset(new model::IntegralModel(model_id, num_params));
+            model_.reset(new model::IntegralModelWithPtr(model_id, num_params));
             p_integral_params_= static_cast<model::IntegralModelWithPtr*>(model_.get())->GetParamsPtr();
             use_chunk_model_ = false;
             // Load 
             Load();
         }
 
+        // For logging debug message
+        std::string model_type = use_chunk_model_ ? "ChunkBasedModel" : "IntegralModel";
         husky::LOG_I << CLAY("[Single] model_id: "+std::to_string(model_id)
-                +" local_id: "+std::to_string(info_.get_local_id())
-                +" model_size: "+std::to_string(num_params));
+                +"; local_id: "+std::to_string(info_.get_local_id())
+                +"; model_size: "+std::to_string(num_params)
+                +"; model_type: "+model_type
+                +"; direct_model_transfer: "+std::to_string(enable_direct_model_transfer_));
     }
 
     virtual void Load() override {
-        husky::LOG_I << RED("Load epoch: current: "+std::to_string(info_.get_current_epoch()));
         // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
         std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransfer : husky::constants::kKVStore;
         model_->Load(info_.get_local_id(), hint);
@@ -100,12 +103,11 @@ class SingleGenericWorker : public common::GenericMLWorker {
 
    private:
     std::unique_ptr<model::Model> model_;
-    // A pointer to the parameter
+    // A pointer ponints to the parameter directly
     std::vector<float>* p_integral_params_ = nullptr;
     std::vector<std::vector<float>>* p_chunk_params_ = nullptr;
-    int chunk_size_ = -1;
+    int chunk_size_ = -1;  // Only for ChunkBasedModel
     
-    // std::vector<float> model_;
     const husky::Info& info_;
 
     bool enable_direct_model_transfer_ = false;
