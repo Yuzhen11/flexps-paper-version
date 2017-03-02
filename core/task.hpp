@@ -100,11 +100,11 @@ class MLTask : public Task {
 
     virtual BinStream& serialize(BinStream& bin) const {
         Task::serialize(bin);
-        bin << kv_id_;
+        bin << kv_id_ << dim_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
         Task::deserialize(bin);
-        bin >> kv_id_;
+        bin >> kv_id_ >> dim_;
     }
     friend BinStream& operator<<(BinStream& bin, const MLTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, MLTask& task) { return task.deserialize(bin); }

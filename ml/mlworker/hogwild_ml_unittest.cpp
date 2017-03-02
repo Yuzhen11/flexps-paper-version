@@ -59,7 +59,6 @@ TEST_F(TestHogwild, Construct) {
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-    info.set_task(&task);
     // Create HogwildWorker
     ml::mlworker::HogwildWorker worker(info, *zmq_context);
 }
@@ -106,7 +105,6 @@ TEST_F(TestHogwild, Integral) {
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-    info.set_task(&task);
 
     // Test Push/Pull API
     {
@@ -137,7 +135,6 @@ TEST_F(TestHogwild, IntegralMultiThreads) {
     std::thread th1([&, this]() {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-        info.set_task(&task);
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
@@ -146,7 +143,6 @@ TEST_F(TestHogwild, IntegralMultiThreads) {
     std::thread th2([&, this]() {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {1, 1});
-        info.set_task(&task);
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
@@ -182,7 +178,6 @@ TEST_F(TestHogwild, Chunk) {
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-    info.set_task(&task);
 
     // Test Push/Pull API
     {
@@ -218,7 +213,6 @@ TEST_F(TestHogwild, ChunkMultiThreads) {
     std::thread th1([&, this]() {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-        info.set_task(&task);
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
@@ -227,7 +221,6 @@ TEST_F(TestHogwild, ChunkMultiThreads) {
     std::thread th2([&, this]() {
         // Create an Info
         husky::Info info = husky::utility::instance_to_info(instance, worker_info, {1, 1});
-        info.set_task(&task);
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);

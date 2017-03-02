@@ -18,7 +18,6 @@ std::vector<std::pair<int, int>> InstanceRunner::extract_local_instance(const st
  */
 Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid) {
     Info info = utility::instance_to_info(*instance, worker_info_, tid_cid);
-    info.set_task(task_store_.get_task(instance->get_id()).get());
 
     // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
     // cluster_manager

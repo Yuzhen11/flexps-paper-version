@@ -59,7 +59,6 @@ TEST_F(TestSingle, Construct) {
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-    info.set_task(&task);
     // Create SingleWorker
     ml::mlworker::SingleWorker worker(info);
 }
@@ -100,7 +99,6 @@ TEST_F(TestSingle, Integral) {
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-    info.set_task(&task);
 
     // Test Push/Pull API
     {
@@ -132,7 +130,6 @@ TEST_F(TestSingle, Chunk) {
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
-    info.set_task(&task);
 
     // Test Push/Pull API
     {
