@@ -44,7 +44,7 @@ class BSPServer : public ServerBase {
         if (push) {  // if is push
             push_count_ += 1;
             if (reply_phase_) {  // if is now replying, should update later
-                push_buffer_.push_back(std::move(bin));
+                push_buffer_.push_back({cmd, std::move(bin)});
             } else {  // otherwise, directly update
                 int src;
                 bin >> src;
@@ -57,12 +57,12 @@ class BSPServer : public ServerBase {
             if (push_count_ == num_workers_) {
                 push_count_ = 0;
                 reply_phase_ = true;
-                for (auto& bin : pull_buffer_) {  // process the pull_buffer_
+                for (auto& cmd_bin : pull_buffer_) {  // process the pull_buffer_
                     int src;
-                    bin >> src;
-                    if (bin.size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
-                        Response<Val>(kv_id, ts + 1, cmd, 0, src, res, customer);
+                    cmd_bin.second >> src;
+                    if (cmd_bin.second.size()) {  // if bin is empty, don't reply
+                        KVPairs<Val> res = retrieve(kv_id, cmd_bin.second, store_, cmd_bin.first);
+                        Response<Val>(kv_id, ts + 1, cmd_bin.first, 0, src, res, customer);
                     }
                 }
                 pull_buffer_.clear();
@@ -77,18 +77,18 @@ class BSPServer : public ServerBase {
                     Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
             } else {  // otherwise, reply later
-                pull_buffer_.push_back(std::move(bin));
+                pull_buffer_.push_back({cmd, std::move(bin)});
             }
             // if all the pull are replied, change to non reply-phase
             if (pull_count_ == num_workers_) {
                 pull_count_ = 0;
                 reply_phase_ = false;
-                for (auto& bin : push_buffer_) {  // process the push_buffer_
+                for (auto& cmd_bin : push_buffer_) {  // process the push_buffer_
                     int src;
-                    bin >> src;
-                    if (bin.size()) {  // if bin is empty, don't reply
-                        update(kv_id, bin, store_, cmd);
-                        Response<Val>(kv_id, ts + 1, cmd, 1, src, KVPairs<Val>(), customer);
+                    cmd_bin.second >> src;
+                    if (cmd_bin.second.size()) {  // if bin is empty, don't reply
+                        update(kv_id, cmd_bin.second, store_, cmd_bin.first);
+                        Response<Val>(kv_id, ts + 1, cmd_bin.first, 1, src, KVPairs<Val>(), customer);
                     }
                 }
                 push_buffer_.clear();
@@ -107,8 +107,8 @@ class BSPServer : public ServerBase {
     int push_count_ = 0;
     int pull_count_ = 0;
 
-    std::vector<husky::base::BinStream> push_buffer_;
-    std::vector<husky::base::BinStream> pull_buffer_;
+    std::vector<std::pair<int, husky::base::BinStream>> push_buffer_;  // cmd, bin
+    std::vector<std::pair<int, husky::base::BinStream>> pull_buffer_;  // cmd, bin
 
     bool reply_phase_ = true;
 

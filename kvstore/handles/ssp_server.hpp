@@ -51,12 +51,12 @@ class SSPServer : public ServerBase {
                 if (blocked_pulls_.size() <= min_clock_)
                     blocked_pulls_.resize(min_clock_ + 1);
                 for (auto& pull_pair : blocked_pulls_[min_clock_]) {
-                    if (std::get<2>(pull_pair).size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve(kv_id, std::get<2>(pull_pair), store_, cmd);
-                        Response<Val>(kv_id, std::get<1>(pull_pair), cmd, 0, std::get<0>(pull_pair), res, customer);
+                    if (std::get<3>(pull_pair).size()) {  // if bin is empty, don't reply
+                        KVPairs<Val> res = retrieve(kv_id, std::get<3>(pull_pair), store_, std::get<0>(pull_pair));
+                        Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), 0, std::get<1>(pull_pair), res, customer);
                     }
                 }
-                std::vector<std::tuple<int, int, husky::base::BinStream>>().swap(blocked_pulls_[min_clock_]);
+                std::vector<std::tuple<int, int, int, husky::base::BinStream>>().swap(blocked_pulls_[min_clock_]);
             }
             worker_progress_[src] += 1;
         } else {  // if is pull
@@ -73,7 +73,7 @@ class SSPServer : public ServerBase {
             } else {  // block it to expected_min_lock(i.e. worker_progress_[src] - staleness_)
                 if (blocked_pulls_.size() <= expected_min_lock)
                     blocked_pulls_.resize(expected_min_lock + 1);
-                blocked_pulls_[expected_min_lock].emplace_back(src, ts, std::move(bin));
+                blocked_pulls_[expected_min_lock].emplace_back(cmd, src, ts, std::move(bin));
             }
         }
     }
@@ -87,7 +87,7 @@ class SSPServer : public ServerBase {
     int min_clock_ = 0;
     std::vector<int> clock_count_;  // TODO: may use round array to reduce the space
     int staleness_ = 0;
-    std::vector<std::vector<std::tuple<int, int, husky::base::BinStream>>> blocked_pulls_;
+    std::vector<std::vector<std::tuple<int, int, int, husky::base::BinStream>>> blocked_pulls_;   // cmd, src, ts, bin
     // The real storeage
     std::unordered_map<husky::constants::Key, Val> store_;
     int server_id_;
