@@ -120,7 +120,8 @@ class HogwildWorker : public mlworker::GenericMLWorker {
      */
     virtual void Load() override {
         if (info_.get_cluster_id() == 0) {
-            std::string hint = husky::constants::kKVStore;
+            // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
+            std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransfer : husky::constants::kKVStore;
             shared_state_.Get()->p_model_->Load(info_.get_local_id(), hint);
         }
         // Other threads should wait
@@ -132,8 +133,9 @@ class HogwildWorker : public mlworker::GenericMLWorker {
     virtual void Dump() override {
         shared_state_.Barrier();
         if (info_.get_cluster_id() == 0) {
-            std::string hint = husky::constants::kKVStore;
-            shared_state_.Get()->p_model_->Load(info_.get_local_id(), hint);
+            // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the last epoch
+            std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) ? husky::constants::kTransfer : husky::constants::kKVStore;
+            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), hint);
         }
         shared_state_.Barrier();
     }

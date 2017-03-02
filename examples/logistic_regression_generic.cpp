@@ -56,7 +56,8 @@ int main(int argc, char** argv) {
     {
         {husky::constants::kType, kType},
         {husky::constants::kConsistency, kConsistency},
-        {husky::constants::kNumWorkers, std::to_string(num_train_workers)}
+        {husky::constants::kNumWorkers, std::to_string(num_train_workers)},
+        {husky::constants::kEnableDirectModelTransfer, "on"}
     };
 
     if (!rt)

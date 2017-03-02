@@ -140,11 +140,15 @@ void ClusterManager:: send_instances(const std::vector<std::shared_ptr<Instance>
  */
 void ClusterManager::send_last_instance(const std::shared_ptr<Instance>& instance) {
     auto& hint = instance->get_task()->get_hint();
-    if (hint.find(husky::constants::kType) == hint.end())
+    // if there's not kType or not kEnableDirectModelTransfer, return
+    if (hint.find(husky::constants::kType) == hint.end() || hint.find(husky::constants::kEnableDirectModelTransfer) == hint.end())
         return;
-    if (hint.at(husky::constants::kType) != husky::constants::kSingle)  // TODO, support more type
+    // TODO SMPT not done yet
+    if (hint.at(husky::constants::kType) != husky::constants::kSingle
+            && hint.at(husky::constants::kType) != husky::constants::kHogwild
+            && hint.at(husky::constants::kType) != husky::constants::kSPMT)  // support Single, Hogwild and SPMT
         return;
-    if (instance->get_epoch() == 0)
+    if (instance->get_epoch() == 0)  // skip for the first epoch
         return;
     // If it is single, enable ModelTransferManager
     auto& last_instance = HistoryManager::get().get_last_instance(instance->get_id());

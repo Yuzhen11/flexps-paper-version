@@ -33,14 +33,14 @@ class PSWorker : public mlworker::GenericMLWorker {
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
-        ts_ = kvworker_->Push(model_id_, keys, vals);
+        ts_ = kvworker_->Push(model_id_, keys, vals, true, true);
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         if (ts_ != -1)
             kvworker_->Wait(model_id_, ts_);  // Wait for last Push
-        ts_ = kvworker_->Pull(model_id_, keys, vals);
+        ts_ = kvworker_->Pull(model_id_, keys, vals, true, true);
         kvworker_->Wait(model_id_, ts_);  // Wait for this Pull
     }
 
