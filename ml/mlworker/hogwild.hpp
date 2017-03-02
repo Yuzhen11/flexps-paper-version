@@ -21,17 +21,17 @@
 namespace ml {
 namespace mlworker {
 
-/*
- * The shared state needed by Hogwild
- */
-struct HogwildState {
-    model::Model* p_model_;
-};
 
 /*
  * For the HogwildWorker, the type ModelType is now fixed to std::vector<float>
  */
 class HogwildWorker : public mlworker::GenericMLWorker {
+    /*
+     * The shared state needed by Hogwild
+     */
+    struct HogwildState {
+        model::Model* p_model_;
+    };
    public:
     HogwildWorker() = delete;
     HogwildWorker(const HogwildWorker&) = delete;

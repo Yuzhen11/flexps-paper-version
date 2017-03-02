@@ -25,14 +25,17 @@
 namespace ml {
 namespace mlworker {
 
-struct SPMTState {
-    // pointer to consistency controller
-    consistency::AbstractConsistencyController* p_controller_;
-    // pointer to model
-    model::Model* p_model_;
-};
 
 class SPMTWorker : public mlworker::GenericMLWorker {
+    /*
+     * The shared state needed by SPMT
+     */
+    struct SPMTState {
+        // pointer to consistency controller
+        consistency::AbstractConsistencyController* p_controller_;
+        // pointer to model
+        model::Model* p_model_;
+    };
    public:
     SPMTWorker() = delete;
     SPMTWorker(const SPMTWorker&) = delete;

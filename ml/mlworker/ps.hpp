@@ -199,5 +199,57 @@ class SSPWorker : public mlworker::GenericMLWorker {
     std::vector<float> delta_;
 };
 
+class PSSharedStateWorker : public mlworker::GenericMLWorker {
+    struct PSState {
+        model::Model* p_model_;
+    };
+   public:
+    PSSharedStateWorker() = delete;
+    PSSharedStateWorker(const PSSharedStateWorker&) = delete;
+    PSSharedStateWorker& operator=(const PSSharedStateWorker&) = delete;
+    PSSharedStateWorker(PSSharedStateWorker&&) = delete;
+    PSSharedStateWorker& operator=(PSSharedStateWorker&&) = delete;
+
+    PSSharedStateWorker(const husky::Info& info, zmq::context_t& context)
+        : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
+          info_(info),
+          model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        if (info_.get_local_tids().at(0) == info_.get_global_id()) {
+            PSState* state = new PSState;
+            // TODO!!! which ChunkBasedModel?
+            state->p_model_ = (model::Model*) new model::ChunkBasedModel(model_id_, num_params);
+            // 1. Init
+            shared_state_.Init(state);
+        }
+        // 2. Sync
+        shared_state_.SyncState();
+    }
+    ~PSSharedStateWorker() {
+        shared_state_.Barrier();
+        if (info_.get_local_tids().at(0) == info_.get_global_id()) {
+            delete shared_state_.Get()->p_model_;
+            delete shared_state_.Get();
+        }
+    }
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+        // 1. Update Local model
+        // 2. Push chunks to PS
+    }
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+        // 1. Check the staleness of local model
+        // 2. Collect those chunks that are too old
+        // 3. Check the staleness of shared model
+        // 4. Collect Those chunks that are too old
+        // 5. Pull chunks From PS, udpate shared/local model
+    }
+   private: 
+    int model_id_;
+    const husky::Info& info_;
+    // Shared Model
+    SharedState<PSState> shared_state_;
+    // Local Model
+};
+
 }  // namespace mlworker
 }  // namespace ml
