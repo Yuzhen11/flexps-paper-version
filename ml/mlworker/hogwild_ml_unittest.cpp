@@ -21,26 +21,28 @@ class TestHogwild: public testing::Test {
    protected:
     void SetUp() {
         zmq_context = new zmq::context_t;
+        worker_info = new WorkerInfo;
         // 1. Create WorkerInfo
-        worker_info.add_worker(0,0,0);
-        worker_info.add_worker(0,1,1);
-        worker_info.set_process_id(0);
+        worker_info->add_worker(0,0,0);
+        worker_info->add_worker(0,1,1);
+        worker_info->set_process_id(0);
 
         // 2. Create Mailbox
         el = new MailboxEventLoop(zmq_context);
         el->set_process_id(0);
         recver = new CentralRecver(zmq_context, "inproc://test");
         // 3. Start KVStore
-        kvstore::KVStore::Get().Start(worker_info, el, zmq_context);
+        kvstore::KVStore::Get().Start(*worker_info, el, zmq_context);
     }
     void TearDown() {
         kvstore::KVStore::Get().Stop();
+        delete worker_info;
         delete el;
         delete recver;
         delete zmq_context;
     }
 
-    WorkerInfo worker_info;
+    WorkerInfo* worker_info;
     zmq::context_t* zmq_context;
     MailboxEventLoop* el;
     CentralRecver * recver;
@@ -58,7 +60,7 @@ TEST_F(TestHogwild, Construct) {
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
-    husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
+    husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0});
     // Create HogwildWorker
     ml::mlworker::HogwildWorker worker(info, *zmq_context);
 }
@@ -104,7 +106,7 @@ TEST_F(TestHogwild, Integral) {
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
-    husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
+    husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0});
 
     // Test Push/Pull API
     {
@@ -134,7 +136,7 @@ TEST_F(TestHogwild, IntegralMultiThreads) {
 
     std::thread th1([&, this]() {
         // Create an Info
-        husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
+        husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0});
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
@@ -142,7 +144,7 @@ TEST_F(TestHogwild, IntegralMultiThreads) {
     });
     std::thread th2([&, this]() {
         // Create an Info
-        husky::Info info = husky::utility::instance_to_info(instance, worker_info, {1, 1});
+        husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {1, 1});
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
@@ -177,7 +179,7 @@ TEST_F(TestHogwild, Chunk) {
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
-    husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
+    husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0});
 
     // Test Push/Pull API
     {
@@ -212,7 +214,7 @@ TEST_F(TestHogwild, ChunkMultiThreads) {
 
     std::thread th1([&, this]() {
         // Create an Info
-        husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0});
+        husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0});
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);
@@ -220,7 +222,7 @@ TEST_F(TestHogwild, ChunkMultiThreads) {
     });
     std::thread th2([&, this]() {
         // Create an Info
-        husky::Info info = husky::utility::instance_to_info(instance, worker_info, {1, 1});
+        husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {1, 1});
         ml::mlworker::HogwildWorker worker(info, *zmq_context);
 
         testPushPull(worker, false);

@@ -35,11 +35,12 @@ class TestModelWithCM : public testing::Test {
    protected:
     void SetUp() {
         zmq_context = new zmq::context_t;
+        worker_info = new husky::WorkerInfo;
         // 1. Create WorkerInfo
-        worker_info.add_worker(0, 0, 0);  // process id, global id, local id
-        worker_info.add_worker(0, 1, 1);
-        worker_info.add_worker(0, 2, 2);
-        worker_info.set_process_id(0);
+        worker_info->add_worker(0, 0, 0);  // process id, global id, local id
+        worker_info->add_worker(0, 1, 1);
+        worker_info->add_worker(0, 2, 2);
+        worker_info->set_process_id(0);
 
         // 2. Create Mailbox
         el = new husky::MailboxEventLoop(zmq_context);
@@ -47,7 +48,7 @@ class TestModelWithCM : public testing::Test {
         recver = new husky::CentralRecver(zmq_context, "inproc://test");
 
         // 3. Start and create KVStore
-        kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 1);
+        kvstore::KVStore::Get().Start(*worker_info, el, zmq_context, 1);
         kv = kvstore::KVStore::Get().CreateKVStore<float>();
 
         // 4. Set RangeManager
@@ -57,6 +58,7 @@ class TestModelWithCM : public testing::Test {
     void TearDown() {
         // Stop KVStore
         kvstore::KVStore::Get().Stop();
+        delete worker_info;
         delete el;
         delete recver;
         delete zmq_context;
@@ -66,7 +68,7 @@ class TestModelWithCM : public testing::Test {
     int chunk_size = 10;
 
     int kv = 0;
-    husky::WorkerInfo worker_info;
+    husky::WorkerInfo* worker_info;
     zmq::context_t* zmq_context;
     husky::MailboxEventLoop* el;
     husky::CentralRecver* recver;
