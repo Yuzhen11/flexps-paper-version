@@ -11,8 +11,9 @@ namespace husky {
 class ClusterManagerConnection {
    public:
     ClusterManagerConnection() = delete;
-    ClusterManagerConnection(zmq::context_t* context, const std::string& bind_addr)
-        : bind_addr_(bind_addr), context_(context), recv_socket_(*context_, ZMQ_PULL) {
+    ClusterManagerConnection(zmq::context_t* context, const std::string& bind_host, const std::string& bind_port)
+        : bind_host_(bind_host), bind_port_(bind_port), context_(context), recv_socket_(*context_, ZMQ_PULL) {
+        std::string bind_addr = "tcp://*:"+bind_port;
         recv_socket_.bind(bind_addr);
         husky::LOG_I << "[ClusterManagerConnection]: Bind to " + bind_addr;
     }
@@ -40,7 +41,7 @@ class ClusterManagerConnection {
     zmq::context_t* get_context() { return context_; }
 
     std::string get_cluster_manager_addr() {
-        return bind_addr_;
+        return "tcp://"+bind_host_+":"+bind_port_;
     }
 
     zmq::socket_t& get_recv_socket() { return recv_socket_; }
@@ -49,7 +50,8 @@ class ClusterManagerConnection {
     zmq::context_t* context_;
     std::unordered_map<int, zmq::socket_t> proc_sockets_;  // send tasks to proc {proc_id, socket}
     zmq::socket_t recv_socket_;                            // recv info from proc
-    std::string bind_addr_;
+    std::string bind_host_;
+    std::string bind_port_;
 };
 
 }  // namespace husky

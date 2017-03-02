@@ -34,6 +34,8 @@ class ClusterManagerContext {
      */
     ClusterManagerContext() {
         std::string bind_addr = "tcp://*:" + Context::get_param("cluster_manager_port");
+        std::string bind_port = Context::get_param("cluster_manager_port");
+        std::string bind_host = Context::get_param("cluster_manager_host");
         // assume that all remote worker port are the same
         std::string remote_port = Context::get_param("worker_port");
 
@@ -41,7 +43,7 @@ class ClusterManagerContext {
         WorkerInfo worker_info = Context::get_worker_info();
 
         // cluster_manager connection
-        ClusterManagerConnection cluster_manager_connection(Context::get_zmq_context(), bind_addr);
+        ClusterManagerConnection cluster_manager_connection(Context::get_zmq_context(), bind_host, bind_port);
 
         // connect to remote processes
         auto& procs = worker_info.get_hostnames();

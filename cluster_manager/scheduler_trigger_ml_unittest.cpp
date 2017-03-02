@@ -71,7 +71,7 @@ TEST_F(TestSchedulerTrigger, TestConstruct) {
     // default timeout period is 5 seconds
     // default threads threshold is 10
     EXPECT_EQ(5, mcm.st->get_time_out_period());
-    EXPECT_EQ(10, mcm.st->get_count_threshold());
+    EXPECT_EQ(1, mcm.st->get_count_threshold());
     mcm.st->set_time_out_period(1);
     mcm.st->set_count_threshold(2);
     EXPECT_EQ(1, mcm.st->get_time_out_period());
@@ -92,6 +92,7 @@ TEST_F(TestSchedulerTrigger, TestBothStrategy) {
     std::thread* event_sender_thread = new std::thread([&mcm, &CONTEXT, &event_sender]() {
         // Set the timout period to be 
         mcm.st->set_time_out_period(1);
+        mcm.st->set_count_threshold(10);
 
         // Try to generate time_out schedule event
         for (int i = 0; i < 5; i++)

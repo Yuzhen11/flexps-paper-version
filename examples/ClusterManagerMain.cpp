@@ -13,9 +13,10 @@ int main() {
     worker_info.set_process_id(-1);
 
     // cluster_manager connection
-    std::string bind_addr = "tcp://*:45123";
+    std::string bind_host = "proj10";
+    std::string bind_port = "45123";
     zmq::context_t context;
-    ClusterManagerConnection cluster_manager_connection(&context, bind_addr);
+    ClusterManagerConnection cluster_manager_connection(&context, bind_host, bind_port);
     auto connect_str = "tcp://" + remote_addr + ":" + remote_port;
     cluster_manager_connection.add_proc(0, connect_str);
 

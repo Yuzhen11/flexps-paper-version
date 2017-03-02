@@ -11,13 +11,11 @@
 namespace husky {
 
 SchedulerTrigger::SchedulerTrigger(zmq::context_t* context, std::string cluster_manager_addr) 
-    : thread_(nullptr), send_socket_(*context, ZMQ_PUSH) {
+    : send_socket_(*context, ZMQ_PUSH) {
     send_socket_.connect(cluster_manager_addr);
 }
 
 SchedulerTrigger::~SchedulerTrigger() {
-    delete thread_;
-    thread_ = nullptr;
 }
 
 bool SchedulerTrigger::is_current_ts(int ts) {
@@ -29,11 +27,11 @@ bool SchedulerTrigger::is_current_ts(int ts) {
 }
 
 bool SchedulerTrigger::has_enough_new_threads() {
-    counter_ += 1;
-    if (counter_ == 1) {
+    if (counter_ == 0 && enable_timeout_scheduling) {
         init_timer();
-        return false;
-    } else if (counter_ == count_threshold_) {
+    }
+    counter_ += 1;
+    if (counter_ == count_threshold_) {
         inc_timestamp();
         return true;
     }
@@ -49,9 +47,9 @@ void SchedulerTrigger::send_timeout_event() {
 }
 
 void SchedulerTrigger::init_timer() {
-    thread_ = new std::thread(&SchedulerTrigger::send_timeout_event, this);
+    thread_ = std::thread(&SchedulerTrigger::send_timeout_event, this);
     // let the thread run independently
-    thread_->detach();
+    thread_.detach();
 }
 
 void SchedulerTrigger::inc_timestamp() {

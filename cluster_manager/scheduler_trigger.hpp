@@ -52,7 +52,7 @@ class SchedulerTrigger {
     unsigned int time_out_period_ = 5;
 
     // the threshold to start scheduling on receving enough newly availble threads
-    unsigned int count_threshold_= 10;
+    unsigned int count_threshold_= 1;
 
     // the expected time out timestamp,
     // it increases every successful scheduling
@@ -66,7 +66,10 @@ class SchedulerTrigger {
     zmq::socket_t send_socket_;
 
     // this thread is detached to run a timer
-    std::thread* thread_;
+    std::thread thread_;
+
+    // the default is disable the timeout scheduling
+    bool enable_timeout_scheduling = false;
 };
 
 } // namespace husky
