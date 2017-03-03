@@ -64,6 +64,9 @@ std::vector<std::pair<int, int>> select_threads(std::shared_ptr<Instance>& insta
             // extract from one process
             pid_tids = available_workers.get_local_workers(instance->get_num_workers());
         } else {
+            if (hint.at(husky::constants::kType) == husky::constants::kSingle) {  // Single must use 1 thread
+                assert(instance->get_num_workers() == 1);
+            }
             // extract from global workers
             pid_tids = available_workers.get_workers(instance->get_num_workers());
         }
@@ -87,6 +90,9 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
         if (hint.at(husky::constants::kType) == husky::constants::kSingle
             || hint.at(husky::constants::kType) == husky::constants::kHogwild
             || hint.at(husky::constants::kType) == husky::constants::kSPMT) {
+            if (hint.at(husky::constants::kType) == husky::constants::kSingle) {  // Single must use 1 thread
+                assert(required_num_threads == 1);
+            }
             for (auto &pid : candidate_proc) {
                 pid_tids = available_workers.get_workers_exact_process(required_num_threads, pid, num_processes);
                 if (pid_tids.size() == required_num_threads) {

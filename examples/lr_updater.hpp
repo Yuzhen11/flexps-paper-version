@@ -6,10 +6,11 @@
 using husky::lib::ml::LabeledPointHObj;
 
 namespace husky {
+namespace lr {
 namespace {
 
 // The SGD updater
-void sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+void sgd_update_lr(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
                 datastore::DataSampler<LabeledPointHObj<float, float, true>>& data_sampler, float alpha) {
     auto& data = data_sampler.next();  // get next data
     auto& x = data.x;
@@ -40,7 +41,7 @@ void sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
 };
 
 // The SGD updater for v2 APIs
-void sgd_update_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+void sgd_update_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
                    datastore::DataSampler<LabeledPointHObj<float, float, true>>& data_sampler, float alpha) {
     auto& data = data_sampler.next();  // get next data
     auto& x = data.x;
@@ -68,7 +69,7 @@ void sgd_update_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
 };
 
 // The mini-batch SGD updator
-void batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+void batch_sgd_update_lr(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
                       datastore::BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
     std::vector<husky::constants::Key> keys =
@@ -101,7 +102,7 @@ void batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& work
 };
 
 // The mini-batch SGD updator for v2
-void batch_sgd_update_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+void batch_sgd_update_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
                          datastore::BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha) {
     alpha /= batch_data_sampler.get_batch_size();
     std::vector<husky::constants::Key> keys =
@@ -130,7 +131,7 @@ void batch_sgd_update_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& w
     worker->Clock_v2();
 };
 
-float get_test_error(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+float get_test_error_lr(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
                      datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
                      int test_samples = -1) {
     test_samples = 1000;
@@ -168,7 +169,7 @@ float get_test_error(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worke
     return c_count / count;
 }
 
-float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+float get_test_error_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
                         datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
                         int test_samples = -1) {
     test_samples = 1000;
@@ -204,4 +205,5 @@ float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& wo
 }
 
 }  // namespace
+}  // namespace lr
 }  // namespace husky

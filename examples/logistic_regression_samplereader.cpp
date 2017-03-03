@@ -5,8 +5,6 @@
 #include "lib/sample_reader.hpp"
 #include "lib/task_utils.hpp"
 
-#include "examples/updater.hpp"
-
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
 
