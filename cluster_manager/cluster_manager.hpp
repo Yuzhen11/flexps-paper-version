@@ -27,6 +27,11 @@ class ClusterManager {
     void setup_task_scheduler(const std::string& hint);
 
     /*
+     * Set customized time out period, count threshold
+     */
+    void setup_scheduler_trigger(std::string&& time_out_period, std::string&& threads_threshold);
+
+    /*
      * The main loop for cluster_manager logic
      */
     void serve();

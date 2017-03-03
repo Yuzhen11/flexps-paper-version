@@ -12,7 +12,8 @@ using namespace husky;
 
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "serve",
-                                          "hdfs_namenode", "hdfs_namenode_port", "task_scheduler_type"});
+                                          "hdfs_namenode", "hdfs_namenode_port", "task_scheduler_type", 
+                                          "scheduler_trigger_time_out", "scheduler_trigger_num_threads"});
     if (!rt)
         return 1;
 

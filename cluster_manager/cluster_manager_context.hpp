@@ -52,6 +52,8 @@ class ClusterManagerContext {
         }
         std::string task_scheduler_type = Context::get_param("task_scheduler_type");
         cluster_manager_.setup(std::move(worker_info), std::move(cluster_manager_connection), task_scheduler_type);
+        cluster_manager_.setup_scheduler_trigger(Context::get_param("scheduler_trigger_time_out"),
+                Context::get_param("scheduler_trigger_num_threads"));
     }
 
    private:

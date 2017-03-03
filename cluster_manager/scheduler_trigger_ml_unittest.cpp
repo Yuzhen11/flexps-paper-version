@@ -69,7 +69,7 @@ TEST_F(TestSchedulerTrigger, TestConstruct) {
     mcm.init();
 
     // default timeout period is 5 seconds
-    // default threads threshold is 10
+    // default threads threshold is 1
     EXPECT_EQ(5, mcm.st->get_time_out_period());
     EXPECT_EQ(1, mcm.st->get_count_threshold());
     mcm.st->set_time_out_period(1);
@@ -82,8 +82,8 @@ TEST_F(TestSchedulerTrigger, TestBothStrategy) {
     zmq::context_t CONTEXT;
     MockClusterManager mcm(&CONTEXT);
     mcm.init();
-        zmq::socket_t event_sender(CONTEXT, ZMQ_PUSH);
-        event_sender.connect(mcm.cluster_manager_addr);
+    zmq::socket_t event_sender(CONTEXT, ZMQ_PUSH);
+    event_sender.connect(mcm.cluster_manager_addr);
 
     std::thread* mcm_thread = new std::thread([&mcm]() {
             mcm.serve();
@@ -92,7 +92,7 @@ TEST_F(TestSchedulerTrigger, TestBothStrategy) {
     std::thread* event_sender_thread = new std::thread([&mcm, &CONTEXT, &event_sender]() {
         // Set the timout period to be 
         mcm.st->set_time_out_period(1);
-        mcm.st->set_count_threshold(10);
+        mcm.st->set_count_threshold(10); 
 
         // Try to generate time_out schedule event
         for (int i = 0; i < 5; i++)
@@ -103,7 +103,6 @@ TEST_F(TestSchedulerTrigger, TestBothStrategy) {
         for (int i = 0; i < 9; i++)
             zmq_sendmore_int32(&event_sender, constants::kClusterManagerThreadFinished);
         zmq_send_int32(&event_sender, constants::kClusterManagerThreadFinished);
-
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         // Try to generate kthreadfinished event first then timeout event

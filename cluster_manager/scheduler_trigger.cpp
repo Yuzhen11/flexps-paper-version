@@ -66,6 +66,11 @@ unsigned int SchedulerTrigger::get_count_threshold() const {
 }
 
 void SchedulerTrigger::set_time_out_period(int time_out_period) {
+    if (time_out_period == 0) {
+        enable_timeout_scheduling = false;
+    } else {
+        enable_timeout_scheduling = true;
+    }
     time_out_period_ = time_out_period;
 }
 

@@ -19,9 +19,25 @@ void ClusterManager::setup(WorkerInfo&& worker_info, ClusterManagerConnection&& 
     setup_task_scheduler(hint);
     // init history manager map
     HistoryManager::get().start(worker_info_.get_num_processes());
+    is_setup = true;
+}
+
+// This function is called inside ClusterManagerContext
+void ClusterManager::setup_scheduler_trigger(std::string&& time_out_period, std::string&& threads_threshold) {
     scheduler_trigger_.reset(new SchedulerTrigger(cluster_manager_connection_->get_context(), 
                 cluster_manager_connection_->get_cluster_manager_addr()));
-    is_setup = true;
+    try {
+        if (time_out_period.size() > 0 && time_out_period != "default") {
+            scheduler_trigger_->set_time_out_period(std::stoi(time_out_period));
+            husky::LOG_I << "[ClusterManager]: SchedulerTrigger time out period set to "<<time_out_period<<" sec";
+        }
+        if (threads_threshold.size() > 0 && time_out_period != "default") {
+            scheduler_trigger_->set_count_threshold(std::stoi(threads_threshold));
+            husky::LOG_I << "[ClusterManager]: SchedulerTrigger threads threshold set to "<<threads_threshold;
+        }
+    } catch (const std::invalid_argument& ia) {
+        husky::LOG_E<< "[ClusterManager] Invalid argument for setup SchedulerTrigger. Use default setting";
+    }
 }
 
 void ClusterManager::setup_task_scheduler(const std::string& hint) {
