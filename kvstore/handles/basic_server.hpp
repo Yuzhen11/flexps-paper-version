@@ -42,44 +42,23 @@ class ServerBase {
 /*
  * The default functor for assign operation
  */
-template <typename Val>
-class DefaultAddServer : public ServerBase {
+template <typename Val, typename StorageT>
+class DefaultUpdateServer : public ServerBase {
    public:
-    DefaultAddServer() = delete;
-    DefaultAddServer(int kv_id, int server_id) : server_id_(server_id) {}
-
-    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
-        int cmd;
-        bool push;  // push or not
-        int src;
-        bin >> cmd >> push >> src;
-        if (push == true) {  // if is push
-            if (bin.size()) {  // if bin is empty, don't reply
-                update(kv_id, bin, store_, cmd);
-                Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
-            }
-        } else {  // if is pull
-            if (bin.size()) {  // if bin is empty, don't reply
-                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
-                Response<Val>(kv_id, ts, cmd, push, src, res, customer);
-            }
+    DefaultUpdateServer() = delete;
+    DefaultUpdateServer(int kv_id, int server_id, StorageT&& store, const std::map<std::string,
+        std::string>& hint = {}) : server_id_(server_id), kv_id_(kv_id), store_(std::move(store)) {
+        // check storage method
+        if (hint.find(husky::constants::kStorageType) != hint.end()
+            && hint.at(husky::constants::kStorageType) == husky::constants::kVectorStorage) {
+            is_vector_ = true;
         }
-    }
-   private:
-    // The real storeage
-    std::unordered_map<husky::constants::Key, Val> store_;
-    int server_id_;
-};
-
-/*
- * The vector functor for assign operation
- */
-template <typename Val>
-class VectorAddServer : public ServerBase {
-   public:
-    VectorAddServer() = delete;
-    VectorAddServer(int kv_id, int server_id) : server_id_(server_id) {
-        store_.resize(RangeManager::Get().GetServerSize(kv_id, server_id_));
+        
+        // check update method
+        if (hint.find(husky::constants::kUpdateType) != hint.end() 
+            && hint.at(husky::constants::kUpdateType) == husky::constants::kAddUpdate) {
+            is_assign_ = false;
+        }
     }
 
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
@@ -89,86 +68,29 @@ class VectorAddServer : public ServerBase {
         bin >> cmd >> push >> src;
         if (push == true) {  // if is push
             if (bin.size()) {  // if bin is empty, don't reply
-                update(kv_id, bin, store_, cmd, server_id_);
+                update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, is_assign_);
+                
                 Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
             }
         } else {  // if is pull
             if (bin.size()) {  // if bin is empty, don't reply
-                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd, server_id_);
+
+                KVPairs<Val> res;
+                res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_); 
+                
                 Response<Val>(kv_id, ts, cmd, push, src, res, customer);
             }
         }
     }
    private:
-    // The real storeage
-    std::vector<Val> store_;
+    int kv_id_;
     int server_id_;
-};
-
-/*
- * The default functor for assign operation
- */
-template <typename Val>
-class DefaultAssignServer : public ServerBase {
-   public:
-    DefaultAssignServer() = delete;
-    DefaultAssignServer(int kv_id, int server_id) : server_id_(server_id) {}
-
-    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
-        int cmd;
-        bool push;  // push or not
-        int src;
-        bin >> cmd >> push >> src;
-        if (push == true) {  // if is push
-            if (bin.size()) {  // if bin is empty, don't reply
-                assign(kv_id, bin, store_, cmd);
-                Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
-            }
-        } else {  // if is pull
-            if (bin.size()) {  // if bin is empty, don't reply
-                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
-                Response<Val>(kv_id, ts, cmd, push, src, res, customer);
-            }
-        }
-    }
-   private:
     // The real storeage
-    std::unordered_map<husky::constants::Key, Val> store_;
-    int server_id_;
-};
-
-/*
- * The vector functor for assign operation
- */
-template <typename Val>
-class VectorAssignServer : public ServerBase {
-   public:
-    VectorAssignServer() = delete;
-    VectorAssignServer(int kv_id, int server_id) : server_id_(server_id) {
-        store_.resize(RangeManager::Get().GetServerSize(kv_id, server_id_));
-    }
-
-    virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
-        int cmd;
-        bool push;  // push or not
-        int src;
-        bin >> cmd >> push >> src;
-        if (push == true) {  // if is push
-            if (bin.size()) {  // if bin is empty, don't reply
-                assign(kv_id, bin, store_, cmd, server_id_);
-                Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
-            }
-        } else {  // if is pull
-            if (bin.size()) {  // if bin is empty, don't reply
-                KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd, server_id_);
-                Response<Val>(kv_id, ts, cmd, push, src, res, customer);
-            }
-        }
-    }
-   private:
-    // The real storeage
-    std::vector<Val> store_;
-    int server_id_;
+    StorageT store_;
+    // default storage method is map, so store_method_vector = false;
+    bool is_vector_ = false;
+    // default update method is add
+    bool is_assign_ = true;
 };
 
 }  // namespace kvstore

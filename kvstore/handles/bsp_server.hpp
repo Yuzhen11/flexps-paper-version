@@ -49,7 +49,7 @@ class BSPServer : public ServerBase {
                 int src;
                 bin >> src;
                 if (bin.size()) {  // if bin is empty, don't reply
-                    update(kv_id, bin, store_, cmd);
+                    update<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, bin, store_, cmd);
                     Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
                 }
             }
@@ -61,7 +61,7 @@ class BSPServer : public ServerBase {
                     int src;
                     cmd_bin.second >> src;
                     if (cmd_bin.second.size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve(kv_id, cmd_bin.second, store_, cmd_bin.first);
+                        KVPairs<Val> res = retrieve<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, cmd_bin.second, store_, cmd_bin.first);
                         Response<Val>(kv_id, ts + 1, cmd_bin.first, 0, src, res, customer);
                     }
                 }
@@ -73,7 +73,7 @@ class BSPServer : public ServerBase {
                 int src;
                 bin >> src;
                 if (bin.size()) {  // if bin is empty, don't reply
-                    KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
+                    KVPairs<Val> res = retrieve<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, bin, store_, cmd);
                     Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
             } else {  // otherwise, reply later
@@ -87,7 +87,7 @@ class BSPServer : public ServerBase {
                     int src;
                     cmd_bin.second >> src;
                     if (cmd_bin.second.size()) {  // if bin is empty, don't reply
-                        update(kv_id, cmd_bin.second, store_, cmd_bin.first);
+                        update<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, cmd_bin.second, store_, cmd_bin.first);
                         Response<Val>(kv_id, ts + 1, cmd_bin.first, 1, src, KVPairs<Val>(), customer);
                     }
                 }
