@@ -36,7 +36,7 @@ class SSPServer : public ServerBase {
             int src;
             bin >> src;
             if (bin.size()) {  // if bin is empty, don't reply
-                update(kv_id, bin, store_, cmd);
+                update<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, bin, store_, cmd);
                 Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
             }
             if (src >= worker_progress_.size())
@@ -52,7 +52,7 @@ class SSPServer : public ServerBase {
                     blocked_pulls_.resize(min_clock_ + 1);
                 for (auto& pull_pair : blocked_pulls_[min_clock_]) {
                     if (std::get<3>(pull_pair).size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve(kv_id, std::get<3>(pull_pair), store_, std::get<0>(pull_pair));
+                        KVPairs<Val> res = retrieve<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, std::get<3>(pull_pair), store_, std::get<0>(pull_pair));
                         Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), 0, std::get<1>(pull_pair), res, customer);
                     }
                 }
@@ -67,7 +67,7 @@ class SSPServer : public ServerBase {
             int expected_min_lock = worker_progress_[src] - staleness_;
             if (expected_min_lock <= min_clock_) {  // acceptable staleness so reply it
                 if (bin.size()) {  // if bin is empty, don't reply
-                    KVPairs<Val> res = retrieve(kv_id, bin, store_, cmd);
+                    KVPairs<Val> res = retrieve<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, bin, store_, cmd);
                     Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
             } else {  // block it to expected_min_lock(i.e. worker_progress_[src] - staleness_)

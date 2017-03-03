@@ -37,6 +37,18 @@ constexpr const char* const kVectorStorage = "vector_storage";
 constexpr const char* const kUnorderedMapStorage = "unordered_map_storage";
 
 /*
+ * kvstore update type
+ *
+ * If Users want to use kvstore directly, they may set the kUpdateType explicitly to 
+ * control the update methods of kvstore
+ *
+ * add_update means store[key] += val
+ * assign_update means store[key] = val 
+ */
+constexpr const char* const kUpdateType = "update_type";
+constexpr const char* const kAddUpdate = "add_update";
+constexpr const char* const kAssignUpdate = "assign_update";
+/*
  * type
  *
  * ML user needs set the worker type explicitly.
