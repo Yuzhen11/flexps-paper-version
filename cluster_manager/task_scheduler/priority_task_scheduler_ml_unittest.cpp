@@ -53,14 +53,26 @@ TEST_F(TestPriorityTaskScheduler, TestInitTasks) {
     pts.init_tasks(tasks);
 }
 
-TEST_F(TestPriorityTaskScheduler, TestExtractInstancesSingle) {
+TEST_F(TestPriorityTaskScheduler, TestExtractInstancesSingleProc) {
     HistoryManager::get().clear_history();
-    std::map<std::string, std::string> hint = 
+    std::map<std::string, std::string> hint_single = 
     {
         {husky::constants::kType, husky::constants::kSingle}, 
     };
+
+    std::map<std::string, std::string> hint_hogwild = 
+    {
+        {husky::constants::kType, husky::constants::kHogwild}, 
+    };
+
     for (auto& task_ptr : tasks) {
-        task_ptr->set_hint(hint);
+        if (task_ptr->get_num_workers() == 1) {
+            task_ptr->set_hint(hint_single);
+        }
+        else {
+            // SPMT share the same scheduling startegy
+            task_ptr->set_hint(hint_hogwild);
+        }
     }
     HistoryManager::get().start(num_process);
     PriorityTaskScheduler pts(worker_info);
