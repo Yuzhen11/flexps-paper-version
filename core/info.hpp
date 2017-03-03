@@ -27,6 +27,7 @@ class Info {
     std::vector<int> get_pids() const { return worker_info_.get_pids(); }
     int get_current_epoch() const { return current_epoch_; }
     int get_total_epoch() const { return task_->get_total_epoch(); }
+    bool is_leader() const { return is_leader_; }
 
     const std::unique_ptr<ml::mlworker::GenericMLWorker>& get_mlworker() const { return mlworker_; }
     std::unique_ptr<ml::mlworker::GenericMLWorker>& get_mlworker() { return mlworker_; }
@@ -55,6 +56,7 @@ class Info {
     void set_cluster_global(const std::unordered_map<int, int>& rhs) { cluster_id_to_global_id_ = rhs; }
     void set_cluster_global(std::unordered_map<int, int>&& rhs) { cluster_id_to_global_id_ = std::move(rhs); }
     void set_current_epoch(int current_epoch) { current_epoch_ = current_epoch; }
+    void set_leader(bool is_leader) { is_leader_ = is_leader; }
 
    private:
     int local_id_;
@@ -68,6 +70,7 @@ class Info {
     std::unique_ptr<ml::mlworker::GenericMLWorker> mlworker_;
 
     std::unordered_map<int, int> cluster_id_to_global_id_;  // {cluster_id, global_id}
+    bool is_leader_ = false;
 };
 
 }  // namespace husky

@@ -7,8 +7,8 @@
 #include "ml/mlworker/mlworker.hpp"
 #include "ml/model/load.hpp"
 #include "ml/model/dump.hpp"
-#include "ml/model/integral_model_with_ptr.hpp"
-#include "ml/model/chunk_based_model_with_ptr.hpp"
+#include "ml/model/integral_model.hpp"
+#include "ml/model/chunk_based_model.hpp"
 
 #include "kvstore/kvstore.hpp"
 #include "kvstore/kvstore.hpp"
@@ -38,14 +38,14 @@ class SingleWorker : public mlworker::GenericMLWorker {
                 && hint.at(husky::constants::kParamType) == husky::constants::kChunkType) {
             assert(enable_direct_model_transfer_ == false);
             // Use Chunk model
-            model_.reset(new model::ChunkBasedModelWithPtr(model_id, num_params));
-            p_chunk_params_ = static_cast<model::ChunkBasedModelWithPtr*>(model_.get())->GetParamsPtr();
+            model_.reset(new model::ChunkBasedModel(model_id, num_params));
+            p_chunk_params_ = static_cast<model::ChunkBasedModel*>(model_.get())->GetParamsPtr();
             use_chunk_model_ = true;
             chunk_size_ = kvstore::RangeManager::Get().GetChunkSize(model_id);
         } else {
             // Use Integral model
-            model_.reset(new model::IntegralModelWithPtr(model_id, num_params));
-            p_integral_params_= static_cast<model::IntegralModelWithPtr*>(model_.get())->GetParamsPtr();
+            model_.reset(new model::IntegralModel(model_id, num_params));
+            p_integral_params_= static_cast<model::IntegralModel*>(model_.get())->GetParamsPtr();
             use_chunk_model_ = false;
             // Load 
             Load();
@@ -86,7 +86,7 @@ class SingleWorker : public mlworker::GenericMLWorker {
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
         if (!p_integral_params_)
-            static_cast<model::ChunkBasedModelWithPtr*>(model_.get())->Prepare(keys, info_.get_local_id());
+            static_cast<model::ChunkBasedModel*>(model_.get())->Prepare(keys, info_.get_local_id());
     }
     virtual float Get_v2(size_t idx) override { 
         if (p_integral_params_)

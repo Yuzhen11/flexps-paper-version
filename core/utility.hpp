@@ -9,7 +9,7 @@ namespace husky {
 namespace utility {
 namespace {
 
-Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info, std::pair<int, int> tid_cid) {
+Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info, std::pair<int, int> tid_cid, bool is_leader) {
     int pid = worker_info.get_process_id();
 
     Info info;
@@ -34,6 +34,7 @@ Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info, s
     info.set_worker_info(std::move(cluster_worker_info));
     info.set_cluster_global(std::move(cluster_id_to_global_id));
     info.set_task(instance.get_task());
+    info.set_leader(is_leader);
 
     return info;
 }

@@ -24,7 +24,7 @@ class TestSharedState : public testing::Test {
 };
 
 TEST_F(TestSharedState, Create) {
-    SharedState<int> s(0, 0, 1, *context);
+    SharedState<int> s(0, true, 1, *context);
 }
 
 TEST_F(TestSharedState, Init) {
@@ -32,7 +32,7 @@ TEST_F(TestSharedState, Init) {
     int num_threads = 2;
     for (int i = 0; i < num_threads; ++ i) {
         ths.push_back(std::thread([this, i, num_threads]() {
-            SharedState<int> s(0, i, num_threads, *context);
+            SharedState<int> s(0, i==0?true:false, num_threads, *context);
             if (i == 0) {
                 int* p = new int;
                 s.Init(p);
@@ -51,7 +51,7 @@ TEST_F(TestSharedState, SyncState) {
     int num_threads = 2;
     for (int i = 0; i < num_threads; ++ i) {
         ths.push_back(std::thread([this, i, num_threads]() {
-            SharedState<int> s(0, i, num_threads, *context);
+            SharedState<int> s(0, i==0?true:false, num_threads, *context);
             if (i == 0) {
                 int* p = new int;
                 *p = 10;
@@ -74,7 +74,7 @@ TEST_F(TestSharedState, Barrier) {
     int num_threads = 2;
     for (int i = 0; i < num_threads; ++ i) {
         ths.push_back(std::thread([this, i, num_threads]() {
-            SharedState<int> s(0, i, num_threads, *context);
+            SharedState<int> s(0, i==0?true:false, num_threads, *context);
             if (i == 0) {
                 int* p = new int;
                 *p = 10;

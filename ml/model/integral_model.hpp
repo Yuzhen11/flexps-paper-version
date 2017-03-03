@@ -57,6 +57,12 @@ class IntegralModel : public Model {
         }
     }
 
+    /*
+     * Return the raw pointer to the params_
+     */
+    std::vector<float>* GetParamsPtr() {
+        return &params_;
+    }
    protected:
     std::vector<float> params_;
 };

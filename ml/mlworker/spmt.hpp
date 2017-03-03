@@ -47,7 +47,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
      * @param type: 0 for ssp, 1 for bsp
      */
     SPMTWorker(const husky::Info& info, zmq::context_t& context)
-        : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
+        : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info) {
         int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
@@ -56,7 +56,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
             throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
                                               std::to_string(info.get_task_id()));
         }
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             SPMTState* state = new SPMTState;
             std::string type = info.get_task()->get_hint().at(husky::constants::kConsistency);
             if (type == husky::constants::kBSP) {
@@ -81,7 +81,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
     }
     ~SPMTWorker() {
         shared_state_.Barrier();
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             delete shared_state_.Get()->p_controller_;
             delete shared_state_.Get()->p_model_;
             delete shared_state_.Get();
@@ -123,7 +123,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
     virtual void Clock_v2() override { Push(*keys_, delta_); }
 
     virtual void Load() override {
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             shared_state_.Get()->p_model_->Load(info_.get_local_id(), "");
         }
         shared_state_.Barrier();
@@ -131,7 +131,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
 
     virtual void Dump() override {
         shared_state_.Barrier();
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             shared_state_.Get()->p_model_->Dump(info_.get_local_id(), "");
         }
         shared_state_.Barrier();

@@ -10,7 +10,7 @@ namespace ml {
  *
  * One task can only have one SharedState
  *
- * Only tid 0 call Init and SyncState, then others can 
+ * Only leader call Init and SyncState, then others can 
  * use Get() method to get the pointer to the shared_state
  *
  * User is in charge of take care of the shared_state memroy
@@ -24,14 +24,14 @@ class SharedState {
     SharedState(SharedState&&) = delete;
     SharedState& operator=(SharedState&&) = delete;
 
-    SharedState(int task_id, int tid, int num_threads, zmq::context_t& context)
+    SharedState(int task_id, bool is_leader, int num_threads, zmq::context_t& context)
         : task_id_(task_id),
-          tid_(tid),
+          is_leader_(is_leader),
           num_threads_(num_threads),
           context_(context),
-          socket_(context, tid == 0 ? ZMQ_ROUTER : ZMQ_REQ) {
+          socket_(context, is_leader == true ? ZMQ_ROUTER : ZMQ_REQ) {
         // bind and connect
-        if (tid_ == 0) {  // leader
+        if (is_leader_ == true) {  // leader
             socket_.bind("inproc://tmp-" + std::to_string(task_id));
         } else {
             socket_.connect("inproc://tmp-" + std::to_string(task_id));
@@ -39,10 +39,10 @@ class SharedState {
     }
 
     /*
-     * Only tid 0 call Init, and the SharedState will take the ownership of the newed variable
+     * Only leader call Init, and the SharedState will take the ownership of the newed variable
      */
     void Init(T* shared) {
-        assert(tid_ == 0);
+        assert(is_leader_ == true);
         shared_ = shared;
     }
 
@@ -50,7 +50,7 @@ class SharedState {
      * Sync the state
      */
     void SyncState() {
-        if (tid_ == 0) {
+        if (is_leader_ == true) {
             assert(shared_ != nullptr);
             std::vector<std::string> identity_store;
             auto ptr = reinterpret_cast<std::uintptr_t>(shared_);
@@ -90,7 +90,7 @@ class SharedState {
      * Process level Barrier
      */
     void Barrier() {
-        if (tid_ == 0) {  // leader
+        if (is_leader_ == true) {  // leader
             std::vector<std::string> identity_store;
             for (int i = 0; i < num_threads_ - 1; ++i) {
                 std::string s = husky::zmq_recv_string(&socket_);
@@ -115,7 +115,7 @@ class SharedState {
 
     // utils
     int task_id_;
-    int tid_;
+    bool is_leader_;
     int num_threads_;
     zmq::context_t& context_;
     zmq::socket_t socket_;

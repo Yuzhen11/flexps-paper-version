@@ -11,8 +11,8 @@
 #include "ml/model/load.hpp"
 #include "ml/model/dump.hpp"
 #include "ml/shared/shared_state.hpp"
-#include "ml/model/integral_model_with_ptr.hpp"
-#include "ml/model/chunk_based_model_with_ptr.hpp"
+#include "ml/model/integral_model.hpp"
+#include "ml/model/chunk_based_mt_model.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -45,7 +45,7 @@ class HogwildWorker : public mlworker::GenericMLWorker {
      * \param info info in this instance
      */
     HogwildWorker(const husky::Info& info, zmq::context_t& context)
-        : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
+        : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info) {
         int model_id = static_cast<husky::MLTask*>(info.get_task())->get_kvstore();
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
@@ -54,6 +54,7 @@ class HogwildWorker : public mlworker::GenericMLWorker {
             throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
                                               std::to_string(info.get_task_id()));
         }
+        husky::LOG_I << info.is_leader() << " " << info.get_cluster_id() << std::endl;
 
         // Find flags from hint
         auto& hint = info.get_task()->get_hint();
@@ -67,15 +68,15 @@ class HogwildWorker : public mlworker::GenericMLWorker {
             use_chunk_model_ = false;
         }
 
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             HogwildState* state = new HogwildState;
             if (use_chunk_model_ == true) {
                 // Use Chunk model
-                state->p_model_ = (model::Model*) new model::ChunkBasedMTModelWithPtr(model_id, num_params);
+                state->p_model_ = (model::Model*) new model::ChunkBasedMTModel(model_id, num_params);
                 chunk_size_ = kvstore::RangeManager::Get().GetChunkSize(model_id);
             } else {
                 // Use Integral model
-                state->p_model_ = (model::Model*) new model::IntegralModelWithPtr(model_id, num_params);
+                state->p_model_ = (model::Model*) new model::IntegralModel(model_id, num_params);
             }
             // 1. Init shared_state_
             shared_state_.Init(state);
@@ -84,16 +85,16 @@ class HogwildWorker : public mlworker::GenericMLWorker {
         // 2. Sync shared_state_
         shared_state_.SyncState();
         if (use_chunk_model_ == true) {
-            p_chunk_params_ = static_cast<model::ChunkBasedMTModelWithPtr*>(shared_state_.Get()->p_model_)->GetParamsPtr();
+            p_chunk_params_ = static_cast<model::ChunkBasedMTModel*>(shared_state_.Get()->p_model_)->GetParamsPtr();
         } else {
-            p_integral_params_ = static_cast<model::IntegralModelWithPtr*>(shared_state_.Get()->p_model_)->GetParamsPtr();
+            p_integral_params_ = static_cast<model::IntegralModel*>(shared_state_.Get()->p_model_)->GetParamsPtr();
             // 3. Load
             Load();
         }
 
         // For logging debug message
         std::string model_type = use_chunk_model_ ? "ChunkBasedModel" : "IntegralModel";
-        if (info.get_cluster_id() == 0) {
+        if (info.is_leader() == true) {
             husky::LOG_I << CLAY("[Hogwild] model_id: "+std::to_string(model_id)
                     +"; local_id: "+std::to_string(info.get_local_id())
                     +"; model_size: "+std::to_string(num_params)
@@ -109,7 +110,7 @@ class HogwildWorker : public mlworker::GenericMLWorker {
      */
     ~HogwildWorker() {
         shared_state_.Barrier();
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             delete shared_state_.Get()->p_model_;
             delete shared_state_.Get();
         }
@@ -119,7 +120,7 @@ class HogwildWorker : public mlworker::GenericMLWorker {
      * Get parameters from global kvstore
      */
     virtual void Load() override {
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
             std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransfer : husky::constants::kKVStore;
             shared_state_.Get()->p_model_->Load(info_.get_local_id(), hint);
@@ -132,7 +133,7 @@ class HogwildWorker : public mlworker::GenericMLWorker {
      */
     virtual void Dump() override {
         shared_state_.Barrier();
-        if (info_.get_cluster_id() == 0) {
+        if (info_.is_leader() == true) {
             // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the last epoch
             std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) ? husky::constants::kTransfer : husky::constants::kKVStore;
             shared_state_.Get()->p_model_->Dump(info_.get_local_id(), hint);
@@ -151,7 +152,7 @@ class HogwildWorker : public mlworker::GenericMLWorker {
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
         if (!p_integral_params_)
-            static_cast<model::ChunkBasedMTModelWithPtr*>(shared_state_.Get()->p_model_)->Prepare(keys, info_.get_local_id());
+            static_cast<model::ChunkBasedMTModel*>(shared_state_.Get()->p_model_)->Prepare(keys, info_.get_local_id());
     }
     virtual float Get_v2(size_t idx) override { 
         if (p_integral_params_)

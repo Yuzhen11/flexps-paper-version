@@ -40,7 +40,7 @@ class InstanceRunner {
     /*
      * Factory method to generate Info for each running Unit
      */
-    Info info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid);
+    Info info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid, bool is_leader);
     /*
      * postprocess function
      */

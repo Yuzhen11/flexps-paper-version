@@ -77,6 +77,12 @@ class ChunkBasedModel : public Model {
         wait(ts, local_id);
     }
 
+    /*
+     * Get the raw pointer to the params_
+     */
+    std::vector<std::vector<float>>* GetParamsPtr() {
+        return &params_;
+    }
    protected:
     /*
      * Fetch the given chunks, return a timestamp

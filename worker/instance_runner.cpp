@@ -16,8 +16,8 @@ std::vector<std::pair<int, int>> InstanceRunner::extract_local_instance(const st
 /*
  * Factory method to generate Info for each running Unit
  */
-Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid) {
-    Info info = utility::instance_to_info(*instance, worker_info_, tid_cid);
+Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid, bool is_leader) {
+    Info info = utility::instance_to_info(*instance, worker_info_, tid_cid, is_leader);
 
     // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
     // cluster_manager
@@ -78,12 +78,13 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
     husky::LOG_I << GREEN("[InstanceRunner] Instance id " + std::to_string(instance->get_id()) + " " +
                           std::to_string(local_threads.size()) + "/" + std::to_string(instance->get_num_threads()) +
                           " run on process " + std::to_string(worker_info_.get_process_id()));
+    bool is_leader = true;  // the first thread in each process is the leader
     for (auto tid_cid : local_threads) {
         // worker threads must not be joinable (must be free)
         assert(units_[tid_cid.first].joinable() == false);
-        units_[tid_cid.first] = boost::thread([this, instance, tid_cid] {
+        units_[tid_cid.first] = boost::thread([this, instance, tid_cid, is_leader] {
             // set the info
-            Info info = info_factory(instance, tid_cid);
+            Info info = info_factory(instance, tid_cid, is_leader);
 
             // if (info.get_cluster_id() == 0)
             //     husky::LOG_I << "[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + "
@@ -107,6 +108,7 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
             zmq_sendmore_int32(&socket, instance->get_id());
             zmq_send_int32(&socket, tid_cid.first);
         });
+        is_leader = false;  // reset is_leader
     }
     std::unordered_set<int> local_threads_set;
     for (auto tid_cid : local_threads)

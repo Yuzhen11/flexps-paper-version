@@ -199,19 +199,19 @@ class SSPWorker : public mlworker::GenericMLWorker {
     std::vector<float> delta_;
 };
 
-class PSSharedStateWorker : public mlworker::GenericMLWorker {
+class PSSharedWorker : public mlworker::GenericMLWorker {
     struct PSState {
         model::Model* p_model_;
     };
    public:
-    PSSharedStateWorker() = delete;
-    PSSharedStateWorker(const PSSharedStateWorker&) = delete;
-    PSSharedStateWorker& operator=(const PSSharedStateWorker&) = delete;
-    PSSharedStateWorker(PSSharedStateWorker&&) = delete;
-    PSSharedStateWorker& operator=(PSSharedStateWorker&&) = delete;
+    PSSharedWorker() = delete;
+    PSSharedWorker(const PSSharedWorker&) = delete;
+    PSSharedWorker& operator=(const PSSharedWorker&) = delete;
+    PSSharedWorker(PSSharedWorker&&) = delete;
+    PSSharedWorker& operator=(PSSharedWorker&&) = delete;
 
-    PSSharedStateWorker(const husky::Info& info, zmq::context_t& context)
-        : shared_state_(info.get_task_id(), info.get_cluster_id(), info.get_num_local_workers(), context),
+    PSSharedWorker(const husky::Info& info, zmq::context_t& context)
+        : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
           model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
@@ -225,7 +225,7 @@ class PSSharedStateWorker : public mlworker::GenericMLWorker {
         // 2. Sync
         shared_state_.SyncState();
     }
-    ~PSSharedStateWorker() {
+    ~PSSharedWorker() {
         shared_state_.Barrier();
         if (info_.get_local_tids().at(0) == info_.get_global_id()) {
             delete shared_state_.Get()->p_model_;
