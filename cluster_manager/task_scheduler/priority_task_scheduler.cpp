@@ -25,7 +25,7 @@ void PriorityTaskScheduler::finish_thread(int instance_id, int global_thread_id)
 std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances() {
     std::vector<std::shared_ptr<Instance>> instances;
     std::unordered_set<int>  process_lock;
-    // 1. Handle angry tasks first, lock preferred process if the task is not scheduled
+    // 1. Handle angry tasks first, lock preferred processes if the task is not scheduled
     if (task_manager_.exist_angry_tasks()) {
         husky::DLOG_I << "angry";
         auto begin = task_manager_.angry_list_begin();
@@ -66,7 +66,7 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
         }
     }
 
-    // 2. handle tasks that are not angry and ready to run
+    // 2. Handle tasks that are not angry and ready to run
     auto ordered_task = task_manager_.order_by_priority();
     for (auto& id : ordered_task) {
         std::shared_ptr<Instance> instance(new Instance);
