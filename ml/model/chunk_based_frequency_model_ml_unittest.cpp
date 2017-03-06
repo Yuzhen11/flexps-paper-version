@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "boost/thread.hpp"
 #include "husky/core/mailbox.hpp"
 #include "husky/core/worker_info.hpp"
 #include "kvstore/kvstore.hpp"
@@ -125,9 +126,9 @@ TEST_F(TestFrequencyModel, MTPushPull) {
     std::vector<husky::constants::Key> even_keys(num_params / 2);
     for (int i = 0; i < num_params / 2; ++i) { even_keys[i] = 2 * i; }
 
-    std::thread t1(push_pull_job, &model, all_keys, 0);
-    std::thread t2(push_pull_job, &model, odd_keys, 1);
-    std::thread t3(push_pull_job, &model, even_keys, 2);
+    boost::thread t1(push_pull_job, &model, all_keys, 0);
+    boost::thread t2(push_pull_job, &model, odd_keys, 1);
+    boost::thread t3(push_pull_job, &model, even_keys, 2);
 
     t1.join();
     t2.join();

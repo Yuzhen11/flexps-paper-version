@@ -27,10 +27,7 @@ class ChunkBasedModel : public Model {
         params_(num_chunks_),
         is_cached_(num_chunks_, false) {}
 
-    void Load(int local_id, const std::string& hint) override {
-        // TODO: load all chunks / load frequent params
-        // mark cache status
-    }
+    void Load(int local_id, const std::string& hint) override {}
 
     virtual void Dump(int local_id, const std::string& hint) override {
         DumpAllChunks(local_id, model_id_, params_);
