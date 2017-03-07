@@ -9,6 +9,15 @@ namespace husky {
 namespace utility {
 namespace {
 
+void print_hint(const std::map<std::string, std::string>& hint) {
+    std::stringstream ss;
+    ss << "hint:\n";
+    for (auto item : hint) {
+        ss << item.first << " : " << item.second << "\n";
+    }
+    husky::LOG_I << RED(ss.str());
+}
+
 Info instance_to_info(const Instance& instance, const WorkerInfo& worker_info, std::pair<int, int> tid_cid, bool is_leader) {
     int pid = worker_info.get_process_id();
 

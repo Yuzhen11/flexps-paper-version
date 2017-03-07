@@ -39,48 +39,84 @@ class KVServer : public KVServerBase {
     KVServer() = delete;
     KVServer(int kv_id, int server_id, const std::map<std::string, std::string>& hint) {
         try {
-            if (hint.find(husky::constants::kType) == hint.end()) {  // if kType is not set
-                if (hint.find(husky::constants::kStorageType) != hint.end()
-                    && hint.at(husky::constants::kStorageType) == husky::constants::kVectorStorage) {
-                    std::vector<Val> store;
-                    store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
-                    server_base_.reset(new DefaultUpdateServer<Val,
-                        std::vector<Val>>(kv_id, server_id, std::move(store), hint));
-                } else {
-                    std::unordered_map<husky::constants::Key, Val> store;
-                    server_base_.reset(new DefaultUpdateServer<Val,
-                        std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id, std::move(store), hint));
-                }
-            } else {
-                if (hint.at(husky::constants::kType) == husky::constants::kSingle
+            if (hint.find(husky::constants::kStorageType) == hint.end()
+                || hint.at(husky::constants::kStorageType) == husky::constants::kUnorderedMapStorage) {  // default is unordered_map
+                std::unordered_map<husky::constants::Key, Val> store;
+                if (hint.find(husky::constants::kType) == hint.end()
+                        || hint.at(husky::constants::kType) == husky::constants::kSingle
                         || hint.at(husky::constants::kType) == husky::constants::kHogwild
-                        || hint.at(husky::constants::kType) == husky::constants::kSPMT) {
-                    // assign
-                    std::vector<Val> store;
-                    store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
+                        || hint.at(husky::constants::kType) == husky::constants::kSPMT) {  // default is assign
                     server_base_.reset(new DefaultUpdateServer<Val,
-                        std::vector<Val>>(kv_id, server_id, std::move(store), hint));
+                        std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id, std::move(store), false, true));  // unordered_map, assign
                 } else if (hint.at(husky::constants::kType) == husky::constants::kPS
-                        && hint.at(husky::constants::kConsistency) == husky::constants::kASP) {
-                    // add
-                    std::vector<Val> store;
-                    store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
+                        && hint.at(husky::constants::kConsistency) == husky::constants::kASP) {     // unordered_map, add
                     server_base_.reset(new DefaultUpdateServer<Val,
-                        std::vector<Val>>(kv_id, server_id, std::move(store), hint));
+                        std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id, std::move(store), false, false));
                 } else if (hint.at(husky::constants::kType) == husky::constants::kPS
                         && hint.at(husky::constants::kConsistency) == husky::constants::kBSP) {
                     int num_workers = stoi(hint.at(husky::constants::kNumWorkers));
-                    // bsp
-                    server_base_.reset(new BSPServer<Val>(server_id, num_workers));
+                    if (hint.find(husky::constants::kUpdateType) != hint.end()
+                            || hint.at(husky::constants::kUpdateType) == husky::constants::kAddUpdate) {
+                        // bsp unordered_map, add
+                        server_base_.reset(new BSPServer<Val, std::unordered_map<husky::constants::Key, Val>>(server_id, num_workers, std::move(store), false, false));
+                    } else {
+                        // bsp unordered_map, assign
+                        server_base_.reset(new BSPServer<Val, std::unordered_map<husky::constants::Key, Val>>(server_id, num_workers, std::move(store), false, false));
+                    }
                 } else if (hint.at(husky::constants::kType) == husky::constants::kPS
                         && hint.at(husky::constants::kConsistency) == husky::constants::kSSP) {
                     int num_workers = stoi(hint.at(husky::constants::kNumWorkers));
-                    // ssp
                     int staleness = stoi(hint.at(husky::constants::kStaleness));
-                    server_base_.reset(new SSPServer<Val>(server_id, num_workers, staleness));
+                    if (hint.find(husky::constants::kUpdateType) != hint.end()
+                            || hint.at(husky::constants::kUpdateType) == husky::constants::kAddUpdate) {    // ssp unordered_map, add 
+                        server_base_.reset(new SSPServer<Val, std::unordered_map<husky::constants::Key, Val>>(server_id, num_workers, std::move(store), false, false, staleness));
+                    } else {   // ssp unordered_map, assign
+                        server_base_.reset(new SSPServer<Val, std::unordered_map<husky::constants::Key, Val>>(server_id, num_workers, std::move(store), false, true, staleness));
+                    }
                 } else {
-                    throw;
+                    throw husky::base::HuskyException("Unknown hint");
                 }
+            } else if (hint.at(husky::constants::kStorageType) == husky::constants::kVectorStorage) {  
+                std::vector<Val> store;
+                store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
+                if (hint.find(husky::constants::kType) == hint.end()
+                        || hint.at(husky::constants::kType) == husky::constants::kSingle
+                        || hint.at(husky::constants::kType) == husky::constants::kHogwild
+                        || hint.at(husky::constants::kType) == husky::constants::kSPMT) {  // default is assign
+                    server_base_.reset(new DefaultUpdateServer<Val,
+                        std::vector<Val>>(kv_id, server_id, std::move(store), true, true));  // vector, assign
+                } else if (hint.at(husky::constants::kType) == husky::constants::kPS
+                        && hint.at(husky::constants::kConsistency) == husky::constants::kASP) { // vector, add
+                    server_base_.reset(new DefaultUpdateServer<Val,
+                        std::vector<Val>>(kv_id, server_id, std::move(store), true, false));
+                } else if (hint.at(husky::constants::kType) == husky::constants::kPS
+                        && hint.at(husky::constants::kConsistency) == husky::constants::kBSP) {
+                    int num_workers = stoi(hint.at(husky::constants::kNumWorkers));    
+                    if (hint.find(husky::constants::kUpdateType) != hint.end()
+                            || hint.at(husky::constants::kUpdateType) == husky::constants::kAddUpdate) {
+                        // bsp vector add
+                        server_base_.reset(new BSPServer<Val, std::vector<Val>>(server_id, num_workers, std::move(store), true, false));
+                    } else {
+                        // bsp vector assign
+                        server_base_.reset(new BSPServer<Val, std::vector<Val>>(server_id, num_workers, std::move(store), true, true));
+                    }
+                } else if (hint.at(husky::constants::kType) == husky::constants::kPS
+                        && hint.at(husky::constants::kConsistency) == husky::constants::kSSP) {
+                    int num_workers = stoi(hint.at(husky::constants::kNumWorkers));
+                    int staleness = stoi(hint.at(husky::constants::kStaleness));
+                    if (hint.find(husky::constants::kUpdateType) != hint.end()
+                            || hint.at(husky::constants::kUpdateType) == husky::constants::kAddUpdate) {
+                        // ssp vector, add
+                        server_base_.reset(new SSPServer<Val, std::vector<Val>>(server_id, num_workers, std::move(store), true, false, staleness));
+                    } else {
+                        // ssp vector, assign
+                        server_base_.reset(new SSPServer<Val, std::vector<Val>>(server_id, num_workers, std::move(store), true, true, staleness));
+                    }
+                } else {
+                    throw husky::base::HuskyException("Unknown hint");
+                }
+            } else {
+                throw husky::base::HuskyException("Unknown hint");
             }
         } catch (...) {
             throw husky::base::HuskyException("Unknown KVServer hint");

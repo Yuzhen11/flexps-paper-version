@@ -44,7 +44,8 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
                 throw;
             }
         } catch(...) {
-            throw base::HuskyException("Unknown hint");
+            utility::print_hint(hint);
+            throw base::HuskyException("instance_runner.cpp: Unknown hint");
         }
     }
 

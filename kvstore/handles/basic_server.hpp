@@ -46,20 +46,7 @@ template <typename Val, typename StorageT>
 class DefaultUpdateServer : public ServerBase {
    public:
     DefaultUpdateServer() = delete;
-    DefaultUpdateServer(int kv_id, int server_id, StorageT&& store, const std::map<std::string,
-        std::string>& hint = {}) : server_id_(server_id), kv_id_(kv_id), store_(std::move(store)) {
-        // check storage method
-        if (hint.find(husky::constants::kStorageType) != hint.end()
-            && hint.at(husky::constants::kStorageType) == husky::constants::kVectorStorage) {
-            is_vector_ = true;
-        }
-        
-        // check update method
-        if (hint.find(husky::constants::kUpdateType) != hint.end() 
-            && hint.at(husky::constants::kUpdateType) == husky::constants::kAddUpdate) {
-            is_assign_ = false;
-        }
-    }
+    DefaultUpdateServer(int kv_id, int server_id, StorageT&& store, bool is_vector, bool is_assign) : server_id_(server_id), kv_id_(kv_id), store_(std::move(store)), is_vector_(is_vector), is_assign_(is_assign) {}
 
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         int cmd;
