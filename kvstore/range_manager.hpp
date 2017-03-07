@@ -111,7 +111,7 @@ class RangeManager {
     }
 
     // get the size based on kv_id and server_id
-    int GetServerSize(int kv_id, int server_id) {
+    size_t GetServerSize(int kv_id, int server_id) {
         assert(kv_id < server_key_ranges_.size());
         return server_key_ranges_.at(kv_id).at(server_id).size();
     }

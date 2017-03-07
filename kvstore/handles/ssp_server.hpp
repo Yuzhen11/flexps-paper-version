@@ -23,7 +23,7 @@ namespace kvstore {
  * 3. Push determines the iteration, After each iteration, workers can choose to Pull or not.
  * No need to issue Push/Pull/Push/Pull, Push/Push/Push/Pull should be fine
  */
-template <typename Val>
+template <typename Val, typename StorageT>
 class SSPServer : public ServerBase {
    public:
     // the callback function
@@ -36,7 +36,7 @@ class SSPServer : public ServerBase {
             int src;
             bin >> src;
             if (bin.size()) {  // if bin is empty, don't reply
-                update<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, bin, store_, cmd);
+                update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, is_assign_);
                 Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
             }
             if (src >= worker_progress_.size())
@@ -52,7 +52,7 @@ class SSPServer : public ServerBase {
                     blocked_pulls_.resize(min_clock_ + 1);
                 for (auto& pull_pair : blocked_pulls_[min_clock_]) {
                     if (std::get<3>(pull_pair).size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, std::get<3>(pull_pair), store_, std::get<0>(pull_pair));
+                        KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, std::get<3>(pull_pair), store_, std::get<0>(pull_pair), is_vector_);
                         Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), 0, std::get<1>(pull_pair), res, customer);
                     }
                 }
@@ -67,7 +67,7 @@ class SSPServer : public ServerBase {
             int expected_min_lock = worker_progress_[src] - staleness_;
             if (expected_min_lock <= min_clock_) {  // acceptable staleness so reply it
                 if (bin.size()) {  // if bin is empty, don't reply
-                    KVPairs<Val> res = retrieve<Val, std::unordered_map<husky::constants::Key, Val>>(kv_id, server_id_, bin, store_, cmd);
+                    KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd);
                     Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
             } else {  // block it to expected_min_lock(i.e. worker_progress_[src] - staleness_)
@@ -78,8 +78,8 @@ class SSPServer : public ServerBase {
         }
     }
     SSPServer() = delete;
-    SSPServer(int server_id, int num_workers, int staleness)
-        : server_id_(server_id), num_workers_(num_workers), worker_progress_(num_workers), staleness_(staleness) {}
+    SSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool is_assign, int staleness)
+        : server_id_(server_id), num_workers_(num_workers), worker_progress_(num_workers), store_(std::move(store)), is_vector_(is_vector), is_assign_(is_assign), staleness_(staleness) {}
 
    private:
     int num_workers_;
@@ -88,8 +88,12 @@ class SSPServer : public ServerBase {
     std::vector<int> clock_count_;  // TODO: may use round array to reduce the space
     int staleness_ = 0;
     std::vector<std::vector<std::tuple<int, int, int, husky::base::BinStream>>> blocked_pulls_;   // cmd, src, ts, bin
+    // default storage method is unordered_map
+    bool is_vector_ = false;
+    // default update method is assign
+    bool is_assign_ = false;
     // The real storeage
-    std::unordered_map<husky::constants::Key, Val> store_;
+    StorageT store_;
     int server_id_;
 };
 
