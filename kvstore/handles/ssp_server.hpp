@@ -36,7 +36,7 @@ class SSPServer : public ServerBase {
             int src;
             bin >> src;
             if (bin.size()) {  // if bin is empty, don't reply
-                update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, is_assign_);
+                update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, false);
                 Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
             }
             if (src >= worker_progress_.size())
@@ -78,8 +78,8 @@ class SSPServer : public ServerBase {
         }
     }
     SSPServer() = delete;
-    SSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool is_assign, int staleness)
-        : server_id_(server_id), num_workers_(num_workers), worker_progress_(num_workers), store_(std::move(store)), is_vector_(is_vector), is_assign_(is_assign), staleness_(staleness) {}
+    SSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, int staleness)
+        : server_id_(server_id), num_workers_(num_workers), worker_progress_(num_workers), store_(std::move(store)), is_vector_(is_vector), staleness_(staleness) {}
 
    private:
     int num_workers_;
@@ -90,8 +90,6 @@ class SSPServer : public ServerBase {
     std::vector<std::vector<std::tuple<int, int, int, husky::base::BinStream>>> blocked_pulls_;   // cmd, src, ts, bin
     // default storage method is unordered_map
     bool is_vector_ = false;
-    // default update method is assign
-    bool is_assign_ = false;
     // The real storeage
     StorageT store_;
     int server_id_;

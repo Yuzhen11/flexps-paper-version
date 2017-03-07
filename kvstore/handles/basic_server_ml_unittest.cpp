@@ -121,8 +121,9 @@ void TestPushPullChunk(int kv,
     }
 }
 
-void PushPullUnorderedMap(const WorkerInfo& worker_info, zmq::context_t* zmq_context,
-    MailboxEventLoop* el, const std::map<std::string, std::string>& hint = {}, bool is_assign = false) {
+void PushPull(const WorkerInfo& worker_info, zmq::context_t* zmq_context,
+    MailboxEventLoop* el, const std::map<std::string, std::string>& hint) {
+    bool is_assign = hint.at(husky::constants::kUpdateType) == husky::constants::kAssignUpdate;
     // Start KVStore with 3 servers on each process
     kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
@@ -153,8 +154,9 @@ void PushPullUnorderedMap(const WorkerInfo& worker_info, zmq::context_t* zmq_con
     kvstore::KVStore::Get().Stop();
 }
 
-void PushPullVector(const WorkerInfo& worker_info, zmq::context_t* zmq_context,
-    MailboxEventLoop* el, const std::map<std::string, std::string>& hint = {}, bool is_assign = false) {
+void PushPullChunks(const WorkerInfo& worker_info, zmq::context_t* zmq_context,
+    MailboxEventLoop* el, const std::map<std::string, std::string>& hint) {
+    bool is_assign = hint.at(husky::constants::kUpdateType) == husky::constants::kAssignUpdate;
     // Start KVStore with 3 servers on each process
     kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
@@ -200,43 +202,43 @@ void PushPullVector(const WorkerInfo& worker_info, zmq::context_t* zmq_context,
     kvstore::KVStore::Get().Stop();
 }
 
-TEST_F(TestBasicServer, PushPullUnorderedMapAdd) {
+TEST_F(TestBasicServer, PushPullAdd) {
     std::map<std::string, std::string> hint = 
     {
         {husky::constants::kUpdateType, husky::constants::kAddUpdate}
     };
 
-    PushPullUnorderedMap(worker_info, zmq_context, el, hint, false);
+    PushPull(worker_info, zmq_context, el, hint);
 }
 
-TEST_F(TestBasicServer, PushPullUnorderedMapAssign) {
+TEST_F(TestBasicServer, PushPullAssign) {
     std::map<std::string, std::string> hint = 
     {
         {husky::constants::kUpdateType, husky::constants::kAssignUpdate}
     };
     
-    PushPullUnorderedMap(worker_info, zmq_context, el, hint, true);
+    PushPull(worker_info, zmq_context, el, hint);
 }
 
 // Test Server when change the storage(unordered_map->vector)
-TEST_F(TestBasicServer, PushPullVectorAdd) {
+TEST_F(TestBasicServer, PushPullChunksAdd) {
     std::map<std::string, std::string> hint = 
     {
         {husky::constants::kStorageType,husky::constants::kVectorStorage},
         {husky::constants::kUpdateType, husky::constants::kAddUpdate}
     };
     
-    PushPullUnorderedMap(worker_info, zmq_context, el, hint, false);
+    PushPull(worker_info, zmq_context, el, hint);
 }
 
 // Test Server when change the storage(unordered_map->vector)
-TEST_F(TestBasicServer, PushPullVectorAssign) {
+TEST_F(TestBasicServer, PushPullChunksAssign) {
     std::map<std::string, std::string> hint = 
     {
         {husky::constants::kUpdateType, husky::constants::kAssignUpdate}
     };
     
-    PushPullUnorderedMap(worker_info, zmq_context, el, hint, true);
+    PushPull(worker_info, zmq_context, el, hint);
 }
 
 TEST_F(TestBasicServer, PushPullChunkUnorderedMapAdd) {
@@ -245,7 +247,7 @@ TEST_F(TestBasicServer, PushPullChunkUnorderedMapAdd) {
         {husky::constants::kUpdateType, husky::constants::kAddUpdate}
     };
 
-    PushPullVector(worker_info, zmq_context, el, hint, false);
+    PushPullChunks(worker_info, zmq_context, el, hint);
 }
 
 TEST_F(TestBasicServer, PushPullChunkUnorderedMapAssign) {
@@ -254,7 +256,7 @@ TEST_F(TestBasicServer, PushPullChunkUnorderedMapAssign) {
         {husky::constants::kUpdateType, husky::constants::kAssignUpdate}
     };
 
-    PushPullVector(worker_info, zmq_context, el, hint, true);
+    PushPullChunks(worker_info, zmq_context, el, hint);
 }
 
 TEST_F(TestBasicServer, PushPullChunkVectorAdd) {
@@ -264,7 +266,7 @@ TEST_F(TestBasicServer, PushPullChunkVectorAdd) {
         {husky::constants::kUpdateType, husky::constants::kAddUpdate}
     };
 
-    PushPullVector(worker_info, zmq_context, el, hint, false);
+    PushPullChunks(worker_info, zmq_context, el, hint);
 }
 
 TEST_F(TestBasicServer, PushPullChunkVectorAssign) {
@@ -274,7 +276,7 @@ TEST_F(TestBasicServer, PushPullChunkVectorAssign) {
         {husky::constants::kUpdateType, husky::constants::kAssignUpdate}
     };
 
-    PushPullVector(worker_info, zmq_context, el, hint, true);
+    PushPullChunks(worker_info, zmq_context, el, hint);
 }
 
 }  // namespace

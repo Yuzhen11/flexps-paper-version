@@ -49,7 +49,7 @@ class BSPServer : public ServerBase {
                 int src;
                 bin >> src;
                 if (bin.size()) {  // if bin is empty, don't reply
-                    update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, is_assign_);
+                    update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, false);
                     Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
                 }
             }
@@ -87,7 +87,7 @@ class BSPServer : public ServerBase {
                     int src;
                     cmd_bin.second >> src;
                     if (cmd_bin.second.size()) {  // if bin is empty, don't reply
-                        update<Val, StorageT>(kv_id, server_id_, cmd_bin.second, store_, cmd_bin.first, is_vector_, is_assign_);
+                        update<Val, StorageT>(kv_id, server_id_, cmd_bin.second, store_, cmd_bin.first, is_vector_, false);
                         Response<Val>(kv_id, ts + 1, cmd_bin.first, 1, src, KVPairs<Val>(), customer);
                     }
                 }
@@ -97,10 +97,10 @@ class BSPServer : public ServerBase {
     }
 
     BSPServer() = delete;
-    BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool is_assign) : 
-        server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector), is_assign_(is_assign) {}
-    BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool is_assign, bool reply_phase) : 
-        server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector), is_assign_(is_assign), reply_phase_(reply_phase) {}
+    BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector) : 
+        server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector) {}
+    BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool reply_phase) : 
+        server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector), reply_phase_(reply_phase) {}
 
    private:
     int num_workers_;
@@ -113,8 +113,6 @@ class BSPServer : public ServerBase {
     bool reply_phase_ = true;
     // default storage method is unordered_map
     bool is_vector_ = false;
-    // default update method is assign
-    bool is_assign_ = false;
     // The real storeage
     StorageT store_;
     int server_id_;

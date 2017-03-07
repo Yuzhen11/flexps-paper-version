@@ -139,10 +139,8 @@ int main(int argc, char** argv) {
     task1.set_total_epoch(train_epoch);  // set epoch number
     task1.set_num_workers(num_train_workers);
     // Create KVStore and Set hint
-    int kv1 = create_kvstore_and_set_hint(hint, task1);
+    int kv1 = create_kvstore_and_set_hint(hint, task1, num_params);
     assert(kv1 != -1);
-    // Set max key, to make the keys distributed
-    kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, num_params);
 
     // create a AsyncReadBuffer
     int batch_size = 100, batch_num = 50;
