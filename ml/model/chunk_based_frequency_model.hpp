@@ -3,6 +3,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/shared_mutex.hpp"
+#include "boost/thread/locks.hpp"
+
 #include "kvstore/kvstore.hpp"
 #include "ml/model/chunk_based_model.hpp"
 #include "ml/model/chunk_based_mt_model.hpp"
@@ -102,70 +106,59 @@ class ChunkBasedMTFrequencyModel : public ChunkBasedFrequencyModel {
    public:
     ChunkBasedMTFrequencyModel(int model_id, int num_params):
         ChunkBasedFrequencyModel(model_id, num_params),
-        chunk_lock_(kvstore::RangeManager::Get().GetChunkNum(model_id)) {}
+        mtx_(kvstore::RangeManager::Get().GetChunkNum(model_id)) {}
 
-   protected:
     virtual void Prepare(const std::vector<husky::constants::Key>& keys, int local_id) override {
         auto& range_manager = kvstore::RangeManager::Get();
         std::vector<size_t> chunks_to_fetch;
+        std::vector<size_t> chunks_to_check;
+
         // 1. Collect the uncached chunks
         for (size_t i = 0; i < keys.size(); ++i) {
             auto iter = frequent_pool_.find(keys[i]);
             if (iter == frequent_pool_.end()) {
                 auto loc = range_manager.GetLocation(model_id_, keys[i]);
-                if (is_cached_[loc.first] == false && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
-                    chunks_to_fetch.push_back(loc.first);
+                auto chunk_id = loc.first;
+                if (is_cached_[chunk_id] == false && (chunks_to_fetch.empty() || chunk_id != chunks_to_fetch.back()) && (chunks_to_check.empty() || chunk_id != chunks_to_check.back())) {
+                    if (mtx_[chunk_id].try_lock()) {
+                        if (is_cached_[chunk_id]) {
+                            mtx_[chunk_id].unlock();
+                        } else {
+                            chunks_to_fetch.push_back(chunk_id);
+                        }
+                    } else {
+                        chunks_to_check.push_back(chunk_id);
+                    }
                 }
             }
         }
 
-        // 2. Test the locking criterion without actually acquiring the lock
-        //    If there is any missing chunk, lock and pull with kvworker
-        if (chunks_to_fetch.size() > 0) {
-            {
-                // 3. Lock and check again
-                std::unique_lock<std::mutex> table_lock(chunk_lock_.lock_table_mtx_);
-
-                // Erase-remove idiom
-                chunks_to_fetch.erase(std::remove_if(chunks_to_fetch.begin(), 
-                                                  chunks_to_fetch.end(), 
-                                                  [this](size_t chunk_id){
-                                                      return is_cached_[chunk_id];
-                                                  }),
-                                     chunks_to_fetch.end());
-                if (chunks_to_fetch.size() == 0) return;  // no missing chunks now
-
-                // 4. Try to get the write lock for the chunks
-                bool w_access = chunk_lock_.try_lock_write(chunks_to_fetch);
-                while (!w_access) {
-                    chunk_lock_.cv_.wait(table_lock);
-                    chunks_to_fetch.erase(std::remove_if(chunks_to_fetch.begin(), 
-                                                      chunks_to_fetch.end(), 
-                                                      [this](size_t chunk_id){
-                                                          return is_cached_[chunk_id];
-                                                      }),
-                                         chunks_to_fetch.end());
-                    if (chunks_to_fetch.size() == 0) return;  // no missing chunks now
-                    w_access = chunk_lock_.try_lock_write(chunks_to_fetch);
-                }
-
-            }
-
-            // 5. Issue fetch_chunk concurrently
+        if (!chunks_to_fetch.empty()) {
             auto ts = fetch_chunk(chunks_to_fetch, local_id);
             wait(ts, local_id);
+            for (auto chunk_id : chunks_to_fetch) {
+                assert(params_[chunk_id].size() > 0);  // for debug
+                is_cached_[chunk_id] = true;
+                mtx_[chunk_id].unlock();
+            }
+        }
 
-            {
-                // 6. Release the write lock
-                std::lock_guard<std::mutex> table_lock(chunk_lock_.lock_table_mtx_);
-                // update is_cached_
-                for (auto chunk_id : chunks_to_fetch) is_cached_[chunk_id] = true;
-                chunk_lock_.unlock_write(chunks_to_fetch);
+        if (!chunks_to_check.empty()) {
+            chunks_to_check.erase(std::remove_if(chunks_to_check.begin(), chunks_to_check.end(),
+                        [this](size_t chunk_id) { return is_cached_[chunk_id]; }),
+                    chunks_to_check.end());
+            if (!chunks_to_check.empty()) {
+                for (auto chunk_id : chunks_to_check) {
+                    mtx_[chunk_id].lock();
+                    assert(is_cached_[chunk_id]);  // for debug
+                    mtx_[chunk_id].unlock();
+                }
             }
         }
     }
 
-    ChunkLock chunk_lock_;
+   protected:
+    std::vector<boost::mutex> mtx_;
 };
 
 class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel {
@@ -175,31 +168,32 @@ class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel {
 
     void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         auto& range_manager = kvstore::RangeManager::Get();
-        // Get chunk indices 
-        std::vector<size_t> chunks;
+
+        size_t current_chunk_id;
         for (size_t i = 0; i < keys.size(); ++i) {
             auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            chunks.push_back(loc.first);
-        }
-
-        // 1. Acquire the lock
-        {
-            std::unique_lock<std::mutex> table_lock(chunk_lock_.lock_table_mtx_);
-            bool available = chunk_lock_.try_lock_write(chunks);
-            while (!available) {
-                chunk_lock_.cv_.wait(table_lock);
-                available = chunk_lock_.try_lock_write(chunks);
+            // 1. Get write lock on the current chunk
+            auto chunk_id = loc.first;
+            // If this is a different chunk ...
+            if (i == 0 || chunk_id != current_chunk_id) {
+                if (i != 0) {
+                    // Unlock the last chunk
+                    mtx_[current_chunk_id].unlock();
+                }
+                // Acquire write lock
+                mtx_[chunk_id].lock();
+                current_chunk_id = chunk_id;
+            }
+            // 2. Update the parameter
+            // Find the key in frequent pool
+            auto iter = frequent_pool_.find(keys[i]);
+            if (iter != frequent_pool_.end()) {
+                iter->second += vals[i];
+            } else {
+                params_[chunk_id][loc.second] += vals[i];
             }
         }
-
-        // 2. Do the updates
-        ChunkBasedFrequencyModel::Push(keys, vals);
-
-        {
-            // 3. Unlock the chunks
-            std::lock_guard<std::mutex> table_lock(chunk_lock_.lock_table_mtx_);
-            chunk_lock_.unlock_write(chunks);
-        }
+        mtx_[current_chunk_id].unlock();
     }
 
     void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
@@ -207,39 +201,32 @@ class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel {
         Prepare(keys, local_id);
 
         auto& range_manager = kvstore::RangeManager::Get();
-        std::vector<size_t> chunks;
+        vals->resize(keys.size());
+        size_t current_chunk_id;
         for (size_t i = 0; i < keys.size(); ++i) {
             auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            chunks.push_back(loc.first);
-        }
-
-        // 1. Acquire the read locks
-        {
-            std::unique_lock<std::mutex> table_lock(chunk_lock_.lock_table_mtx_);
-            bool r_access = chunk_lock_.try_lock_read(chunks);
-            while (!r_access) {
-                chunk_lock_.cv_.wait(table_lock);
-                r_access = chunk_lock_.try_lock_read(chunks);
+            // 1. Get read lock on the current chunk
+            auto chunk_id = loc.first;
+            // If this is a different chunk ...
+            if (i == 0 || chunk_id != current_chunk_id) {
+                if (i != 0) {
+                    // Unlock the last chunk
+                    mtx_[current_chunk_id].unlock();
+                }
+                // Acquire write lock
+                mtx_[chunk_id].lock();
+                current_chunk_id = chunk_id;
             }
-        }
-
-        // 2. Get the chunks
-        vals->resize(keys.size());
-        for (size_t i = 0; i < keys.size(); ++i) {
+            // 2. Copy to vals
+            // Find the key in frequent pool
             auto iter = frequent_pool_.find(keys[i]);
             if (iter != frequent_pool_.end()) {
                 vals->at(i) = iter->second;
             } else {
-                auto loc = range_manager.GetLocation(model_id_, keys[i]);
-                (*vals)[i] = params_[loc.first][loc.second];
+                vals->at(i) = params_[loc.first][loc.second];
             }
         }
-
-        {
-            // 3. Unlock the chunks
-            std::unique_lock<std::mutex> table_lock(chunk_lock_.lock_table_mtx_);
-            chunk_lock_.unlock_read(chunks);
-        }
+        mtx_[current_chunk_id].unlock();
     }
 };
 

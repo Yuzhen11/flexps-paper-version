@@ -109,7 +109,7 @@ TEST_F(TestChunkFileEditor, ReadWrite) {
 
 TEST_F(TestModelWithCM, Start) {}  // For Setup and TearDown
 
-void test_model_push_pull (ModelWithCM* model) {
+void test_model_push_pull(ModelWithCM* model) {
     std::vector<husky::constants::Key> keys1{0, 10, 20, 30};
     std::vector<husky::constants::Key> keys2{10, 20, 30, 40, 50};
     std::vector<husky::constants::Key> keys3{30, 40, 50, 60, 70};
@@ -128,6 +128,30 @@ void test_model_push_pull (ModelWithCM* model) {
     model->Pull(keys2, &res, 0);
     EXPECT_EQ(res, ans_val);
 }
+void push_pull(ModelWithCM* model, std::vector<husky::constants::Key>& keys) {
+    std::vector<float> res;
+    std::vector<float> vals1(keys.size(), 1.0);
+    model->Pull(keys, &res, 0);
+    model->Push(keys, vals1);
+}
+    
+void test_mt_model_push_pull(ModelWithCM* model) {
+    std::vector<husky::constants::Key> keys1{0, 10, 20, 30};
+    std::vector<husky::constants::Key> keys2{10, 20, 30, 40, 50};
+    std::vector<husky::constants::Key> keys3{30, 40, 50, 60, 70};
+    std::vector<float> ans_val{2, 2, 3, 2, 2};
+
+    std::thread t1(push_pull, model, std::ref(keys1));
+    std::thread t2(push_pull, model, std::ref(keys2));
+    std::thread t3(push_pull, model, std::ref(keys3));
+    t1.join();
+    t2.join();
+    t3.join();
+
+    std::vector<float> res;
+    model->Pull(keys2, &res, 0);
+    EXPECT_EQ(res, ans_val);
+}
 
 TEST_F(TestModelWithCM, PushPullLFU) {
     ModelWithCMLFU model(kv, num_params, 5);  // threshold set to 5
@@ -142,6 +166,21 @@ TEST_F(TestModelWithCM, PushPullLRU) {
 TEST_F(TestModelWithCM, PushPullRandom) {
     ModelWithCMRandom model(kv, num_params, 5);  // threshold set to 5
     test_model_push_pull(&model);
+}
+
+TEST_F(TestModelWithCM, MTPushPullLFU) {
+    ModelWithCMLFU model(kv, num_params, 5);  // threshold set to 5
+    test_mt_model_push_pull(&model);
+}
+
+TEST_F(TestModelWithCM, MTPushPullLRU) {
+    ModelWithCMLRU model(kv, num_params, 5);  // threshold set to 5
+    test_mt_model_push_pull(&model);
+}
+
+TEST_F(TestModelWithCM, MTPushPullRandom) {
+    ModelWithCMRandom model(kv, num_params, 5);  // threshold set to 5
+    test_mt_model_push_pull(&model);
 }
 
 }  // namespace model
