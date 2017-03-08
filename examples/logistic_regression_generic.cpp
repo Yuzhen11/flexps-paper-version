@@ -7,6 +7,7 @@
 
 #include "lib/load_data.hpp"
 #include "lib/task_utils.hpp"
+#include "lib/app_config.hpp"
 
 #include "examples/lr_updater.hpp"
 #include "examples/svm_updater.hpp"
@@ -39,49 +40,12 @@ using husky::lib::ml::LabeledPointHObj;
  *
  */
 int main(int argc, char** argv) {
-    bool rt =
-        init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
-                                    "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
-                                    "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer", "use_chunk", "use_direct_model_transfer"});
-    if (!rt)
-        return 1;
-
-    int train_epoch = std::stoi(Context::get_param("train_epoch"));
-    float alpha = std::stof(Context::get_param("alpha"));
-    int num_iters = std::stoi(Context::get_param("num_iters"));
-    int num_features = std::stoi(Context::get_param("num_features"));
-    int num_params = num_features + 1;  // +1 for starting from 1, but not for intercept
-    std::string kType = Context::get_param("kType");
-    std::string kConsistency = Context::get_param("kConsistency");
-    int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
-    int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
-    const std::string kTrainer = Context::get_param("trainer");
-    const std::vector<std::string> trainers_set({"lr", "svm"});
-    assert(std::find(trainers_set.begin(), trainers_set.end(), kTrainer) != trainers_set.end());
-    husky::LOG_I << CLAY("Trainer: "+kTrainer);
-    bool use_chunk = Context::get_param("use_chunk") == "on" ? true : false;
-    husky::LOG_I << CLAY("use_chunk: "+std::to_string(use_chunk));
-    bool use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
-    husky::LOG_I << CLAY("use_direct_model_transfer: "+std::to_string(use_direct_model_transfer));
-
-    std::map<std::string, std::string> hint = 
-    {
-        {husky::constants::kType, kType},
-        {husky::constants::kConsistency, kConsistency},
-        {husky::constants::kNumWorkers, std::to_string(num_train_workers)},
-        {husky::constants::kStaleness, "1"}  // default stalenss
-    };
-    
-    if (use_chunk) {
-        hint.insert({husky::constants::kParamType, husky::constants::kChunkType});
-    }
-    if (use_direct_model_transfer) {
-        hint.insert({husky::constants::kEnableDirectModelTransfer, "on"});
-    }
-    if (use_chunk && use_direct_model_transfer) {
-        assert(false);
-    }
-
+    // Set config
+    config::InitContext(argc, argv);
+    auto config = config::SetAppConfigWithContext();
+    if (Context::get_worker_info().get_process_id() == 0)
+        config:: ShowConfig(config);
+    auto hint = config::ExtractHint(config);
 
     auto& engine = Engine::Get();
     // Create and start the KVStore
@@ -91,27 +55,22 @@ int main(int argc, char** argv) {
     datastore::DataStore<LabeledPointHObj<float, float, true>> data_store(
         Context::get_worker_info().get_num_local_workers());
 
-    auto task = TaskFactory::Get().CreateTask<HuskyTask>(1, num_load_workers);  // 1 epoch, 1 workers
-    engine.AddTask(std::move(task), [&data_store, &num_features](const Info& info) {
+    // Load task
+    auto load_task = TaskFactory::Get().CreateTask<HuskyTask>(1, config.num_load_workers);  // 1 epoch
+    auto load_task_lambda = [&data_store, config](const Info& info) {
         auto local_id = info.get_local_id();
-        load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, num_features, local_id);
-    });
+        load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, config.num_features, local_id);
+    };
 
-    auto start_time = std::chrono::steady_clock::now();
-    engine.Submit();
-    auto end_time = std::chrono::steady_clock::now();
-    auto load_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
-
-    auto task1 = TaskFactory::Get().CreateTask<MLTask>();
-    task1.set_dimensions(num_params);
-    task1.set_total_epoch(train_epoch);  // set epoch number
-    task1.set_num_workers(num_train_workers);
+    // Train task
+    auto train_task = TaskFactory::Get().CreateTask<MLTask>();
+    train_task.set_dimensions(config.num_params);
+    train_task.set_total_epoch(config.train_epoch);  // set epoch number
+    train_task.set_num_workers(config.num_train_workers);
     // Create KVStore and Set hint
-    int kv1 = create_kvstore_and_set_hint(hint, task1, num_params);
+    int kv1 = create_kvstore_and_set_hint(hint, train_task, config.num_params);
     assert(kv1 != -1);
-
-    engine.AddTask(std::move(task1), [&data_store, kTrainer, num_iters, alpha, num_params](const Info& info) {
+    auto train_task_lambda = [&data_store, config](const Info& info) {
         // create a DataStoreWrapper
         datastore::DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
         if (data_store_wrapper.get_data_size() == 0) {
@@ -125,12 +84,12 @@ int main(int argc, char** argv) {
         int batch_size = 100;
         datastore::BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, batch_size);
         batch_data_sampler.random_start_point();
-        for (int iter = 0; iter < num_iters; ++iter) {
-            if (kTrainer == "lr") {
-                // sgd_update(worker, data_sampler, alpha);
-                lr::batch_sgd_update_lr(worker, batch_data_sampler, alpha);
-            } else if (kTrainer == "svm") {
-                svm::batch_sgd_update_svm_dense(worker, batch_data_sampler, alpha, num_params);
+        for (int iter = 0; iter < config.num_iters; ++iter) {
+            if (config.trainer == "lr") {
+                // sgd_update(worker, data_sampler, config.alpha);
+                lr::batch_sgd_update_lr(worker, batch_data_sampler, config.alpha);
+            } else if (config.trainer == "svm") {
+                svm::batch_sgd_update_svm_dense(worker, batch_data_sampler, config.alpha, config.num_params);
             }
 
             if (iter % 10 == 0) {
@@ -138,17 +97,28 @@ int main(int argc, char** argv) {
                 // So it won't mess up the iteration
                 datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator(data_store);
                 float test_error = -1;
-                if (kTrainer == "lr") {
-                    test_error = lr::get_test_error_lr_v2(worker, data_iterator, num_params);
-                } else if (kTrainer == "svm") {
-                    test_error = svm::get_test_error_svm_v2(worker, data_iterator, num_params);
+                if (config.trainer == "lr") {
+                    test_error = lr::get_test_error_lr_v2(worker, data_iterator, config.num_params);
+                } else if (config.trainer == "svm") {
+                    test_error = svm::get_test_error_svm_v2(worker, data_iterator, config.num_params);
                 }
                 if (info.get_cluster_id() == 0) {
                     husky::LOG_I << "Iter:" << std::to_string(iter) << " Accuracy is " << test_error;
                 }
             }
         }
-    });
+    };
+
+    // Submit load_task;
+    engine.AddTask(std::move(load_task), load_task_lambda); 
+    auto start_time = std::chrono::steady_clock::now();
+    engine.Submit();
+    auto end_time = std::chrono::steady_clock::now();
+    auto load_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
+
+    // Submit train_task
+    engine.AddTask(std::move(train_task), train_task_lambda);
     start_time = std::chrono::steady_clock::now();
     engine.Submit();
     end_time = std::chrono::steady_clock::now();

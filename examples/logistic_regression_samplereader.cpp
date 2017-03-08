@@ -4,6 +4,7 @@
 #include "worker/engine.hpp"
 #include "lib/sample_reader.hpp"
 #include "lib/task_utils.hpp"
+#include "lib/app_config.hpp"
 
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
@@ -105,81 +106,44 @@ float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& wo
 }
 
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", 
-                                       "hdfs_namenode", "hdfs_namenode_port",
-                                       "input", "num_features", "alpha", "num_iters",
-                                       "train_epoch",
-                                       "kType", "kConsistency", "num_train_workers",
-                                       "trainer", "use_chunk", "use_direct_model_transfer"});
-    if (!rt)
-        return 1;
+    // Set config
+    config::InitContext(argc, argv);
+    auto config = config::SetAppConfigWithContext();
+    if (Context::get_worker_info().get_process_id() == 0)
+        config:: ShowConfig(config);
+    auto hint = config::ExtractHint(config);
 
-    int train_epoch = std::stoi(Context::get_param("train_epoch"));
-    float alpha = std::stof(Context::get_param("alpha"));
-    int num_iters = std::stoi(Context::get_param("num_iters"));
-    int num_features = std::stoi(Context::get_param("num_features"));
-    int num_params = num_features + 1; // +1 for intercept
-    std::string kType = Context::get_param("kType");
-    std::string kConsistency = Context::get_param("kConsistency");
-    int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
-    const std::string kTrainer = Context::get_param("trainer");
-    const std::vector<std::string> trainers_set({"lr", "svm"});
-    assert(std::find(trainers_set.begin(), trainers_set.end(), kTrainer) != trainers_set.end());
-    husky::LOG_I << CLAY("Trainer: "+kTrainer);
-    bool use_chunk = Context::get_param("use_chunk") == "on" ? true : false;
-    husky::LOG_I << CLAY("use_chunk: "+std::to_string(use_chunk));
-    bool use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
-    husky::LOG_I << CLAY("use_direct_model_transfer: "+std::to_string(use_direct_model_transfer));
-
-    std::map<std::string, std::string> hint = 
-    {
-        {husky::constants::kType, kType},
-        {husky::constants::kConsistency, kConsistency},
-        {husky::constants::kNumWorkers, std::to_string(num_train_workers)},
-        {husky::constants::kStaleness, "1"}  // default stalenss
-    };
-    
-    if (use_chunk) {
-        hint.insert({husky::constants::kParamType, husky::constants::kChunkType});
-    }
-    if (use_direct_model_transfer) {
-        hint.insert({husky::constants::kEnableDirectModelTransfer, "on"});
-    }
-    if (use_chunk && use_direct_model_transfer) {
-        assert(false);
-    }
-    
     auto& engine = Engine::Get();
     // Create and start the KVStore
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
 
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
-    task1.set_dimensions(num_params);
-    task1.set_total_epoch(train_epoch);  // set epoch number
-    task1.set_num_workers(num_train_workers);
+    task1.set_dimensions(config.num_params);
+    task1.set_total_epoch(config.train_epoch);  // set epoch number
+    task1.set_num_workers(config.num_train_workers);
     // Create KVStore and Set hint
-    int kv1 = create_kvstore_and_set_hint(hint, task1, num_params);
+    int kv1 = create_kvstore_and_set_hint(hint, task1, config.num_params);
     assert(kv1 != -1);
 
     // create a AsyncReadBuffer
     int batch_size = 100, batch_num = 50;
     AsyncReadBuffer buffer;
-    engine.AddTask(std::move(task1), [num_train_workers, batch_size, batch_num, num_iters, alpha, num_params, num_features, &buffer](const Info& info) {
-        buffer.init(Context::get_param("input"), info.get_task_id(), num_train_workers, batch_size, batch_num);
+    engine.AddTask(std::move(task1), [config, batch_size, batch_num, &buffer](const Info& info) {
+        buffer.init(Context::get_param("input"), info.get_task_id(), config.num_train_workers, batch_size, batch_num);
         int batch_size = 100;
         // create a reader
-        std::unique_ptr<SampleReader<LabeledPointHObj<float,float,true>>> reader(new LIBSVMSampleReader<float, float, true>(batch_size, num_features, &buffer));
+        std::unique_ptr<SampleReader<LabeledPointHObj<float,float,true>>> reader(new LIBSVMSampleReader<float, float, true>(batch_size, config.num_features, &buffer));
 
         if (reader->is_empty()) return;  // return if there's no data
         auto& worker = info.get_mlworker();
 
         // main loop
-        for (int iter = 0; iter < num_iters; ++ iter) {
-            batch_sgd_update(worker, reader.get(), alpha, num_params);
+        for (int iter = 0; iter < config.num_iters; ++ iter) {
+            batch_sgd_update(worker, reader.get(), config.alpha, config.num_params);
         }
 
-        auto accuracy = get_test_error_v2(worker, reader.get(), num_params);
+        auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
         husky::LOG_I << "accuracy: " << accuracy;
     });
     auto start_time = std::chrono::steady_clock::now();
