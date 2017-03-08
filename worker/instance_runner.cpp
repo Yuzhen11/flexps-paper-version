@@ -58,7 +58,7 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
 void InstanceRunner::postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
     if (info.get_task()->get_type() == Task::Type::MLTaskType) {
         std::string hint = instance->get_task()->get_hint().at(husky::constants::kType);
-        if (hint == husky::constants::kSingle || hint == husky::constants::kHogwild) {  // some types need to do dump
+        if (hint == husky::constants::kSingle || hint == husky::constants::kHogwild || hint == husky::constants::kSPMT) {  // some types need to do dump
             info.get_mlworker()->Dump();
         }
     }

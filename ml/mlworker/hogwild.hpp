@@ -50,11 +50,10 @@ class HogwildWorker : public mlworker::GenericMLWorker {
         int model_id = static_cast<husky::MLTask*>(info.get_task())->get_kvstore();
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         // check valid
-        if (!isValid()) {
+        if (info_.get_num_local_workers() != info_.get_num_workers()) {
             throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
                                               std::to_string(info.get_task_id()));
         }
-        husky::LOG_I << info.is_leader() << " " << info.get_cluster_id() << std::endl;
 
         // Find flags from hint
         auto& hint = info.get_task()->get_hint();
@@ -168,22 +167,6 @@ class HogwildWorker : public mlworker::GenericMLWorker {
     }
 
    private:
-    /*
-     * Serve as a barrier
-     */
-    virtual void Sync() override {
-        shared_state_.Barrier();
-    }
-
-    /*
-     * check whether all the threads are in the same machine
-     */
-    bool isValid() {
-        // husky::base::log_msg("locals: " + std::to_string(info_.get_num_local_workers()) + " globals:" +
-        //                      std::to_string(info_.get_num_workers()));
-        return info_.get_num_local_workers() == info_.get_num_workers();
-    }
-
     const husky::Info& info_;
     SharedState<HogwildState> shared_state_;
     // A pointer points to the parameter directly

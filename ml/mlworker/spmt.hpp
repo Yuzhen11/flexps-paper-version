@@ -52,12 +52,26 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         // check valid
-        if (!isValid()) {
-            throw husky::base::HuskyException("[Hogwild] threads are not in the same machine. Task is:" +
+        if (info_.get_num_local_workers() != info_.get_num_workers()) {
+            throw husky::base::HuskyException("[SPMT] threads are not in the same machine. Task is:" +
                                               std::to_string(info.get_task_id()));
         }
+
+        // Find flags from hint
+        auto& hint = info.get_task()->get_hint();
+        if (hint.find(husky::constants::kEnableDirectModelTransfer) != hint.end()) {
+            enable_direct_model_transfer_ = true;
+        }
+        if (hint.find(husky::constants::kParamType) != hint.end() 
+                && hint.at(husky::constants::kParamType) == husky::constants::kChunkType) {
+            use_chunk_model_ = true;
+        } else {
+            use_chunk_model_ = false;
+        }
+
         if (info_.is_leader() == true) {
             SPMTState* state = new SPMTState;
+            // Set controller
             std::string type = info.get_task()->get_hint().at(husky::constants::kConsistency);
             if (type == husky::constants::kBSP) {
                 state->p_controller_  = new consistency::BSPConsistencyController;
@@ -70,14 +84,33 @@ class SPMTWorker : public mlworker::GenericMLWorker {
             }
             state->p_controller_->Init(info.get_num_local_workers());
 
-            state->p_model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, num_params);
+            // Set chunk or integral
+            if (use_chunk_model_ == true) {
+                // Use Chunk model
+                state->p_model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, num_params);
+            } else {
+                // Use Integral model
+                state->p_model_ = (model::Model*) new model::IntegralModel(model_id, num_params);
+            }
             // 1. Init shared_state_
             shared_state_.Init(state);
         }
         // 2. Sync shared_state_
         shared_state_.SyncState();
         // 3. Load ??
-        Load();
+        if (use_chunk_model_ == false)
+            Load();
+
+        // For logging debug message
+        std::string model_type = use_chunk_model_ ? "ChunkBasedModel" : "IntegralModel";
+        if (info.is_leader() == true) {
+            husky::LOG_I << CLAY("[SPMT] model_id: "+std::to_string(model_id)
+                    +"; local_id: "+std::to_string(info.get_local_id())
+                    +"; model_size: "+std::to_string(num_params)
+                    +"; model_type: "+model_type
+                    +"; direct_model_transfer: "+std::to_string(enable_direct_model_transfer_)
+                    +"; consistency: "+info.get_task()->get_hint().at(husky::constants::kConsistency));
+        }
     }
     ~SPMTWorker() {
         shared_state_.Barrier();
@@ -124,7 +157,9 @@ class SPMTWorker : public mlworker::GenericMLWorker {
 
     virtual void Load() override {
         if (info_.is_leader() == true) {
-            shared_state_.Get()->p_model_->Load(info_.get_local_id(), "");
+            // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
+            std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransfer : husky::constants::kKVStore;
+            shared_state_.Get()->p_model_->Load(info_.get_local_id(), hint);
         }
         shared_state_.Barrier();
     }
@@ -132,28 +167,19 @@ class SPMTWorker : public mlworker::GenericMLWorker {
     virtual void Dump() override {
         shared_state_.Barrier();
         if (info_.is_leader() == true) {
-            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), "");
+            // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the last epoch
+            std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) ? husky::constants::kTransfer : husky::constants::kKVStore;
+            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), hint);
         }
         shared_state_.Barrier();
     }
 
-    /*
-     * Serve as a barrier
-     */
-    virtual void Sync() override {
-        shared_state_.Barrier();
-    }
-
    private:
-    /*
-     * check whether all the threads are in the same machine
-     */
-    bool isValid() {
-        return info_.get_num_local_workers() == info_.get_num_workers();
-    }
-
     const husky::Info& info_;
     SharedState<SPMTState> shared_state_;
+
+    bool enable_direct_model_transfer_ = false;
+    bool use_chunk_model_ = false;
 
     // For v2
     // Pointer to keys

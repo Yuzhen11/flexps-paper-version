@@ -24,7 +24,6 @@ class GenericMLWorker {
      */
     virtual void Load() { throw husky::base::HuskyException("Load Not implemented"); }
     virtual void Dump() { throw husky::base::HuskyException("Dump Not implemented"); }
-    virtual void Sync() { throw husky::base::HuskyException("Sync Not implemented"); }
     /*
      * Push/Pull APIs are very suitable for PS, but may not be suitable for
      * Hogwild! and Single
@@ -35,12 +34,6 @@ class GenericMLWorker {
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) {
         throw husky::base::HuskyException("Pull Not implemented");
     }
-
-    /*
-     * Put/Get APIs
-     */
-    virtual void Put(size_t key, float val) { throw husky::base::HuskyException("Put Not implemented"); }
-    virtual float Get(size_t key) { throw husky::base::HuskyException("Get Not implemented"); }
 
     /*
      * Version 2 APIs, under experiment
