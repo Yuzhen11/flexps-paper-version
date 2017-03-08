@@ -107,7 +107,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         }
         // 2. Sync shared_state_
         shared_state_.SyncState();
-        // 3. Load ??
+        // 3. Load
         if (use_chunk_model_ == false)
             Load();
 

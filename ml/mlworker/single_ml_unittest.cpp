@@ -75,10 +75,11 @@ void testPushPull(ml::mlworker::SingleWorker& worker) {
     worker.Pull(keys, &vals);
     params = {0.1,0.1,0.1};
     EXPECT_EQ(vals, params);
+    // The data will be dumped
 }
 void testV2(ml::mlworker::SingleWorker& worker) {
     // v2 APIs
-    std::vector<husky::constants::Key> keys = {1,3,5};
+    std::vector<husky::constants::Key> keys = {2,4,6};
     worker.Prepare_v2(keys);
     EXPECT_EQ(worker.Get_v2(0), float(0));
     EXPECT_EQ(worker.Get_v2(1), float(0));
