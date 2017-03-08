@@ -109,7 +109,10 @@ int main(int argc, char** argv) {
                                        "hdfs_namenode", "hdfs_namenode_port",
                                        "input", "num_features", "alpha", "num_iters",
                                        "train_epoch",
-                                       "kType", "kConsistency", "num_train_workers"});
+                                       "kType", "kConsistency", "num_train_workers",
+                                       "trainer", "use_chunk", "use_direct_model_transfer"});
+    if (!rt)
+        return 1;
 
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     float alpha = std::stof(Context::get_param("alpha"));
@@ -119,16 +122,33 @@ int main(int argc, char** argv) {
     std::string kType = Context::get_param("kType");
     std::string kConsistency = Context::get_param("kConsistency");
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
+    const std::string kTrainer = Context::get_param("trainer");
+    const std::vector<std::string> trainers_set({"lr", "svm"});
+    assert(std::find(trainers_set.begin(), trainers_set.end(), kTrainer) != trainers_set.end());
+    husky::LOG_I << CLAY("Trainer: "+kTrainer);
+    bool use_chunk = Context::get_param("use_chunk") == "on" ? true : false;
+    husky::LOG_I << CLAY("use_chunk: "+std::to_string(use_chunk));
+    bool use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
+    husky::LOG_I << CLAY("use_direct_model_transfer: "+std::to_string(use_direct_model_transfer));
+
     std::map<std::string, std::string> hint = 
     {
         {husky::constants::kType, kType},
         {husky::constants::kConsistency, kConsistency},
-        {husky::constants::kNumWorkers, std::to_string(num_train_workers)}
+        {husky::constants::kNumWorkers, std::to_string(num_train_workers)},
+        {husky::constants::kStaleness, "1"}  // default stalenss
     };
     
-    if (!rt)
-        return 1;
-
+    if (use_chunk) {
+        hint.insert({husky::constants::kParamType, husky::constants::kChunkType});
+    }
+    if (use_direct_model_transfer) {
+        hint.insert({husky::constants::kEnableDirectModelTransfer, "on"});
+    }
+    if (use_chunk && use_direct_model_transfer) {
+        assert(false);
+    }
+    
     auto& engine = Engine::Get();
     // Create and start the KVStore
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),

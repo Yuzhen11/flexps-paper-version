@@ -53,18 +53,6 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
 }
 
 /*
- * postprocess function
- */
-void InstanceRunner::postprocess(const std::shared_ptr<Instance>& instance, const Info& info) {
-    if (info.get_task()->get_type() == Task::Type::MLTaskType) {
-        std::string hint = instance->get_task()->get_hint().at(husky::constants::kType);
-        if (hint == husky::constants::kSingle || hint == husky::constants::kHogwild || hint == husky::constants::kSPMT) {  // some types need to do dump
-            info.get_mlworker()->Dump();
-        }
-    }
-}
-
-/*
  * Run the instances
  */
 void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
@@ -94,8 +82,6 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
             // run the UDF!!!
             task_store_.get_func(instance->get_id())(info);
 
-            // postprocess
-            postprocess(instance, info);
             // reset the mlworker
             info.get_mlworker().reset();
 

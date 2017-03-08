@@ -46,9 +46,10 @@ class SPMTWorker : public mlworker::GenericMLWorker {
     /*
      * @param type: 0 for ssp, 1 for bsp
      */
-    SPMTWorker(const husky::Info& info, zmq::context_t& context)
+    SPMTWorker(const husky::Info& info, zmq::context_t& context, bool is_hogwild = false)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
-          info_(info) {
+          info_(info),
+          is_hogwild_(is_hogwild) {
         int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         // check valid
@@ -65,29 +66,38 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         if (hint.find(husky::constants::kParamType) != hint.end() 
                 && hint.at(husky::constants::kParamType) == husky::constants::kChunkType) {
             use_chunk_model_ = true;
+            assert(enable_direct_model_transfer_ == false);
         } else {
             use_chunk_model_ = false;
         }
 
         if (info_.is_leader() == true) {
             SPMTState* state = new SPMTState;
-            // Set controller
-            std::string type = info.get_task()->get_hint().at(husky::constants::kConsistency);
-            if (type == husky::constants::kBSP) {
-                state->p_controller_  = new consistency::BSPConsistencyController;
-            } else if (type == husky::constants::kSSP) {
-                state->p_controller_ = new consistency::SSPConsistencyController;
-            } else if (type == husky::constants::kASP) {
-                state->p_controller_ = new consistency::ASPConsistencyController;
+            if (is_hogwild_ == false) {  // if it's not hogwild, set consistency
+                // Set controller
+                std::string type = info.get_task()->get_hint().at(husky::constants::kConsistency);
+                if (type == husky::constants::kBSP) {
+                    state->p_controller_  = new consistency::BSPConsistencyController;
+                } else if (type == husky::constants::kSSP) {
+                    state->p_controller_ = new consistency::SSPConsistencyController;
+                } else if (type == husky::constants::kASP) {
+                    state->p_controller_ = new consistency::ASPConsistencyController;
+                } else {
+                    assert(false);
+                }
+                state->p_controller_->Init(info.get_num_local_workers());
             } else {
-                assert(false);
+                state->p_controller_ = nullptr;
             }
-            state->p_controller_->Init(info.get_num_local_workers());
 
             // Set chunk or integral
             if (use_chunk_model_ == true) {
                 // Use Chunk model
-                state->p_model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, num_params);
+                if (is_hogwild_) {
+                    state->p_model_ = (model::Model*) new model::ChunkBasedMTModel(model_id, num_params);
+                } else {
+                    state->p_model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, num_params);
+                }
             } else {
                 // Use Integral model
                 state->p_model_ = (model::Model*) new model::IntegralModel(model_id, num_params);
@@ -102,20 +112,24 @@ class SPMTWorker : public mlworker::GenericMLWorker {
             Load();
 
         // For logging debug message
-        std::string model_type = use_chunk_model_ ? "ChunkBasedModel" : "IntegralModel";
         if (info.is_leader() == true) {
+            std::string model_type = use_chunk_model_ ? "ChunkBasedModel" : "IntegralModel";
+            std::string consistency = is_hogwild_ ? "hogwild ASP" : info.get_task()->get_hint().at(husky::constants::kConsistency);
             husky::LOG_I << CLAY("[SPMT] model_id: "+std::to_string(model_id)
                     +"; local_id: "+std::to_string(info.get_local_id())
                     +"; model_size: "+std::to_string(num_params)
                     +"; model_type: "+model_type
                     +"; direct_model_transfer: "+std::to_string(enable_direct_model_transfer_)
-                    +"; consistency: "+info.get_task()->get_hint().at(husky::constants::kConsistency));
+                    +"; consistency: "+consistency);
         }
     }
     ~SPMTWorker() {
+        Dump();
         shared_state_.Barrier();
         if (info_.is_leader() == true) {
-            delete shared_state_.Get()->p_controller_;
+            if (is_hogwild_ == false) {
+                delete shared_state_.Get()->p_controller_;
+            }
             delete shared_state_.Get()->p_model_;
             delete shared_state_.Get();
         }
@@ -155,7 +169,10 @@ class SPMTWorker : public mlworker::GenericMLWorker {
     }
     virtual void Clock_v2() override { Push(*keys_, delta_); }
 
-    virtual void Load() override {
+    /*
+     * Load the model from kvstore/direct_model_transfer
+     */
+    void Load() {
         if (info_.is_leader() == true) {
             // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
             std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransfer : husky::constants::kKVStore;
@@ -164,7 +181,10 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         shared_state_.Barrier();
     }
 
-    virtual void Dump() override {
+    /*
+     * Dump the model to kvstore/direct_model_transfer
+     */
+    void Dump() {
         shared_state_.Barrier();
         if (info_.is_leader() == true) {
             // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the last epoch
@@ -174,16 +194,20 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         shared_state_.Barrier();
     }
 
-   private:
+   protected:
+    bool is_hogwild_ = false;
     const husky::Info& info_;
     SharedState<SPMTState> shared_state_;
-
-    bool enable_direct_model_transfer_ = false;
     bool use_chunk_model_ = false;
 
     // For v2
     // Pointer to keys
     std::vector<husky::constants::Key>* keys_;
+
+   private:
+    bool enable_direct_model_transfer_ = false;
+
+    // For v2
     std::vector<float> vals_;
     std::vector<float> delta_;
 };

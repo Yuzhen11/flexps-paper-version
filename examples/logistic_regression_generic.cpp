@@ -42,13 +42,15 @@ int main(int argc, char** argv) {
     bool rt =
         init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
                                     "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
-                                    "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer"});
+                                    "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer", "use_chunk", "use_direct_model_transfer"});
+    if (!rt)
+        return 1;
 
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     float alpha = std::stof(Context::get_param("alpha"));
     int num_iters = std::stoi(Context::get_param("num_iters"));
     int num_features = std::stoi(Context::get_param("num_features"));
-    int num_params = num_features + 1;  // +1 because starting from 1, but not for intercept
+    int num_params = num_features + 1;  // +1 for starting from 1, but not for intercept
     std::string kType = Context::get_param("kType");
     std::string kConsistency = Context::get_param("kConsistency");
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
@@ -56,19 +58,30 @@ int main(int argc, char** argv) {
     const std::string kTrainer = Context::get_param("trainer");
     const std::vector<std::string> trainers_set({"lr", "svm"});
     assert(std::find(trainers_set.begin(), trainers_set.end(), kTrainer) != trainers_set.end());
-    husky::LOG_I << CLAY("trainer is set to "+kTrainer);
+    husky::LOG_I << CLAY("Trainer: "+kTrainer);
+    bool use_chunk = Context::get_param("use_chunk") == "on" ? true : false;
+    husky::LOG_I << CLAY("use_chunk: "+std::to_string(use_chunk));
+    bool use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
+    husky::LOG_I << CLAY("use_direct_model_transfer: "+std::to_string(use_direct_model_transfer));
 
     std::map<std::string, std::string> hint = 
     {
         {husky::constants::kType, kType},
         {husky::constants::kConsistency, kConsistency},
         {husky::constants::kNumWorkers, std::to_string(num_train_workers)},
-        {husky::constants::kEnableDirectModelTransfer, "on"},
         {husky::constants::kStaleness, "1"}  // default stalenss
     };
+    
+    if (use_chunk) {
+        hint.insert({husky::constants::kParamType, husky::constants::kChunkType});
+    }
+    if (use_direct_model_transfer) {
+        hint.insert({husky::constants::kEnableDirectModelTransfer, "on"});
+    }
+    if (use_chunk && use_direct_model_transfer) {
+        assert(false);
+    }
 
-    if (!rt)
-        return 1;
 
     auto& engine = Engine::Get();
     // Create and start the KVStore

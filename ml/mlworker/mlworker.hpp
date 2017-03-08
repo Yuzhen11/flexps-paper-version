@@ -20,11 +20,6 @@ class GenericMLWorker {
 
     virtual ~GenericMLWorker() {}
     /*
-     * Probably we need an initialize function ?
-     */
-    virtual void Load() { throw husky::base::HuskyException("Load Not implemented"); }
-    virtual void Dump() { throw husky::base::HuskyException("Dump Not implemented"); }
-    /*
      * Push/Pull APIs are very suitable for PS, but may not be suitable for
      * Hogwild! and Single
      */
