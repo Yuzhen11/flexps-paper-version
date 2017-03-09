@@ -66,6 +66,13 @@ target_link_libraries(SingleLRGeneric husky-ml)
 target_link_libraries(SingleLRGeneric ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(SingleLRGeneric)
 
+# MultiTasks
+add_executable(MultiTasks multi_ml.cpp)
+target_link_libraries(MultiTasks husky)
+target_link_libraries(MultiTasks husky-ml)
+target_link_libraries(MultiTasks ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(MultiTasks)
+
 # LRSampleReader
 add_executable(LRSampleReader logistic_regression_samplereader.cpp)
 target_link_libraries(LRSampleReader husky)

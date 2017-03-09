@@ -62,16 +62,22 @@ int main(int argc, char** argv) {
     };
 
     // Train task
-    auto train_task = TaskFactory::Get().CreateTask<MLTask>();
-    train_task.set_dimensions(config.num_params);
-    train_task.set_total_epoch(config.train_epoch);  // set epoch number
-    train_task.set_num_workers(config.num_train_workers);
-    // Create KVStore and Set hint
-    int kv1 = create_kvstore_and_set_hint(hint, train_task, config.num_params);
-    assert(kv1 != -1);
-    auto train_task_lambda = [&data_store, config](const Info& info) {
-        lambda::train(data_store, config, info);
-    };
+    std::vector<MLTask> tasks;
+    std::vector<config::AppConfig> configs;
+    for (int i = 0; i < 10; ++ i) {
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
+        train_task.set_dimensions(config.num_params);
+        train_task.set_total_epoch(config.train_epoch);  // set epoch number
+        train_task.set_num_workers(config.num_train_workers);
+        int kv1 = create_kvstore_and_set_hint(hint, train_task, config.num_params);  // Create KVStore and Set hint
+        assert(kv1 != -1);
+        tasks.push_back(std::move(train_task));
+
+        // Using different learning rate
+        config.alpha = 0.1 + i*0.1;
+        husky::LOG_I << RED("Warning: Setting alpha to "+std::to_string(config.alpha));
+        configs.push_back(config);
+    }
 
     // Submit load_task;
     engine.AddTask(load_task, load_task_lambda); 
@@ -82,7 +88,11 @@ int main(int argc, char** argv) {
     husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
     // Submit train_task
-    engine.AddTask(train_task, train_task_lambda);
+    for (int i = 0; i < tasks.size(); ++ i) {
+        engine.AddTask(tasks[i], [&data_store, config = configs[i]](const Info& info) {
+            lambda::train(data_store, config, info);
+        });
+    }
     start_time = std::chrono::steady_clock::now();
     engine.Submit();
     end_time = std::chrono::steady_clock::now();
