@@ -25,6 +25,7 @@ struct AppConfig {
     bool use_chunk = false;
     bool use_direct_model_transfer = false;
     int staleness = 1;
+    std::string kLoadHdfsType;
 };
 
 namespace {
@@ -45,6 +46,7 @@ void ShowConfig(const AppConfig& config) {
     ss << "\nuse_chunk: " << config.use_chunk;
     ss << "\nuse_direct_model_transfer: " << config.use_direct_model_transfer;
     ss << "\nstaleness: " << config.staleness;
+    ss << "\nkLoadHdfsType: " << config.kLoadHdfsType;
     husky::LOG_I << RED(ss.str());
 }
 
@@ -53,7 +55,7 @@ void InitContext(int argc, char** argv) {
         init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
                                     "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
                                     "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer", 
-                                    "use_chunk", "use_direct_model_transfer", "staleness"});
+                                    "use_chunk", "use_direct_model_transfer", "staleness", "kLoadHdfsType"});
     if (!rt)
         assert(0);
 }
@@ -73,6 +75,7 @@ AppConfig SetAppConfigWithContext() {
     config.use_chunk = Context::get_param("use_chunk") == "on" ? true : false;
     config.use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
     config.staleness = std::stoi(Context::get_param("staleness"));
+    config.kLoadHdfsType = Context::get_param("kLoadHdfsType");
 
     const std::vector<std::string> trainers_set({"lr", "svm"});
     assert(std::find(trainers_set.begin(), trainers_set.end(), config.trainer) != trainers_set.end());

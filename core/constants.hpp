@@ -89,6 +89,16 @@ constexpr const char* const kParamType = "param_type";
 constexpr const char* const kIntegralType = "integral_type";
 constexpr const char* const kChunkType = "chunk_type";
 
+/*
+ * load_type 
+ *
+ * load_hdfs_locally means the thread only can access the data in its process
+ * load_hdfs_globally means when the thread loads all the data int its process, it can access the data in other processes  
+ */
+constexpr const char* const kLoadHdfsType = "load_hdfs_type";
+constexpr const char* const kLoadHdfsLocally = "load_hdfs_locally";
+constexpr const char* const kLoadHdfsGlobally = "load_hdfs_globally";
+
 }  // namespace anonymous
 }  // namespace constants
 }  // namespace husky
