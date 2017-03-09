@@ -39,6 +39,11 @@ class SequentialTaskScheduler : public TaskScheduler {
 
    private:
     /*
+     * Using task history information to let task travel in different processes
+     */
+    std::vector<int> get_preferred_proc(int task_id);
+
+    /*
      * Generate real running instance from task
      *
      * Be careful that instance may not be complete within the process:
