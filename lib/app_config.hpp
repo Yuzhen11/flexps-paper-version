@@ -6,6 +6,7 @@
 #include "core/constants.hpp"
 #include "core/color.hpp"
 #include "husky/core/context.hpp"
+#include "husky/core/job_runner.hpp"
 
 namespace husky {
 namespace config {

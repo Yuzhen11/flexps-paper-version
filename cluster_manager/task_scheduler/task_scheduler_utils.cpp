@@ -84,7 +84,6 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
         int required_num_threads, const std::vector<int>& candidate_proc) {
 
     std::vector<std::pair<int, int>> pid_tids;
-    //TODO: schedule for other task type
     if (instance->get_type() == Task::Type::MLTaskType) {
         auto& hint = instance->get_task()->get_hint();
         if (hint.at(husky::constants::kType) == husky::constants::kSingle
@@ -100,27 +99,29 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
                 }
             }
             assert(pid_tids.size() == required_num_threads || pid_tids.size() == 0);
-        } else { // PS:BSP SSP ASP
-            // min_per_proc = min(available workers of all proc, average required threads for each proc)
-            int min_per_proc = required_num_threads/num_processes;
-            int sum_available = 0;
-            for (auto pid : candidate_proc) {
-                int num_available = available_workers.get_num_available_local_workers(pid);
-                sum_available+= num_available;
-                if (num_available < min_per_proc)
-                    min_per_proc = num_available; 
-            }
-            
-            if (sum_available >= required_num_threads) {
-                // select min_per_proc threads from all candidate_proc
-                if (min_per_proc>0) {
-                    for (auto pid : candidate_proc) {
-                        auto tmp_pid_tids = available_workers.get_workers_exact_process(min_per_proc, pid, num_processes);
-                        for (auto& pid_tid : tmp_pid_tids) {
-                            pid_tids.push_back(pid_tid);
-                        }
+        } 
+    } else { // Other types of job or PS
+        // min_per_proc = min(available workers of all proc, average required threads for each proc)
+        int min_per_proc = required_num_threads/num_processes;
+        int sum_available = 0;
+        for (auto pid : candidate_proc) {
+            int num_available = available_workers.get_num_available_local_workers(pid);
+            sum_available+= num_available;
+            if (num_available < min_per_proc)
+                min_per_proc = num_available; 
+        }
+        
+        if (sum_available >= required_num_threads) {
+            // select min_per_proc threads from all candidate_proc
+            if (min_per_proc>0) {
+                for (auto pid : candidate_proc) {
+                    auto tmp_pid_tids = available_workers.get_workers_exact_process(min_per_proc, pid, num_processes);
+                    for (auto& pid_tid : tmp_pid_tids) {
+                        pid_tids.push_back(pid_tid);
                     }
                 }
+            }
+            if (pid_tids.size() != required_num_threads) {  // If not all threads are found
                 // incrementally select threads from all proc 
                 bool keep_looping = true;
                 while (keep_looping) {

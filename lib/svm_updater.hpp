@@ -2,6 +2,7 @@
 
 #include "datastore/datastore_utils.hpp"
 #include "ml/mlworker/mlworker.hpp"
+#include "husky/lib/ml/feature_label.hpp"
 
 using husky::lib::ml::LabeledPointHObj;
 
