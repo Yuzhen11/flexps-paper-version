@@ -34,7 +34,7 @@ class HDFSFileSplitterML : public HDFSFileSplitter {
             // ask master for a new block
             BinStream question;
             question << url_ << husky::Context::get_param("hostname")
-                << num_threads_ << id_;
+                << num_threads_ << id_ << husky::Context::get_param("kLoadHdfsType");
             BinStream answer = husky::Context::get_coordinator()->ask_master(question, constants::kIOHDFSSubsetLoad);
             std::string fn;
             answer >> fn;
