@@ -43,7 +43,7 @@ class KVServer : public KVServerBase {
         try {
             using namespace husky::constants;
             int type = -1;  // 0 for assign, 1 for add, 2 for bsp, 3 for ssp
-            if (hint.find(kType) == hint.end()) {  // if kType is not set, kUpdateType must be set
+            if (hint.find(kType) == hint.end()) {  // if kType is not set, use kUpdateType
                 if (hint.find(kUpdateType) == hint.end()) {  // default is assign
                     type = 0;
                 } else {

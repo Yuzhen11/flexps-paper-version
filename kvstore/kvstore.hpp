@@ -48,11 +48,14 @@ class KVStore {
     /*
      * \brief Create a new kvstore
      *
-     * @param: the function needed by the KVServer, KVServerDefaultAssignHandle by default
-     * @return: kvstore id created
+     * @param hint the hint privded, may contain kType, kUpdateType, kStorageType.
+     * @param max_key max key of hte kvstore
+     * @param chunk_size the chunk_size
+     * @return kvstore id created
      */
     template <typename Val>
-    int CreateKVStore(const std::map<std::string, std::string>& hint = {}, husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max(),
+    int CreateKVStore(const std::map<std::string, std::string>& hint = {},
+            husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max(),
             int chunk_size = RangeManager::GetDefaultChunkSize()) {
         assert(is_started_);
         // set the default max key and chunk size
@@ -64,6 +67,25 @@ class KVStore {
             kvworker->AddProcessFunc<Val>(kv_id);
         }
         return kv_id++;
+    }
+
+    /*
+     * \brief only create kvstore, but cannot be used before setup, 
+     * This is use for user that need to customize the ranges
+     * The only difference is that user can customize the ranges by themselves
+     */
+    int CreateKVStoreWithoutSetup() {
+        assert(is_started_);
+        return kv_id++;
+    }
+    template<typename Val>
+    void SetupKVStore(int id, const std::map<std::string, std::string>& hint = {}) {
+        for (auto* kvserver : kvservers) {
+            kvserver->CreateKVManager<Val>(id, hint);
+        }
+        for (auto* kvworker : kvworkers) {
+            kvworker->AddProcessFunc<Val>(id);
+        }
     }
 
     /*

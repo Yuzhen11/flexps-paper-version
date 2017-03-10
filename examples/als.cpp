@@ -12,15 +12,26 @@
 #endif
 
 using namespace husky;
-/*
- *
- * CustomerID: [1,480189]
- * MovieID: [1,17770]
- *
- * 100,480,507 ratings
- *
- */
 
+/*
+ *  #### Test ALS
+ *  # input=hdfs:///yuzhen/als_toy.txt
+ *  # num_users=3
+ *  # num_items=3
+ *  # start_from_one=0
+ *  
+ *  # netflix
+ *  # input=hdfs:///datasets/ml/netflix
+ *  # num_users=480189
+ *  # num_items=17770
+ *  # start_from_one=1
+ *  
+ *  # yahoomusic
+ *  # input=hdfs:///datasets/ml/yahoomusic
+ *  # num_users=1823179
+ *  # num_items=136736
+ *  # start_from_one=0
+ */
 struct Node {
     int id;
     std::vector<std::pair<int, float>> nbs;
@@ -28,17 +39,14 @@ struct Node {
 
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input",
-                                          "hdfs_namenode", "hdfs_namenode_port"});
+                                          "hdfs_namenode", "hdfs_namenode_port",
+                                          "num_users", "num_items", "start_from_one"});
     if (!rt)
         return 1;
 
-    const int kStartFromOne = 1;  // 1 for netflix, 0 for toy
-    const int kNumUsers = 480189;
-    const int kNumItems = 17770;
-
-    // const int kStartFromOne = 0;  // 1 for netflix, 0 for toy
-    // const int kNumUsers = 3;
-    // const int kNumItems = 3;
+    const int kStartFromOne = std::stoi(Context::get_param("start_from_one"));
+    const int kNumUsers = std::stoi(Context::get_param("num_users"));
+    const int kNumItems = std::stoi(Context::get_param("num_items"));
 
     const int kNumNodes = kNumUsers + kNumItems;
     const int MAGIC = kNumUsers + kStartFromOne;
@@ -59,19 +67,13 @@ int main(int argc, char** argv) {
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context(), kServersPerWorker);
 
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
-    // ChunkSize: kNumLatentFactor
-    // MaxKey: kChunkSize*num_nodes
-    // TODO, need to partition the data nicely
-    // kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv1, MAGIC*2*kChunkSize, kChunkSize);
-
-    // server partition setup
+    // 1. Server partition setup
     std::vector<kvstore::pslite::Range> server_key_ranges;
     std::vector<kvstore::pslite::Range> server_chunk_ranges;
     int num_servers = kvstore::RangeManager::Get().GetNumServers();
     husky::constants::Key max_key = (kNumNodes + kStartFromOne) * kChunkSize;
     const int kChunkNum = kNumNodes + kStartFromOne;
-    // 1. Partition users to 0 - num_servers/2
+    // 1.1 Partition users to 0 - num_servers/2
     int num_half_servers = num_servers/2;
     int chunk_num = (kNumUsers + kStartFromOne);
     int base = chunk_num / num_half_servers;
@@ -84,7 +86,7 @@ int main(int argc, char** argv) {
         server_chunk_ranges.push_back(kvstore::pslite::Range(end+i*base, end+(i+1)*(base)));
     }
     server_chunk_ranges.push_back(kvstore::pslite::Range(end+(num_half_servers-remain-1)*base, chunk_num));
-    // 2. Partition item to num_server/2 - num_servers
+    // 1.2. Partition item to num_server/2 - num_servers
     num_half_servers = num_servers - num_half_servers;
     chunk_num = (kNumItems + kStartFromOne);
     base = chunk_num / num_half_servers;
@@ -98,7 +100,7 @@ int main(int argc, char** argv) {
         server_chunk_ranges.push_back(kvstore::pslite::Range(offset+end+i*base, offset+end+(i+1)*(base)));
     }
     server_chunk_ranges.push_back(kvstore::pslite::Range(offset+end+(num_half_servers-remain-1)*base, offset+chunk_num));
-    // 3. Set server_key_ranges
+    // 1.3. Set server_key_ranges
     int range_counter = 0;
     for (auto range : server_chunk_ranges) {
         if (Context::get_process_id() == 0)
@@ -106,14 +108,24 @@ int main(int argc, char** argv) {
         server_key_ranges.push_back(kvstore::pslite::Range(range.begin()*kChunkSize, range.end()*kChunkSize));
         range_counter += 1;
     }
+    // 1.4 Create kvstore
+    int kv1 = kvstore::KVStore::Get().CreateKVStoreWithoutSetup();
+    // 1.5 CustomizeRanges
     kvstore::RangeManager::Get().CustomizeRanges(kv1, max_key, kChunkSize, kChunkNum,
             server_key_ranges, server_chunk_ranges);
+    // 1.6 Setup kvstore
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kStorageType, husky::constants::kVectorStorage},
+        {husky::constants::kUpdateType, husky::constants::kAssignUpdate}
+    };
+    kvstore::KVStore::Get().SetupKVStore<float>(kv1, hint);
 
     // All the process should have this task running
     auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
     task.set_worker_num({kThreadsPerWorker});
     task.set_worker_num_type({"threads_per_worker"});
-    engine.AddTask(task, [&data_store1, kv1, kLambda, kNumIters, kNumUsers](const Info& info) {
+    engine.AddTask(task, [&data_store1, kv1, kLambda, kNumIters, kNumUsers, kChunkNum, MAGIC](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         auto& range_manager = kvstore::RangeManager::Get();
 
@@ -202,51 +214,66 @@ int main(int argc, char** argv) {
             husky::LOG_I << CLAY("Load done. Load time is: " + std::to_string(total_time) + " ms");
         }
 
+        // Prepare pull keys
+        std::set<size_t> keys[2];  // keys for odd/even iter
+        for (auto& kv : local_nodes) {
+            if (kv.first < MAGIC) {
+                for (auto& p : kv.second.nbs) {
+                    keys[0].insert(p.first);
+                }
+            } else {
+                for (auto& p : kv.second.nbs) {
+                    keys[1].insert(p.first);
+                }
+            }
+            if (kDoTest) {  // if do test, also need the parameters, will be very slow
+                keys[0].insert(kv.first);
+                keys[1].insert(kv.first);
+            }
+        }
+        std::vector<size_t> chunk_ids[2];
+        chunk_ids[0] = {keys[0].begin(), keys[0].end()};
+        chunk_ids[1] = {keys[1].begin(), keys[1].end()};
+        std::vector<std::vector<float>> params[2];
+        params[0].resize(chunk_ids[0].size());
+        params[1].resize(chunk_ids[1].size());
+        std::vector<std::vector<float>*> p_params[2];
+        p_params[0].resize(chunk_ids[0].size());
+        p_params[1].resize(chunk_ids[1].size());
+        for (size_t i = 0; i < chunk_ids[0].size(); ++ i)
+            p_params[0][i] = &params[0][i];
+        for (size_t i = 0; i < chunk_ids[1].size(); ++ i)
+            p_params[1][i] = &params[1][i];
+
+        std::vector<Eigen::VectorXf> other_factors(kChunkNum);
         // 4. Main loop
         for (int iter = 0; iter < kNumIters; ++ iter) {
-
 #ifdef USE_PROFILER
             if (info.get_cluster_id() == 0) {
                 ProfilerStart(("/data/opt/tmp/yuzhen/als2/train-"+std::to_string(iter)+".prof").c_str());
             }
 #endif
-
             float local_rmse = 0;  // for kDoTest
             int num_local_edges = 0;  // for kDoTest
 
             auto start_time = std::chrono::steady_clock::now();
-            std::map<size_t, Eigen::VectorXf> other_factors;  // map from chunk_ids to params
             // 5. Pull from kvstore
-            std::set<size_t> keys;
-            for (auto& kv : local_nodes) {
-                if ((iter%2 == 0 && kv.first < MAGIC) || 
-                    (iter%2 == 1 && kv.first >= MAGIC)) {
-                    for (auto& p : kv.second.nbs) {
-                        keys.insert(p.first);
-                    }
-                    if (kDoTest) {  // if do test, also need the parameters
-                        keys.insert(kv.first);
-                    }
-                }
-            }
             if (iter > 0) {
-                std::vector<size_t> chunk_ids{keys.begin(), keys.end()};
-                std::vector<std::vector<float>> params(chunk_ids.size());
-                std::vector<std::vector<float>*> p_params(chunk_ids.size());
-                for (size_t i = 0; i < chunk_ids.size(); ++ i)
-                    p_params[i] = &params[i];
                 // Pull from kvstore
-                int ts = kvworker->PullChunks(kv1, chunk_ids, p_params, false);
+                int idx = iter % 2;
+                int ts = kvworker->PullChunks(kv1, chunk_ids[idx], p_params[idx], false);
                 kvworker->Wait(kv1, ts);
-                for (size_t i = 0; i < chunk_ids.size(); ++ i) {
-                    other_factors.insert({chunk_ids[i], Eigen::Map<Eigen::VectorXf>(&params[i][0], kNumLatentFactor)});
+                for (size_t i = 0; i < chunk_ids[idx].size(); ++ i) {
+                    // other_factors.insert({chunk_ids[idx][i], Eigen::Map<Eigen::VectorXf>(&params[idx][i][0], kNumLatentFactor)});
+                    other_factors[chunk_ids[idx][i]] = Eigen::Map<Eigen::VectorXf>(&params[idx][i][0], kNumLatentFactor);
                 }
             } else {  // if iter == 0, random generate parameter
-                for (auto key : keys) {
+                for (auto key : keys[0]) {
                     Eigen::VectorXf v;
                     v.resize(kNumLatentFactor);
                     v.setRandom();
-                    other_factors.insert({key, std::move(v)});
+                    // other_factors.insert({key, std::move(v)});
+                    other_factors[key] = std::move(v);
                 }
             }
 
