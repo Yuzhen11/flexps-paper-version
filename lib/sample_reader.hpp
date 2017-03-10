@@ -7,11 +7,11 @@
 #include <vector>
 
 #include "boost/tokenizer.hpp"
-#include "boost/utility/string_ref.hpp"
 #include "core/constants.hpp"
+#include "husky/base/log.hpp"
 #include "husky/io/input/line_inputformat.hpp"
-#include "io/input/line_inputformat_ml.hpp"
 #include "husky/lib/ml/feature_label.hpp"
+#include "io/input/line_inputformat_ml.hpp"
 #include "core/color.hpp"
 
 namespace husky {
@@ -19,7 +19,7 @@ namespace {
 
 class AsyncReadBuffer final {
    public:
-    using BatchT = std::vector<boost::string_ref>;
+    using BatchT = std::vector<std::string>;
 
     /* 
      * contructor takes 2 args: number of lines per batch, number of batches
@@ -35,6 +35,7 @@ class AsyncReadBuffer final {
     ~AsyncReadBuffer() {
         batch_num_ = 0;
         load_cv_.notify_all();
+        get_cv_.notify_all();
         thread_.join();
     }
 
@@ -68,12 +69,13 @@ class AsyncReadBuffer final {
         assert(init_ == true);
         {
             std::unique_lock<std::mutex> lock(mutex_);
+            if (eof_ && batch_count_ == 0) return false;  // no more data
+
             while (batch_count_ == 0 && !eof_) {
                 get_cv_.wait(lock);  // wait for main to load data
             }
 
             if (eof_ && batch_count_ == 0) return false;  // no more data
-
             batch = std::move(buffer_[start_]);
             if (++start_ >= batch_num_) start_ -= batch_num_;
             --batch_count_;
@@ -112,7 +114,7 @@ class AsyncReadBuffer final {
             tmp.reserve(batch_size_);
             for (int i = 0; i < batch_size_; ++i) {
                 if (infmt_->next(record)) {
-                    tmp.push_back(std::move(io::LineInputFormat::recast(record)));
+                    tmp.push_back(record.to_string());
                 } else {
                     eof_ = true;
                     break;
@@ -134,6 +136,8 @@ class AsyncReadBuffer final {
             }
             get_cv_.notify_one();
         }
+        get_cv_.notify_all();
+        husky::LOG_I << "loading thread finished";  // for debug
     }
 
     // input
@@ -190,7 +194,7 @@ class SampleReader {
     inline bool is_empty() { return tbf_->end_of_file() && !tbf_->ask(); }
 
    protected:
-    virtual void parse_line(const boost::string_ref& chunk, int pos) = 0;
+    virtual void parse_line(const std::string& chunk, int pos) = 0;
 
     AsyncReadBuffer* tbf_;
     int batch_size_;
@@ -206,7 +210,7 @@ class LIBSVMSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<
 
     LIBSVMSampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
     
-    void parse_line(const boost::string_ref& chunk, int pos) override {
+    void parse_line(const std::string& chunk, int pos) override {
         if (chunk.empty())
             return;
         boost::char_separator<char> sep(" \t");
@@ -241,7 +245,7 @@ class TSVSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<Fea
 
     TSVSampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
 
-    void parse_line(const boost::string_ref& chunk, int pos) override {
+    void parse_line(const std::string& chunk, int pos) override {
         if (chunk.empty())
             return;
         boost::char_separator<char> sep(" \t");
