@@ -1,5 +1,5 @@
-#include <vector>
 #include <chrono>
+#include <vector>
 
 #include "worker/engine.hpp"
 #include "lib/sample_reader.hpp"
@@ -27,20 +27,31 @@ using husky::lib::ml::LabeledPointHObj;
  * 
  * input=hdfs:///datasets/classification/a9
  * alpha=0.5
- * num_iters=10
+ * num_iters=10  # -1 means use all data
  * num_features=123
  * train_epoch=1
+ * batch_num=3
+ * batch_size=20
  *
  */
 
+float log_loss(float label, float predict) {
+    if (label < 0.5) {  // label is 0
+        predict = 1.0f - predict;
+    }
+    return -log(predict < 0.000001f ? 0.000001f : predict);
+}
+
 template <template <typename> typename ContainerT>
-void batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
-        ContainerT<LabeledPointHObj<float, float, true>>* container, float alpha, int num_params) {
+int batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+        ContainerT<LabeledPointHObj<float, float, true>>* container, float alpha, int num_params, float& loss) {
     alpha /= container->get_batch_size();
     auto keys = container->prepare_next_batch();
     keys.push_back(num_params - 1);
     worker->Prepare_v2(keys);
-    for (auto data : container->get_data()) {
+    auto& data_batch = container->get_data();
+    if (data_batch.empty()) return 0;
+    for (auto data : data_batch) {
         auto& x = data.x;
         float y = data.y;
         if (y < 0) y = 0;
@@ -58,6 +69,7 @@ void batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& work
         pred_y += worker->Get_v2(i);  // intercept
 
         pred_y = 1. / (1. + exp(-1 * pred_y)); 
+        loss += log_loss(y, pred_y);
 
         worker->Update_v2(i, alpha * (y - pred_y));  // intercept
         i = 0;
@@ -68,19 +80,20 @@ void batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& work
         }
     }
     worker->Clock_v2();
+
+    return data_batch.size();
 }
 
 template <template <typename> typename ContainerT>
 float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker, 
         ContainerT<LabeledPointHObj<float, float, true>>* container,
         int num_params, int test_samples = -1) {
-    test_samples = 100;
     std::vector<husky::constants::Key> all_keys;
     for (int i = 0; i < num_params; i++) all_keys.push_back(i);
     worker->Prepare_v2(all_keys);
     int count = 0;
     float c_count = 0; //correct count
-    while (count < test_samples) {
+    while (count < test_samples || test_samples == -1) {
         container->prepare_next_batch();
         auto batch = container->get_data();
         if (batch.size() == 0) break;
@@ -127,24 +140,39 @@ int main(int argc, char** argv) {
     assert(kv1 != -1);
 
     // create a AsyncReadBuffer
-    int batch_size = 100, batch_num = 50;
+    int batch_size = 20, batch_num = 3;
     AsyncReadBuffer buffer;
     engine.AddTask(std::move(task1), [config, batch_size, batch_num, &buffer](const Info& info) {
         buffer.init(Context::get_param("input"), info.get_task_id(), config.num_train_workers, batch_size, batch_num);
-        int batch_size = 100;
         // create a reader
         std::unique_ptr<SampleReader<LabeledPointHObj<float,float,true>>> reader(new LIBSVMSampleReader<float, float, true>(batch_size, config.num_features, &buffer));
 
-        if (reader->is_empty()) return;  // return if there's no data
-        auto& worker = info.get_mlworker();
-
-        // main loop
-        for (int iter = 0; iter < config.num_iters; ++ iter) {
-            batch_sgd_update(worker, reader.get(), config.alpha, config.num_params);
+        if (reader->is_empty()) {
+            husky::LOG_I << "no data";
+            return;  // return if there's no data
         }
 
-        auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
-        husky::LOG_I << "accuracy: " << accuracy;
+        auto& worker = info.get_mlworker();
+
+        float train_loss = 0.0f;
+        int sample_count = 0;
+        int report_interval = 10000;
+        int sample_total = 0;
+        // main loop
+        for (int iter = 0; iter < config.num_iters || config.num_iters == -1; ++ iter) {
+            sample_count += batch_sgd_update(worker, reader.get(), config.alpha, config.num_params, train_loss);
+            if (reader->is_empty()) break;
+            if (sample_count >= report_interval) {
+                sample_total += sample_count;
+                husky::LOG_I << "train loss " << (train_loss / sample_count);
+                husky::LOG_I << "samples seen " << sample_total;
+                train_loss = 0.0f;
+                sample_count = 0;
+            }
+        }
+
+        // auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
+        // husky::LOG_I << "accuracy: " << accuracy;
     });
     auto start_time = std::chrono::steady_clock::now();
     engine.Submit();
