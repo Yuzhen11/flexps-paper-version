@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <thread>
+#include <mutex>
 
 #include "husky/core/zmq_helpers.hpp"
 
@@ -35,9 +36,6 @@ class SchedulerTrigger {
     void set_time_out_period(int time);
 
    private:
-    // the function the detached thread runs
-    void send_timeout_event();
-
     // reset counter_ to 0 and increase the timestamp() by 1
     void inc_timestamp();
 
@@ -60,16 +58,18 @@ class SchedulerTrigger {
 
     // timestamp for the time out event sent by the detached thread
     // ClusterManager starts scheduling when expected_timestamp_ is equal to time_out_timestamp_
+    std::mutex mu_;
     unsigned int time_out_timestamp_ = 0;
-
-    // used to send timeout scheduling event to cluster_mangager
-    zmq::socket_t send_socket_;
 
     // this thread is detached to run a timer
     std::thread thread_;
 
     // the default is disable the timeout scheduling
     bool enable_timeout_scheduling = false;
+    
+    // zmq context and cluster_manager_addr
+    zmq::context_t* context_;
+    std::string cluster_manager_addr_;
 };
 
 } // namespace husky

@@ -11,8 +11,7 @@
 namespace husky {
 
 SchedulerTrigger::SchedulerTrigger(zmq::context_t* context, std::string cluster_manager_addr) 
-    : send_socket_(*context, ZMQ_PUSH) {
-    send_socket_.connect(cluster_manager_addr);
+    : context_(context), cluster_manager_addr_(cluster_manager_addr) {
 }
 
 SchedulerTrigger::~SchedulerTrigger() {
@@ -38,16 +37,16 @@ bool SchedulerTrigger::has_enough_new_threads() {
     return false;
 }
 
-void SchedulerTrigger::send_timeout_event() {
-    // send the time out schedule event after time_out_period_ seconds
-    std::this_thread::sleep_for(std::chrono::seconds(time_out_period_));
-    zmq_sendmore_int32(&send_socket_, constants::kClusterManagerTimeOutSchedule);
-    zmq_send_int32(&send_socket_, time_out_timestamp_);
-    time_out_timestamp_ += 1;
-}
-
 void SchedulerTrigger::init_timer() {
-    thread_ = std::thread(&SchedulerTrigger::send_timeout_event, this);
+    thread_ = std::thread([this](){
+        std::this_thread::sleep_for(std::chrono::seconds(time_out_period_));
+        zmq::socket_t send_socket(*context_, ZMQ_PUSH);
+        send_socket.connect(cluster_manager_addr_);
+        zmq_sendmore_int32(&send_socket, constants::kClusterManagerTimeOutSchedule);
+        std::lock_guard<std::mutex> lock(mu_);
+        zmq_send_int32(&send_socket, time_out_timestamp_);
+        time_out_timestamp_ += 1;
+    });
     // let the thread run independently
     thread_.detach();
 }
