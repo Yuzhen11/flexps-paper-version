@@ -30,7 +30,8 @@ class PSWorker : public mlworker::GenericMLWorker {
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
         auto& hint = info.get_task()->get_hint();
         if (hint.find(husky::constants::kConsistency) != hint.end()
-                && hint.at(husky::constants::kConsistency) == husky::constants::kSSP) {
+                && (hint.at(husky::constants::kConsistency) == husky::constants::kSSP 
+                    || hint.at(husky::constants::kConsistency) == husky::constants::kBSP)) {
             kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
         }
     }

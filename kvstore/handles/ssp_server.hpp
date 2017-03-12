@@ -18,10 +18,11 @@ namespace kvstore {
  * Caution:
  * 1. Note that the maximun difference of parameter of each worker in the same iter (each time add 1)
  * should be at most staleness*num_workers*2-2.
- * 2. Setting to s = 0, it's like BSP, but the first Pull may not see the same data, unless each worker issue a Push
- * first?
+ * 2. Setting to s = 0, it's like BSP, but the pull may see more recent data (since push is non-blocking)
  * 3. Push determines the iteration, After each iteration, workers can choose to Pull or not.
  * No need to issue Push/Pull/Push/Pull, Push/Push/Push/Pull should be fine
+ *
+ * At the begining of each epoch, InitForConsistencyControl must be invoked
  */
 template <typename Val, typename StorageT>
 class SSPServer : public ServerBase {

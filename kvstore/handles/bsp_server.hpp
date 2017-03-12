@@ -32,6 +32,12 @@ namespace kvstore {
  *
  * Need to wait for the Push request at least before the next Pull.
  * Otherwise fast worker may issue two consecutive Pull.
+ *
+ * 2017.3.12 Fix a major bug: Cannot use push_count_/pull_count_ only to calculate
+ * how many workers have done the push/pull, since next push/pull will be counted.
+ * So, push_progress_/pull_progress_ are created to track the progress of push/pull of each workers.
+ *
+ * At the begining of each epoch, InitForConsistencyControl must be invoked
  */
 template <typename Val, typename StorageT>
 class BSPServer : public ServerBase {
@@ -40,60 +46,104 @@ class BSPServer : public ServerBase {
     virtual void Process(int kv_id, int ts, husky::base::BinStream& bin, ServerCustomer* customer) override {
         int cmd;
         bool push;  // push or not
+        int src;
         bin >> cmd;
         bin >> push;
-        assert(cmd != 4);  // no InitForConsistencyControl
-        if (push) {  // if is push
-            push_count_ += 1;
-            if (reply_phase_) {  // if is now replying, should update later
-                push_buffer_.emplace_back(cmd, ts, std::move(bin));
-            } else {  // otherwise, directly update
-                int src;
-                bin >> src;
-                if (bin.size()) {  // if bin is empty, don't reply
-                    update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, false);
-                    Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
-                }
-            }
-            // if all the push are collected, reply for the pull
-            if (push_count_ == num_workers_) {
+        bin >> src;
+        if (cmd == 4) {  // InitForConsistencyControl
+            if (init_count_ == 0) {  // reset the buffer when the first init message comes
+                push_iter_ = 0;
+                pull_iter_ = 0;
                 push_count_ = 0;
-                reply_phase_ = true;
-                for (auto& elem : pull_buffer_) {  // process the pull_buffer_
-                    int src;
-                    std::get<2>(elem) >> src;
-                    if (std::get<2>(elem).size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, std::get<2>(elem), store_, std::get<0>(elem), is_vector_);
-                        Response<Val>(kv_id, std::get<1>(elem), std::get<0>(elem), 0, src, res, customer);
-                    }
-                }
-                pull_buffer_.clear();
-            }
-        } else {  // if is pull
-            pull_count_ += 1;
-            if (reply_phase_) {  // if is now replying, directly reply
-                int src;
-                bin >> src;
-                if (bin.size()) {  // if bin is empty, don't reply
-                    KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_);
-                    Response<Val>(kv_id, ts, cmd, push, src, res, customer);
-                }
-            } else {  // otherwise, reply later
-                pull_buffer_.emplace_back(cmd, ts, std::move(bin));
-            }
-            // if all the pull are replied, change to non reply-phase
-            if (pull_count_ == num_workers_) {
                 pull_count_ = 0;
-                reply_phase_ = false;
-                for (auto& elem : push_buffer_) {  // process the push_buffer_
-                    int src;
-                    std::get<2>(elem) >> src;
-                    if (std::get<2>(elem).size()) {  // if bin is empty, don't reply
-                        update<Val, StorageT>(kv_id, server_id_, std::get<2>(elem), store_, std::get<0>(elem), is_vector_, false);
-                        Response<Val>(kv_id, std::get<1>(elem), std::get<0>(elem), 1, src, KVPairs<Val>(), customer);
+                push_progress_.clear();
+                pull_progress_.clear();
+                blocked_pulls_.clear();
+                blocked_pushes_.clear();
+                reply_phase_ = init_reply_phase_;
+            }
+            init_count_ += 1;
+            if (init_count_ == num_workers_) {
+                init_count_ = 0;
+            }
+            Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);  // Reply directly
+            return;
+        }
+
+        // husky::LOG_I << CLAY("src: " + std::to_string(src) + 
+        //     " reply_phase: " + std::to_string(reply_phase_) +
+        //     " push: " + std::to_string(push) + 
+        //     " push_count: " + std::to_string(push_count_) + 
+        //     " pull_count: " + std::to_string(pull_count_));
+        if (push) {  // if is push
+            if (reply_phase_) {  // if is replying
+                blocked_pushes_.emplace_back(cmd, src, ts, std::move(bin));
+            } else {
+                if (src >= push_progress_.size())
+                    push_progress_.resize(src + 1);
+                if (push_iter_ == push_progress_[src]) {  // first src
+                    // update
+                    if (bin.size()) {  // if bin is empty, don't reply
+                        update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, false);
+                        Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
                     }
+                    push_progress_[src] += 1;
+                    push_count_ += 1;
+                    if (push_count_ == num_workers_) {
+                        // release the blocked pull
+                        for (auto& pull_pair : blocked_pulls_) {
+                            if (std::get<3>(pull_pair).size()) {
+                                KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, std::get<3>(pull_pair), store_, std::get<0>(pull_pair), is_vector_);
+                                Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), 0, std::get<1>(pull_pair), res, customer);
+                            }
+                            int pull_src = std::get<1>(pull_pair);
+                            if (pull_src >= pull_progress_.size())
+                                pull_progress_.resize(pull_src+1);
+                            pull_progress_[pull_src] += 1;
+                        }
+                        pull_count_ = blocked_pulls_.size();
+                        blocked_pulls_.clear();
+                        reply_phase_ = true;
+                        push_iter_ += 1;
+                    }
+                } else {
+                    blocked_pushes_.emplace_back(cmd, src, ts, std::move(bin));
                 }
-                push_buffer_.clear();
+            }
+        } else {
+            if (reply_phase_) {
+                if (src >= pull_progress_.size())
+                    pull_progress_.resize(src + 1);
+                if (pull_iter_ == pull_progress_[src]) {  // first src
+                    // pull
+                    if (bin.size()) {  // if bin is empty, don't reply
+                        KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd);
+                        Response<Val>(kv_id, ts, cmd, push, src, res, customer);
+                    }
+                    pull_progress_[src] += 1;
+                    pull_count_ += 1;
+                    if (pull_count_ == num_workers_) {
+                        // release the blocked push
+                        for (auto& push_pair : blocked_pushes_) {
+                            if (std::get<3>(push_pair).size()) {
+                                update<Val, StorageT>(kv_id, server_id_, std::get<3>(push_pair), store_, std::get<0>(push_pair), is_vector_, false);
+                                Response<Val>(kv_id, std::get<2>(push_pair), std::get<0>(push_pair), 1, std::get<1>(push_pair), KVPairs<Val>(), customer);
+                            }
+                            int push_src = std::get<1>(push_pair);
+                            if (push_src >= push_progress_.size())
+                                push_progress_.resize(push_src+1);
+                            push_progress_[push_src] += 1;
+                        }
+                        push_count_ = blocked_pushes_.size();
+                        blocked_pushes_.clear();
+                        reply_phase_ = false;
+                        pull_iter_ += 1;
+                    }
+                } else {
+                    blocked_pulls_.emplace_back(cmd, src, ts, std::move(bin));
+                }
+            } else {
+                blocked_pulls_.emplace_back(cmd, src, ts, std::move(bin));
             }
         }
     }
@@ -101,23 +151,31 @@ class BSPServer : public ServerBase {
     BSPServer() = delete;
     BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector) : 
         server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector) {}
-    BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool reply_phase) : 
-        server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector), reply_phase_(reply_phase) {}
+    BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool init_reply_phase) : 
+        server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector), init_reply_phase_(init_reply_phase) {}
 
    private:
     int num_workers_;
+
+    int push_iter_ = 0;
     int push_count_ = 0;
+    std::vector<int> push_progress_;
+    std::vector<std::tuple<int, int, int, husky::base::BinStream>> blocked_pushes_;   // cmd, src, ts, bin
+    int pull_iter_ = 0;
     int pull_count_ = 0;
+    std::vector<int> pull_progress_;
+    std::vector<std::tuple<int, int, int, husky::base::BinStream>> blocked_pulls_;   // cmd, src, ts, bin
 
-    std::vector<std::tuple<int, int, husky::base::BinStream>> push_buffer_;  // cmd, ts, bin
-    std::vector<std::tuple<int, int, husky::base::BinStream>> pull_buffer_;  // cmd, ts, bin
-
+    bool init_reply_phase_ = true;
     bool reply_phase_ = true;
     // default storage method is unordered_map
     bool is_vector_ = false;
     // The real storeage
     StorageT store_;
     int server_id_;
+
+    // For init
+    int init_count_ = 0;
 };
 
 }  // namespace kvstore

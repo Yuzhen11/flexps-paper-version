@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <algorithm>
+#include <sstream>
 
 #include "core/info.hpp"
 
@@ -71,17 +72,29 @@ auto dummy_train(config::AppConfig config, const Info& info) {
         // }
         // std::sort(keys.begin(), keys.end());
         // keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+        // assert(keys.size() > 0);
+        // std::stringstream ss;
+        // for (int i = 0; i < keys.size(); ++ i)
+        //     ss << keys[i] << " ";
+        // husky::LOG_I << ss.str();
         
         // 1 key
-        // keys = {0};
+        // if (iter%2 == 0)
+        //     keys = {0};
+        // else
+        //     keys = {123};
+        keys = {0, 122};
         
         // all keys
-        for (int i = 0; i < config.num_params; ++ i)
-            keys.push_back(i);
+        // for (int i = 0; i < config.num_params; ++ i)
+        //     keys.push_back(i);
 
         std::vector<float> vals;
+        // husky::LOG_I << "pull " << info.get_cluster_id() << " Dummy train iter: " << std::to_string(iter);
         worker->Pull(keys, &vals);
+        // husky::LOG_I << "push " << info.get_cluster_id() << " Dummy train iter: " << std::to_string(iter);
         worker->Push(keys, vals);
+        // husky::LOG_I << "Dummy train iter: " << std::to_string(iter);
         if (iter%10 == 0 && info.get_cluster_id() == 0) {
             husky::LOG_I << "Dummy train iter: " << std::to_string(iter);
         }
