@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdlib>
+#include <algorithm>
+
 #include "core/info.hpp"
 
 #include "lib/app_config.hpp"
@@ -53,6 +56,37 @@ auto train = [](datastore::DataStore<LabeledPointHObj<float, float, true>>& data
         }
     }
 };
+
+/*
+ * This function is just used to test the Pull/Push functionalities.
+ */
+auto dummy_train(config::AppConfig config, const Info& info) {
+    for (int iter = 0; iter < config.num_iters; ++iter) {
+        auto& worker = info.get_mlworker();
+        std::vector<husky::constants::Key> keys;
+        // random keys
+        // for (int i = 0; i < config.num_params/10; ++ i) {
+        //     keys.push_back(rand()%config.num_params);
+        //     if (i > 100) break;
+        // }
+        // std::sort(keys.begin(), keys.end());
+        // keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+        
+        // 1 key
+        // keys = {0};
+        
+        // all keys
+        for (int i = 0; i < config.num_params; ++ i)
+            keys.push_back(i);
+
+        std::vector<float> vals;
+        worker->Pull(keys, &vals);
+        worker->Push(keys, vals);
+        if (iter%10 == 0 && info.get_cluster_id() == 0) {
+            husky::LOG_I << "Dummy train iter: " << std::to_string(iter);
+        }
+    }
+}
 
 }  // namespace anonymous
 }  // namespace lambda 

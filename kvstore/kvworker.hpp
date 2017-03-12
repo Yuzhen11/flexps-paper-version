@@ -41,6 +41,28 @@ class KVWorker {
     ~KVWorker() { customer_->Stop(); }
 
     /*
+     * This function is specially used for SSP consistency control
+     * where in the beginning of each epoch, the state in the server side needs to be reset.
+     *
+     * When using PS ssp, InitForConsistencyControl must be called in each worker threads
+     * in the beginning of every epoch.
+     */
+    int InitForConsistencyControl(int kv_id) {
+        int num_servers = RangeManager::Get().GetNumServers();
+        int ts = customer_->NewRequest(kv_id, num_servers);
+        bool isRequest = true;
+        int src = info_.global_id;
+        int cmd = 4;  // special cmd
+        bool push = true;
+        for (int i = 0; i < num_servers; ++ i) {
+            husky::BinStream bin;
+            bin << isRequest << kv_id << ts << cmd << push << src;
+            customer_->send(info_.get_tid(i), bin);
+        }
+        return ts;
+    }
+
+    /*
      * Push a list of kv pairs to all server nodes
      *
      * @param send_all whether need to send to all servers.

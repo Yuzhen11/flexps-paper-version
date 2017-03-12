@@ -28,6 +28,11 @@ class PSWorker : public mlworker::GenericMLWorker {
         // set kvworker
         int local_id = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
+        auto& hint = info.get_task()->get_hint();
+        if (hint.find(husky::constants::kConsistency) != hint.end()
+                && hint.at(husky::constants::kConsistency) == husky::constants::kSSP) {
+            kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+        }
     }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
@@ -39,7 +44,7 @@ class PSWorker : public mlworker::GenericMLWorker {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         if (ts_ != -1)
-            kvworker_->Wait(model_id_, ts_);  // Wait for last Push
+            kvworker_->Wait(model_id_, ts_);  // Wait for last Push, TODO: Will this cause anything wrong when changing epochs?
         ts_ = kvworker_->Pull(model_id_, keys, vals, true, true);
         kvworker_->Wait(model_id_, ts_);  // Wait for this Pull
     }

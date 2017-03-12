@@ -32,6 +32,23 @@ class SSPServer : public ServerBase {
         bool push;  // push or not
         bin >> cmd;
         bin >> push;
+        if (cmd == 4) {  // InitForConsistencyControl
+            int src;
+            bin >> src;
+            if (init_count_ == 0) {  // reset the buffer when the first init message comes
+                min_clock_ = 0;
+                worker_progress_.clear();
+                clock_count_.clear();
+                blocked_pulls_.clear();
+            }
+            init_count_ += 1;
+            if (init_count_ == num_workers_) {
+                init_count_ = 0;
+            }
+            Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);  // Reply directly
+            return;
+        }
+
         if (push) {  // if is push
             int src;
             bin >> src;
@@ -93,6 +110,9 @@ class SSPServer : public ServerBase {
     // The real storeage
     StorageT store_;
     int server_id_;
+
+    // For init
+    int init_count_ = 0;
 };
 
 }  // namespace kvstore

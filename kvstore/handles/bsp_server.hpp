@@ -1,5 +1,6 @@
 #pragma once
 
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -41,10 +42,11 @@ class BSPServer : public ServerBase {
         bool push;  // push or not
         bin >> cmd;
         bin >> push;
+        assert(cmd != 4);  // no InitForConsistencyControl
         if (push) {  // if is push
             push_count_ += 1;
             if (reply_phase_) {  // if is now replying, should update later
-                push_buffer_.push_back({cmd, std::move(bin)});
+                push_buffer_.emplace_back(cmd, ts, std::move(bin));
             } else {  // otherwise, directly update
                 int src;
                 bin >> src;
@@ -57,12 +59,12 @@ class BSPServer : public ServerBase {
             if (push_count_ == num_workers_) {
                 push_count_ = 0;
                 reply_phase_ = true;
-                for (auto& cmd_bin : pull_buffer_) {  // process the pull_buffer_
+                for (auto& elem : pull_buffer_) {  // process the pull_buffer_
                     int src;
-                    cmd_bin.second >> src;
-                    if (cmd_bin.second.size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, cmd_bin.second, store_, cmd_bin.first, is_vector_);
-                        Response<Val>(kv_id, ts + 1, cmd_bin.first, 0, src, res, customer);
+                    std::get<2>(elem) >> src;
+                    if (std::get<2>(elem).size()) {  // if bin is empty, don't reply
+                        KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, std::get<2>(elem), store_, std::get<0>(elem), is_vector_);
+                        Response<Val>(kv_id, std::get<1>(elem), std::get<0>(elem), 0, src, res, customer);
                     }
                 }
                 pull_buffer_.clear();
@@ -77,18 +79,18 @@ class BSPServer : public ServerBase {
                     Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
             } else {  // otherwise, reply later
-                pull_buffer_.push_back({cmd, std::move(bin)});
+                pull_buffer_.emplace_back(cmd, ts, std::move(bin));
             }
             // if all the pull are replied, change to non reply-phase
             if (pull_count_ == num_workers_) {
                 pull_count_ = 0;
                 reply_phase_ = false;
-                for (auto& cmd_bin : push_buffer_) {  // process the push_buffer_
+                for (auto& elem : push_buffer_) {  // process the push_buffer_
                     int src;
-                    cmd_bin.second >> src;
-                    if (cmd_bin.second.size()) {  // if bin is empty, don't reply
-                        update<Val, StorageT>(kv_id, server_id_, cmd_bin.second, store_, cmd_bin.first, is_vector_, false);
-                        Response<Val>(kv_id, ts + 1, cmd_bin.first, 1, src, KVPairs<Val>(), customer);
+                    std::get<2>(elem) >> src;
+                    if (std::get<2>(elem).size()) {  // if bin is empty, don't reply
+                        update<Val, StorageT>(kv_id, server_id_, std::get<2>(elem), store_, std::get<0>(elem), is_vector_, false);
+                        Response<Val>(kv_id, std::get<1>(elem), std::get<0>(elem), 1, src, KVPairs<Val>(), customer);
                     }
                 }
                 push_buffer_.clear();
@@ -107,8 +109,8 @@ class BSPServer : public ServerBase {
     int push_count_ = 0;
     int pull_count_ = 0;
 
-    std::vector<std::pair<int, husky::base::BinStream>> push_buffer_;  // cmd, bin
-    std::vector<std::pair<int, husky::base::BinStream>> pull_buffer_;  // cmd, bin
+    std::vector<std::tuple<int, int, husky::base::BinStream>> push_buffer_;  // cmd, ts, bin
+    std::vector<std::tuple<int, int, husky::base::BinStream>> pull_buffer_;  // cmd, ts, bin
 
     bool reply_phase_ = true;
     // default storage method is unordered_map

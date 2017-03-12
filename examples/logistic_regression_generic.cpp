@@ -71,9 +71,10 @@ int main(int argc, char** argv) {
     assert(kv1 != -1);
     auto train_task_lambda = [&data_store, config](const Info& info) {
         lambda::train(data_store, config, info);
+        // lambda::dummy_train(config, info);
     };
 
-    // Submit load_task;
+    // Submit load_task
     engine.AddTask(load_task, load_task_lambda); 
     auto start_time = std::chrono::steady_clock::now();
     engine.Submit();

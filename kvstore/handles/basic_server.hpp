@@ -53,6 +53,7 @@ class DefaultUpdateServer : public ServerBase {
         bool push;  // push or not
         int src;
         bin >> cmd >> push >> src;
+        assert(cmd != 4);  // no InitForConsistencyControl
         if (push == true) {  // if is push
             if (bin.size()) {  // if bin is empty, don't reply
                 update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, is_assign_);
