@@ -22,7 +22,7 @@ class ServerBase {
      * process -> HandleAndReply -> Response
      */
     template<typename Val>
-    void Response(int kv_id, int ts, int cmd, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer) {
+    void Response(int kv_id, int ts, int cmd, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer, int min_clock = -1) {
         husky::base::BinStream bin;
         bool isRequest = false;
         // isRequest, kv_id, ts, isPush, src
@@ -35,6 +35,8 @@ class ServerBase {
         } else {
             bin << res.keys << res.vals;
         }
+        if (min_clock != -1)  // For PullChunksWithMinClock in SSP
+            bin << min_clock;
         customer->send(src, bin);
     }
 };

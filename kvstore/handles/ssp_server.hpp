@@ -70,8 +70,12 @@ class SSPServer : public ServerBase {
                     blocked_pulls_.resize(min_clock_ + 1);
                 for (auto& pull_pair : blocked_pulls_[min_clock_]) {
                     if (std::get<3>(pull_pair).size()) {  // if bin is empty, don't reply
-                        KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, std::get<3>(pull_pair), store_, std::get<0>(pull_pair), is_vector_);
-                        Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), 0, std::get<1>(pull_pair), res, customer);
+                        int pull_cmd = std::get<0>(pull_pair);
+                        KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, std::get<3>(pull_pair), store_, pull_cmd>10?pull_cmd-10:pull_cmd, is_vector_);
+                        if (cmd > 10)  // PullChunksWithMinClock
+                            Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), 0, std::get<1>(pull_pair), res, customer, min_clock_);
+                        else
+                            Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), 0, std::get<1>(pull_pair), res, customer);
                     }
                 }
                 std::vector<std::tuple<int, int, int, husky::base::BinStream>>().swap(blocked_pulls_[min_clock_]);
@@ -85,8 +89,11 @@ class SSPServer : public ServerBase {
             int expected_min_lock = worker_progress_[src] - staleness_;
             if (expected_min_lock <= min_clock_) {  // acceptable staleness so reply it
                 if (bin.size()) {  // if bin is empty, don't reply
-                    KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd);
-                    Response<Val>(kv_id, ts, cmd, push, src, res, customer);
+                    KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd>10?cmd-10:cmd, is_vector_);
+                    if (cmd > 10)
+                        Response<Val>(kv_id, ts, cmd, push, src, res, customer, min_clock_);
+                    else
+                        Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
             } else {  // block it to expected_min_lock(i.e. worker_progress_[src] - staleness_)
                 if (blocked_pulls_.size() <= expected_min_lock)
