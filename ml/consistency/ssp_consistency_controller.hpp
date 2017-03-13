@@ -15,11 +15,12 @@ class SSPConsistencyController : public AbstractConsistencyController {
      * AfterPush will update the worker_progress_, clock_count_ and min_clock_,
      * may potentially wake up other threads
      */
-    virtual void BeforePush(int tid) override {}
+    virtual void BeforePush(int tid) override {
+        wait(tid);
+    }
     virtual void AfterPush(int tid) override {
         // Acquire lock
         std::unique_lock<std::mutex> lck(mtx_);
-
         if (tid > worker_progress_.size())
             worker_progress_.resize(tid + 1);
         int progress = worker_progress_[tid];
@@ -37,15 +38,7 @@ class SSPConsistencyController : public AbstractConsistencyController {
      * In SSPConsistencyController, only BeforePull is needed since Pull won't modify the SSPConsistencyController state
      */
     virtual void BeforePull(int tid) override {
-        // Acquire lock
-        std::unique_lock<std::mutex> lck(mtx_);
-
-        if (tid >= worker_progress_.size())
-            worker_progress_.resize(tid + 1);
-        int expected_min_lock = worker_progress_[tid] - staleness_;
-        while (expected_min_lock > min_clock_) {
-            cv_.wait(lck);
-        }
+        wait(tid);
     }
     virtual void AfterPull(int tid) override {}
     virtual void Init(int num_local_workers) override {
@@ -56,6 +49,17 @@ class SSPConsistencyController : public AbstractConsistencyController {
         return ConsistencyProtocol::SSP;
     }
    private:
+    void wait(int tid) {
+        // Acquire lock
+        std::unique_lock<std::mutex> lck(mtx_);
+        if (tid >= worker_progress_.size())
+            worker_progress_.resize(tid + 1);
+        int expected_min_lock = worker_progress_[tid] - staleness_;
+        while (expected_min_lock > min_clock_) {
+            cv_.wait(lck);
+        }
+    }
+
     int num_local_workers_;
     std::mutex mtx_;
     std::condition_variable cv_;
