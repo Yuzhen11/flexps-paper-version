@@ -64,13 +64,12 @@ class KVWorker {
     int InitForConsistencyControl(int kv_id) {
         int num_servers = RangeManager::Get().GetNumServers();
         int ts = customer_->NewRequest(kv_id, num_servers);
-        bool isRequest = true;
         int src = info_.global_id;
         int cmd = 4;  // special cmd
         bool push = true;
         for (int i = 0; i < num_servers; ++ i) {
             husky::BinStream bin;
-            bin << isRequest << kv_id << ts << cmd << push << src;
+            bin << kv_id << ts << cmd << push << src;
             customer_->send(info_.get_tid(i), bin);
         }
         return ts;
@@ -258,11 +257,10 @@ class KVWorker {
         int ts = customer_->NewRequest(kv_id, 1);
         AddCallback(kv_id, ts, cb);
         husky::base::BinStream bin;
-        bool isRequest = true;
         bool isPush = true;
         int cmd = 0;
         int src = info_.global_id;
-        bin << isRequest << kv_id << ts << cmd << isPush << src;
+        bin << kv_id << ts << cmd << isPush << src;
         bin << keys << vals;
         customer_->send(info_.get_tid(dst), bin);
         return ts;
@@ -291,11 +289,10 @@ class KVWorker {
             if (cb) cb();
         });
         husky::base::BinStream bin;
-        bool isRequest = true;
         bool isPush = false;
         int cmd = 0;
         int src = info_.global_id;
-        bin << isRequest << kv_id << ts << cmd << isPush << src;
+        bin << kv_id << ts << cmd << isPush << src;
         bin << keys;
         customer_->send(info_.get_tid(dst), bin);
         return ts;
@@ -533,7 +530,6 @@ class KVWorker {
      */
     template <typename Val>
     void Send_(int kv_id, int ts, bool push, const SlicedKVs<Val>& sliced, bool send_all, bool local_zero_copy) {
-        bool isRequest = true;
         int src = info_.global_id;
         int cmd = 0;  // cmd 0 for normal
         for (size_t i = 0; i < sliced.size(); ++i) {
@@ -541,7 +537,7 @@ class KVWorker {
                 continue;
             }
             husky::base::BinStream bin;
-            bin << isRequest << kv_id << ts;
+            bin << kv_id << ts;
             if (local_zero_copy == true && info_.local_server_ids.find(i) != info_.local_server_ids.end()) {  // if enable local_zero_copy
                 bin << static_cast<int>(2) << push << src;
                 if (sliced[i].first) {  // if no empty, don't send the size
@@ -623,7 +619,6 @@ class KVWorker {
         size_t n = ranges.size();
 
         // send
-        bool isRequest = true;
         int src = info_.global_id;
         int cmd = 1;  // cmd 1 for chunk push
         for (size_t i = 0; i < n; ++ i) {
@@ -631,7 +626,7 @@ class KVWorker {
                 continue;
             }
             husky::base::BinStream bin;
-            bin << isRequest << kv_id << ts;
+            bin << kv_id << ts;
             if (local_zero_copy == true && info_.local_server_ids.find(i) != info_.local_server_ids.end()) {
                 int zero_copy_cmd = 3;
                 int local_cmd = with_min_clock ? zero_copy_cmd + 10 : zero_copy_cmd;

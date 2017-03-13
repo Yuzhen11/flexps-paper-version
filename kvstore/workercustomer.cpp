@@ -38,13 +38,10 @@ void WorkerCustomer::Receiving() {
         if (bin.size() == 0) {
             break;
         }
-        // Format: isRequest, kv_id, ts, push, src, k, v...
-        // response: 0, kv_id, ts, push, src, keys, vals ; handled by worker
-        // request: 1, kv_id, ts, push, src, k, v, k, v... ; handled by server
-        bool isRequest;
+        // Format: kv_id, ts, cmd, push, src, data
         int kv_id;
         int ts;
-        bin >> isRequest >> kv_id >> ts;
+        bin >> kv_id >> ts;
         tracker_mu_.lock();
         bool runCallback = tracker_[kv_id][ts].second == tracker_[kv_id][ts].first - 1 ? true : false;
         tracker_mu_.unlock();

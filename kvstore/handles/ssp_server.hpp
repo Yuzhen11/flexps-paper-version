@@ -23,7 +23,11 @@ namespace kvstore {
  *
  * At the begining of each epoch, InitForConsistencyControl must be invoked
  * 2017.3.13 Push may also be blocked.
- * Now, Setting s to 0, it is exactly BSP!?
+ * Now, Setting s to 0, it is still not BSP, workers may see newer parameter than BSP:
+ * Iter: 0, 0, 0, 0
+ * worker 0 push
+ * Iter: 1, 0, 0, 0
+ * worker 1 pull will see the push result of worker 0
  */
 template <typename Val, typename StorageT>
 class SSPServer : public ServerBase {

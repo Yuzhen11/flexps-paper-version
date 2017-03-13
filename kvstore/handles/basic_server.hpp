@@ -24,9 +24,8 @@ class ServerBase {
     template<typename Val>
     void Response(int kv_id, int ts, int cmd, bool push, int src, const KVPairs<Val>& res, ServerCustomer* customer, int min_clock = -1) {
         husky::base::BinStream bin;
-        bool isRequest = false;
-        // isRequest, kv_id, ts, isPush, src
-        bin << isRequest << kv_id << ts << cmd << push << src;
+        // kv_id, ts, isPush, src
+        bin << kv_id << ts << cmd << push << src;
         if (cmd == 2 && push == false) {  // enable zero-copy for local Pull
             KVPairs<Val>* p = new KVPairs<Val>();  // delete by worker
             p->keys = res.keys;
