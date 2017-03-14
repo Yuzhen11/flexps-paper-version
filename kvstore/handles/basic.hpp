@@ -86,7 +86,7 @@ void update(int kv_id, int server_id, husky::base::BinStream& bin, StorageT& sto
         }
         delete p_recv;
     } else {
-        throw husky::base::HuskyException("Unknown cmd");
+        throw husky::base::HuskyException("Unknown cmd " + std::to_string(cmd));
     }
 }
 
@@ -162,7 +162,7 @@ KVPairs<Val> retrieve(int kv_id, int server_id, husky::base::BinStream& bin, Sto
         }
         return send;
     } else {
-        throw husky::base::HuskyException("Unknown cmd");
+        throw husky::base::HuskyException("Unknown cmd " + std::to_string(cmd));
     }
 }
 

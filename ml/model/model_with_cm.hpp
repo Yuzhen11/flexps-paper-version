@@ -245,7 +245,6 @@ class ModelWithCM : public ChunkBasedMTLockModel {
     }
 
     virtual void replace_lock(int num_to_replace, std::vector<size_t>& chunks_to_replace) {}
-    virtual void touch(const std::vector<size_t>& chunks) {} // TODO remove
     virtual void touch(size_t chunk_id) {}
 
     boost::mutex global_mtx_;
@@ -353,7 +352,6 @@ class ModelWithCMLFU : public ModelWithCM {
         }
     }
 
-
     inline void touch(size_t chunk_id) override { frequency_[chunk_id] += 1; }
 
     std::vector<int> frequency_;
@@ -384,8 +382,6 @@ class ModelWithCMRandom : public ModelWithCM {
             }
         }
     }
-
-    inline void touch(const std::vector<size_t>& chunks) override {}
 };
 
 }  // namespace model
