@@ -38,6 +38,8 @@ class ServerBase {
             bin << min_clock;
         customer->send(src, bin);
     }
+    static const int consistency_control_off_magic_ = 100;
+    static const int with_min_clock_magic_ = 10;
 };
 
 /*
@@ -54,19 +56,17 @@ class DefaultUpdateServer : public ServerBase {
         bool push;  // push or not
         int src;
         bin >> cmd >> push >> src;
+        cmd %= consistency_control_off_magic_;  // disregard the consistency_control_off_magic_
         assert(cmd != 4);  // no InitForConsistencyControl
         if (push == true) {  // if is push
             if (bin.size()) {  // if bin is empty, don't reply
                 update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, is_assign_);
-                
                 Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
             }
         } else {  // if is pull
             if (bin.size()) {  // if bin is empty, don't reply
-
                 KVPairs<Val> res;
                 res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_); 
-                
                 Response<Val>(kv_id, ts, cmd, push, src, res, customer);
             }
         }

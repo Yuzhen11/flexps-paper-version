@@ -36,8 +36,14 @@ struct RecvKVPairsWithMinClock : public RecvKVPairsBase {
  * 1: PushChunks/PullChunks
  * 2: local zero-copy Push/Pull
  * 3: local zero-copy PushChunks/PullChunks
+ * 4: InitForConsistencyControl
  * 11: PullChunksWithMinClock
  * 13: PullChunksWithMinClock + local zero-copy
+ * 100+k: consistency_control off
+ *
+ * consistency_control_off_magic_:100
+ * with_min_clock_magic_: 10
+ * local_zero_copy_magic_: 2
  */
 class KVWorker {
    public:
@@ -55,7 +61,7 @@ class KVWorker {
     ~KVWorker() { customer_->Stop(); }
 
     /*
-     * This function is specially used for SSP consistency control
+     * This function is specially used for SSP/BSP consistency control
      * where in the beginning of each epoch, the state in the server side needs to be reset.
      *
      * When using PS ssp, InitForConsistencyControl must be called in each worker threads
@@ -78,14 +84,20 @@ class KVWorker {
     /*
      * Push a list of kv pairs to all server nodes
      *
+     * @param kv_id the kv_id users want to handle with
+     * @param keys the keys
+     * @param vals the vals
      * @param send_all whether need to send to all servers.
      * If it is false, server side control will be disable (ssp, bsp)
      * If it is true, empty messages will be sent to servers which have no partitions, so make sure that these servers won't reply
+     * @param local_zero_copy enable local zero copy or not
+     * @param consistency_control enable consistency control or not
+     * @param cb callback function
      */
     template <typename Val>
     int Push(int kv_id, const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals,
-             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
-        return ZPush(kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), send_all, local_zero_copy, cb);
+             bool send_all = true, bool local_zero_copy = true, bool consistency_control = true, const Callback& cb = nullptr) {
+        return ZPush(kv_id, pslite::SArray<husky::constants::Key>(keys), pslite::SArray<Val>(vals), send_all, local_zero_copy, consistency_control, cb);
     }
 
     /*
@@ -93,7 +105,7 @@ class KVWorker {
      */
     template <typename Val>
     int ZPush(int kv_id, const pslite::SArray<husky::constants::Key>& keys, const pslite::SArray<Val>& vals,
-              bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
+              bool send_all = true, bool local_zero_copy = true, bool consistency_control = true, const Callback& cb = nullptr) {
         // 1. slice
         KVPairs<Val> kvs;
         kvs.keys = keys;
@@ -103,19 +115,25 @@ class KVWorker {
         // 2. get ts
         int ts = GetTimestamp_(kv_id, sliced);
         // 3. send
-        Send_(kv_id, ts, true, sliced, send_all, local_zero_copy);
+        Send_(kv_id, ts, true, sliced, send_all, local_zero_copy, consistency_control);
         return ts;
     }
 
     /*
      * Pulls the values associated with the keys from the server nodes
      *
+     * @param kv_id the kv_id users want to handle with
+     * @param keys the keys
+     * @param vals the vals
      * @param send_all whether need to send for all servers, if it is false, server side control will be disable (ssp, bsp)
+     * @param local_zero_copy enable local zero copy or not
+     * @param consistency_control enable consistency control or not
+     * @param cb callback function
      */
     template <typename Val>
     int Pull(int kv_id, const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals,
-             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
-        return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, send_all, local_zero_copy, cb);
+             bool send_all = true, bool local_zero_copy = true, bool consistency_control = true, const Callback& cb = nullptr) {
+        return Pull_<Val>(kv_id, pslite::SArray<husky::constants::Key>(keys), vals, send_all, local_zero_copy, consistency_control,cb);
     }
 
     /*
@@ -123,38 +141,48 @@ class KVWorker {
      */
     template <typename Val>
     int ZPull(int kv_id, const pslite::SArray<husky::constants::Key>& keys, pslite::SArray<Val>* vals,
-              bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
-        return Pull_<Val>(kv_id, keys, vals, send_all, local_zero_copy, cb);
+              bool send_all = true, bool local_zero_copy = true, bool consistency_control = true, const Callback& cb = nullptr) {
+        return Pull_<Val>(kv_id, keys, vals, send_all, local_zero_copy, consistency_control, cb);
     }
 
     /*
      * Push a list of chunk to server
      *
+     * @param kv_id the kv_id users want to handle with
      * @param chunk_ids The chunk_ids need to be pushed
      * @param chunks The pointer to real chunks
+     * @param send_all whether needs to send to all servers
+     * @param local_zero_copy enable local zero copy or not
+     * @param consistency_control enable consistency control or not
+     * @param cb callback function
      */
     template <typename Val>
     int PushChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
-             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
+             bool send_all = true, bool local_zero_copy = true, bool consistency_control = true, const Callback& cb = nullptr) {
         assert(chunk_ids.size() == chunks.size());
         // 1. partition
         std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
         // 2. get ts
         int ts = GetTimestampChunk_(kv_id, pos, send_all);
         // 3. send
-        SendChunks_(kv_id, ts, true, chunk_ids, chunks, pos, send_all, local_zero_copy);
+        SendChunks_(kv_id, ts, true, chunk_ids, chunks, pos, send_all, local_zero_copy, false, consistency_control);
         return ts;
     }
 
     /*
      * Pull a list of chunks from server
      *
+     * @param kv_id the kv_id users want to handle with
      * @param chunk_ids The chunk_ids that needs to be pulled
      * @param chunks The chunks provided must be created beforehand
+     * @param send_all whether needs to send to all servers
+     * @param local_zero_copy enable local zero copy or not
+     * @param consistency_control enable consistency control or not
+     * @param cb callback function
      */
     template<typename Val>
     int PullChunks(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks,
-             bool send_all = true, bool local_zero_copy = true, const Callback& cb = nullptr) {
+             bool send_all = true, bool local_zero_copy = true, bool consistency_control = true, const Callback& cb = nullptr) {
         assert(chunk_ids.size() == chunks.size());
         // 1. partition
         std::vector<size_t> pos = PartitionChunks_(kv_id, chunk_ids);
@@ -193,13 +221,21 @@ class KVWorker {
             if (cb)
                 cb();
         });
-        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, send_all, local_zero_copy);
+        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, send_all, local_zero_copy, false, consistency_control);
         return ts;
     }
 
     /*
-     * PullChunksWithMinClock
+     * Pull a list of chunks from server with min clock
      * TODO: Now the API only get the smallest min_clock among all the servers
+     *
+     * @param kv_id the kv_id users want to handle with
+     * @param chunk_ids The chunk_ids that needs to be pulled
+     * @param chunks The chunks provided must be created beforehand
+     * @param min_clock The pointer to min clock
+     * @param send_all whether needs to send to all servers
+     * @param local_zero_copy enable local zero copy or not
+     * @param cb callback function
      */
     template<typename Val>
     int PullChunksWithMinClock(int kv_id, const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks, int* min_clock,
@@ -247,10 +283,11 @@ class KVWorker {
                 cb();
         });
         bool with_min_clock = true;
-        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, send_all, local_zero_copy, with_min_clock);
+        SendChunks_(kv_id, ts, false, chunk_ids, std::vector<std::vector<Val>*>(), pos, send_all, local_zero_copy, with_min_clock, true);
         return ts;
     }
 
+    // Deprecated
     template<typename Val>
     int PushLocal(int kv_id, int dst, const std::vector<husky::constants::Key>& keys, 
             const std::vector<Val>& vals, const Callback& cb = nullptr) {
@@ -266,6 +303,7 @@ class KVWorker {
         return ts;
     }
 
+    // Deprecated
     template<typename Val>
     int PullLocal(int kv_id, int dst, const std::vector<husky::constants::Key>& keys, 
             std::vector<Val>* vals, const Callback& cb = nullptr) {
@@ -354,6 +392,7 @@ class KVWorker {
                 }
                 mu_.unlock();
             };
+            cmd %= consistency_control_off_magic_;
             if (cmd == 2) {  // zero-copy enabled
                 // husky::LOG_I << RED("zero-copy in Pull is enabled");
                 std::uintptr_t ptr;
@@ -416,7 +455,7 @@ class KVWorker {
     }
 
     template <typename Val, typename C>
-    int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, bool send_all, bool local_zero_copy, const Callback& cb) {
+    int Pull_(int kv_id, const pslite::SArray<husky::constants::Key>& keys, C* vals, bool send_all, bool local_zero_copy, bool consistency_control, const Callback& cb) {
         // 1. slice the message
         KVPairs<Val> kvs;
         kvs.keys = keys;
@@ -457,7 +496,7 @@ class KVWorker {
                 cb();
         });
         // 4. send
-        Send_(kv_id, ts, false, sliced, send_all, local_zero_copy);
+        Send_(kv_id, ts, false, sliced, send_all, local_zero_copy, consistency_control);
         return ts;
     }
 
@@ -529,7 +568,7 @@ class KVWorker {
      * @return ts 
      */
     template <typename Val>
-    void Send_(int kv_id, int ts, bool push, const SlicedKVs<Val>& sliced, bool send_all, bool local_zero_copy) {
+    void Send_(int kv_id, int ts, bool push, const SlicedKVs<Val>& sliced, bool send_all, bool local_zero_copy, bool consistency_control) {
         int src = info_.global_id;
         int cmd = 0;  // cmd 0 for normal
         for (size_t i = 0; i < sliced.size(); ++i) {
@@ -539,7 +578,12 @@ class KVWorker {
             husky::base::BinStream bin;
             bin << kv_id << ts;
             if (local_zero_copy == true && info_.local_server_ids.find(i) != info_.local_server_ids.end()) {  // if enable local_zero_copy
-                bin << static_cast<int>(2) << push << src;
+                if (consistency_control) {
+                    bin << cmd + local_zero_copy_magic_;  // 2
+                } else {
+                    bin << cmd + local_zero_copy_magic_ + consistency_control_off_magic_;  // 102
+                }
+                bin << push << src;
                 if (sliced[i].first) {  // if no empty, don't send the size
                     auto& kvs = sliced[i].second;
                     // husky::LOG_I << RED("zero-copy enable");
@@ -549,7 +593,12 @@ class KVWorker {
                     bin << reinterpret_cast<std::uintptr_t>(p);
                 }
             } else {
-                bin << cmd << push << src;
+                if (consistency_control) {
+                    bin << cmd;  // 0
+                } else {
+                    bin << cmd + consistency_control_off_magic_;  // 100
+                }
+                bin << push << src;
                 if (sliced[i].first) {  // if no empty, don't send the size
                     auto& kvs = sliced[i].second;
                     if (push)
@@ -614,7 +663,7 @@ class KVWorker {
     template<typename Val>
     void SendChunks_(int kv_id, int ts, bool push,
             const std::vector<size_t>& chunk_ids, const std::vector<std::vector<Val>*>& chunks, 
-            const std::vector<size_t>& pos, bool send_all, bool local_zero_copy, bool with_min_clock = false) {
+            const std::vector<size_t>& pos, bool send_all, bool local_zero_copy, bool with_min_clock, bool consistency_control) {
         const std::vector<pslite::Range>& ranges = RangeManager::Get().GetServerKeyRanges(kv_id);
         size_t n = ranges.size();
 
@@ -628,8 +677,15 @@ class KVWorker {
             husky::base::BinStream bin;
             bin << kv_id << ts;
             if (local_zero_copy == true && info_.local_server_ids.find(i) != info_.local_server_ids.end()) {
-                int zero_copy_cmd = 3;
-                int local_cmd = with_min_clock ? zero_copy_cmd + 10 : zero_copy_cmd;
+                int local_cmd = cmd + local_zero_copy_magic_;  // 3
+                if (with_min_clock)
+                    local_cmd += with_min_clock_magic_;  // 13
+                if (consistency_control == false)
+                    local_cmd += consistency_control_off_magic_;  // 103
+                if (with_min_clock == true && consistency_control == false) {
+                    throw husky::base::HuskyException("with_min_clock and consistency_control_off cannot be enable at the same time");
+                }
+                // 3, 13, 103
                 bin << local_cmd << push << src;
                 if (pos[i] != pos[i+1]) {  // if empty, don't send the size
                     auto* p = new std::pair<std::vector<size_t>, std::vector<std::vector<Val>>>();
@@ -647,7 +703,15 @@ class KVWorker {
                     bin << reinterpret_cast<std::uintptr_t>(p);
                 }
             } else {
-                int local_cmd = with_min_clock ? cmd + 10 : cmd;
+                int local_cmd = cmd;  // 1
+                if (with_min_clock)
+                    local_cmd += with_min_clock_magic_;  // 11
+                if (consistency_control == false)
+                    local_cmd += consistency_control_off_magic_;  // 101
+                if (with_min_clock == true && consistency_control == false) {
+                    throw husky::base::HuskyException("with_min_clock and consistency_control_off cannot be enable at the same time");
+                }
+                // 1, 11, 101
                 bin << local_cmd << push << src;
                 if (pos[i] != pos[i+1]) {  // if empty, don't send the size
                     bin << static_cast<size_t>(pos[i+1]-pos[i]);
@@ -678,6 +742,10 @@ class KVWorker {
     // customer
     std::unique_ptr<WorkerCustomer> customer_;
     PSInfo info_;
+
+    static const int consistency_control_off_magic_ = 100;
+    static const int local_zero_copy_magic_ = 2;
+    static const int with_min_clock_magic_ = 10;
 };
 
 }  // namespace kvstore

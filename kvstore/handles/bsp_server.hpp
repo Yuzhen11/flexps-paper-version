@@ -69,6 +69,22 @@ class BSPServer : public ServerBase {
             Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);  // Reply directly
             return;
         }
+        if (cmd >= consistency_control_off_magic_) {  // Without consistency_control
+            cmd %= consistency_control_off_magic_;
+            if (push == true) {  // if is push
+                if (bin.size()) {  // if bin is empty, don't reply
+                    update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, false);
+                    Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
+                }
+            } else {  // if is pull
+                if (bin.size()) {  // if bin is empty, don't reply
+                    KVPairs<Val> res;
+                    res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_); 
+                    Response<Val>(kv_id, ts, cmd, push, src, res, customer);
+                }
+            }
+            return;
+        }
 
         // husky::LOG_I << CLAY("src: " + std::to_string(src) + 
         //     " reply_phase: " + std::to_string(reply_phase_) +
