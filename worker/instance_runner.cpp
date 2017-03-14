@@ -26,9 +26,20 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
         
         try {
             if (hint.at(husky::constants::kType) == husky::constants::kPS) {
-                if (hint.find(husky::constants::kWorkerType) != hint.end()
-                    && hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
-                    info.set_mlworker(new ml::mlworker::SSPWorker(info));
+                if (hint.find(husky::constants::kWorkerType) != hint.end()) {
+                    if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
+                        husky::LOG_I << "using SSPWorker";
+                        info.set_mlworker(new ml::mlworker::SSPWorker(info));
+                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSSharedWorkerChunk) {
+                        husky::LOG_I << "using PSSharedChunkWorker";
+                        info.set_mlworker(new ml::mlworker::PSSharedChunkWorker(info, cluster_manager_connector_.get_context()));
+                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorkerChunk) {
+                        husky::LOG_I << "using SSPWorkerChunk";
+                        info.set_mlworker(new ml::mlworker::SSPWorkerChunk(info));
+                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSSharedWorker) {
+                        husky::LOG_I << "using PSSharedWorker";
+                        info.set_mlworker(new ml::mlworker::PSSharedWorker(info, cluster_manager_connector_.get_context()));
+                    } 
                 } else {
                     info.set_mlworker(new ml::mlworker::PSWorker(info));
                 }
