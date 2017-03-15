@@ -66,6 +66,13 @@ target_link_libraries(SingleLRGeneric husky-ml)
 target_link_libraries(SingleLRGeneric ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(SingleLRGeneric)
 
+# LogisticRegression SVRG
+add_executable(LRSVRG logistic_regression_svrg.cpp)
+target_link_libraries(LRSVRG husky)
+target_link_libraries(LRSVRG husky-ml)
+target_link_libraries(LRSVRG ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(LRSVRG)
+
 # MultiTasks
 add_executable(MultiTasks multi_ml.cpp)
 target_link_libraries(MultiTasks husky)
