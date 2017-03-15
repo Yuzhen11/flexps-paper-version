@@ -22,7 +22,7 @@ namespace kvstore {
  * No need to issue Push/Pull/Push/Pull, Push/Push/Push/Pull should be fine
  *
  * At the begining of each epoch, InitForConsistencyControl must be invoked
- * 2017.3.13 Push may also be blocked.
+ * Push may also be blocked.
  * Now, Setting s to 0, it is still not BSP, workers may see newer parameter than BSP:
  * Iter: 0, 0, 0, 0
  * worker 0 push
@@ -154,12 +154,13 @@ class SSPServer : public ServerBase {
 
    private:
     int num_workers_;
-    std::vector<int> worker_progress_;
+    int staleness_ = 0;
+
     int min_clock_ = 0;
     std::vector<int> clock_count_;  // TODO: may use round array to reduce the space
-    int staleness_ = 0;
-    std::vector<std::vector<std::tuple<int, int, int, husky::base::BinStream>>> blocked_pulls_;   // cmd, src, ts, bin
+    std::vector<int> worker_progress_;
     std::vector<std::vector<std::tuple<int, int, int, husky::base::BinStream>>> blocked_pushes_;   // cmd, src, ts, bin
+    std::vector<std::vector<std::tuple<int, int, int, husky::base::BinStream>>> blocked_pulls_;   // cmd, src, ts, bin
     // default storage method is unordered_map
     bool is_vector_ = false;
     // The real storeage

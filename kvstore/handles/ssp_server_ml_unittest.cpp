@@ -46,7 +46,7 @@ TEST_F(TestSSPServer, ConsistencyControlOff) {
     };
 
     // Start KVStore with 3 servers on each process
-    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 1);
+    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
     int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, 18, 4);
     // num_servers: 3, chunk_size: 2, max_key: 9
@@ -87,7 +87,7 @@ TEST_F(TestSSPServer, PullChunksWithMinClock) {
     };
 
     // Start KVStore with 3 servers on each process
-    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 1);
+    kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
     int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, 18, 4);
     // num_servers: 3, chunk_size: 2, max_key: 9
