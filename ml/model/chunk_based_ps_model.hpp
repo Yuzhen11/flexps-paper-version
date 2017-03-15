@@ -23,7 +23,7 @@ class ChunkBasedPSModel {
         // Prepare the keys
         Prepare(keys, local_id, min_clock);
 
-        int clock = 0;
+        int clock;
         vals->resize(keys.size());
 
         auto& range_manager = kvstore::RangeManager::Get();
@@ -32,10 +32,12 @@ class ChunkBasedPSModel {
             auto loc = range_manager.GetLocation(model_id_, keys[i]);
             auto chunk_id = loc.first;
             if (i == 0 || chunk_id != current_chunk_id) {
-                if (i != 0) mtx_[current_chunk_id].unlock();  // unlock the current chunk
+                if (i != 0) {
+                    mtx_[current_chunk_id].unlock();  // unlock the current chunk
+                    if (chunk_clocks_[chunk_id] < clock) clock = chunk_clocks_[chunk_id];
+                } else clock = chunk_clocks_[chunk_id];
                 mtx_[chunk_id].lock();  // lock the new chunk
                 current_chunk_id = chunk_id;
-                if (chunk_clocks_[chunk_id] < clock) clock = chunk_clocks_[chunk_id];
             }
             vals->at(i) = params_[chunk_id][loc.second];
         }
@@ -94,7 +96,7 @@ class ChunkBasedPSModel {
 
    protected:
     void fetch_chunk(const std::vector<size_t>& chunks, int local_id) {
-        int clock = 0;
+        int clock;
         // 1. get kvworker
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
 
