@@ -77,13 +77,6 @@ target_link_libraries(TestGlobalize husky-ml)
 target_link_libraries(TestGlobalize ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestGlobalize PROPERTY CXX_STANDARD 14)
 
-# TestSVRG
-add_executable(TestSVRG test_svrg.cpp)
-target_link_libraries(TestSVRG husky)
-target_link_libraries(TestSVRG husky-ml)
-target_link_libraries(TestSVRG ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET TestSVRG PROPERTY CXX_STANDARD 14)
-
 # TestSampleReader
 add_executable(TestSampleReader test_sample_reader.cpp)
 target_link_libraries(TestSampleReader husky)
