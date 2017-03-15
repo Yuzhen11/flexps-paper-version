@@ -18,7 +18,7 @@ template<typename T>
 class DataIterator {
    public:
     DataIterator() = delete;
-    DataIterator(datastore::DataStore<T>& datastore) : datastore_(datastore) {}
+    DataIterator(const datastore::DataStore<T>& datastore) : datastore_(datastore) {}
     bool has_next() {
         local_id_ += 1;
         while (true) {

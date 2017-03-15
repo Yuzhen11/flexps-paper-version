@@ -45,6 +45,7 @@ TEST_F(TestBatchDataSampler, TestNext) {
     std::thread t1([&data_set, &data_store]() {
         std::set<float> data_set1;
         BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, 2);
+        EXPECT_EQ(batch_data_sampler.empty(), false);
         batch_data_sampler.random_start_point();
 
         for (int i = 0; i < 5; i++) {
@@ -63,6 +64,7 @@ TEST_F(TestBatchDataSampler, TestNext) {
     std::thread t2([&data_set, &data_store]() {
         std::set<float> data_set2;
         BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, 5);
+        EXPECT_EQ(batch_data_sampler.empty(), false);
         batch_data_sampler.random_start_point();
 
         for (int i = 0; i < 2; i++) {

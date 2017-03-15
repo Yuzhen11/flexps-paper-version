@@ -19,6 +19,16 @@ class TestDataSampler: public testing::Test {
     void TearDown() {}
 };
 
+TEST_F(TestDataSampler, Empty) {
+    DataStore<int> data_store(2);  // datastore for 2 threads
+    DataSampler<int> data_sampler1(data_store);
+    EXPECT_EQ(data_sampler1.empty(), true);
+
+    data_store.Push(0, 1);
+    EXPECT_EQ(data_sampler1.empty(), true);  // the original will not change
+    DataSampler<int> data_sampler2(data_store);
+    EXPECT_EQ(data_sampler2.empty(), false);
+}
 TEST_F(TestDataSampler, TestNext) {
     DataStore<int> data_store(2);  // datastore for 2 threads
     std::set<int> data_set;

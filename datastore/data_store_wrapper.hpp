@@ -11,8 +11,8 @@ namespace datastore {
 template<typename T>
 class DataStoreWrapper {
    public:
-    DataStoreWrapper() = default;
-    DataStoreWrapper(datastore::DataStore<T>& datastore) : datastore_(datastore) {}
+    DataStoreWrapper() = delete;
+    DataStoreWrapper(const datastore::DataStore<T>& datastore) : datastore_(datastore) {}
     // To retrieve the total data size
     size_t get_data_size() {
         if (data_count_ != -1)
@@ -22,6 +22,9 @@ class DataStoreWrapper {
             data_count_ += datastore_[i].size();
         }
         return data_count_;
+    }
+    bool empty() {
+        return get_data_size() > 0 ? false : true;
     }
    private:
     const datastore::DataStore<T>& datastore_;
