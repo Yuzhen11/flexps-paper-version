@@ -20,11 +20,6 @@ namespace {
 auto train = [](datastore::DataStore<LabeledPointHObj<float, float, true>>& data_store,
                 config::AppConfig config,
                 const Info& info) {
-    // Create a DataStoreWrapper
-    datastore::DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
-    if (data_store_wrapper.get_data_size() == 0) {
-        return;  // return if there's not data
-    }
     auto& worker = info.get_mlworker();
     // Create a DataSampler for SGD
     datastore::DataSampler<LabeledPointHObj<float, float, true>> data_sampler(data_store);

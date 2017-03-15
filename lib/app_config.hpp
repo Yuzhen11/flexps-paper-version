@@ -28,7 +28,7 @@ struct AppConfig {
     bool use_direct_model_transfer = false;
     int staleness = 1;
     std::string kLoadHdfsType;
-    bool process_cache = false;
+    std::string ps_worker_type;
 };
 
 namespace {
@@ -58,7 +58,7 @@ void InitContext(int argc, char** argv) {
         init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
                                     "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
                                     "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer", 
-                                    "use_chunk", "use_direct_model_transfer", "process_cache", "staleness", "kLoadHdfsType"});
+                                    "use_chunk", "use_direct_model_transfer", "staleness", "kLoadHdfsType", "ps_worker_type"});
     if (!rt)
         assert(0);
 }
@@ -76,7 +76,7 @@ AppConfig SetAppConfigWithContext() {
     config.num_load_workers = std::stoi(Context::get_param("num_load_workers"));
     config.trainer = Context::get_param("trainer");
     config.use_chunk = Context::get_param("use_chunk") == "on" ? true : false;
-    config.process_cache = Context::get_param("process_cache") == "on" ? true : false;
+    config.ps_worker_type = Context::get_param("ps_worker_type");
     config.use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
     config.staleness = std::stoi(Context::get_param("staleness"));
     config.kLoadHdfsType = Context::get_param("kLoadHdfsType");
@@ -99,15 +99,9 @@ std::map<std::string, std::string> ExtractHint(const AppConfig& config) {
     };
     
     if (config.kType == husky::constants::kPS && config.kConsistency == husky::constants::kSSP) {
-        if (config.process_cache && config.use_chunk) {
-            hint.insert({husky::constants::kWorkerType, husky::constants::kPSSharedWorkerChunk});
-        } else if (config.process_cache) {
-            hint.insert({husky::constants::kWorkerType, husky::constants::kPSSharedWorker});
-        } else if (config.use_chunk) {
-            hint.insert({husky::constants::kWorkerType, husky::constants::kSSPWorkerChunk});
-        } else {
-            hint.insert({husky::constants::kWorkerType, husky::constants::kSSPWorker});
-        }
+        const std::vector<std::string> ps_worker_types{"PSWorker", "SSPWorker", "SSPWorkerChunk", "PSSharedWorker", "PSSharedChunkWorker"};
+        assert(std::find(ps_worker_types.begin(), ps_worker_types.end(), config.ps_worker_type) != ps_worker_types.end());
+        hint.insert({husky::constants::kWorkerType, config.ps_worker_type});
     }
     if (config.use_chunk) {
         hint.insert({husky::constants::kParamType, husky::constants::kChunkType});

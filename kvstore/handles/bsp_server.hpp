@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+#include <sstream>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -95,6 +97,8 @@ class BSPServer : public ServerBase {
             return;
         }
 
+        // print_debug(push);
+
         if (push) {  // if is push
             if (src >= push_progress_.size())
                 push_progress_.resize(src + 1);
@@ -114,7 +118,7 @@ class BSPServer : public ServerBase {
                     update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, false);
                     Response<Val>(kv_id, ts, cmd, push, src, KVPairs<Val>(), customer);
                 }
-                if (push_count_[progress] == num_workers_) {  // if collect all
+                if (push_count_[push_iter_] == num_workers_) {  // if collect all
                     // release the blocked pull
                     if (blocked_pulls_.size() > pull_iter_) {
                         for (auto& pull_pair : blocked_pulls_[pull_iter_]) {
@@ -124,6 +128,7 @@ class BSPServer : public ServerBase {
                             }
                         }
                         std::vector<std::tuple<int, int, int, husky::base::BinStream>>().swap(blocked_pulls_[pull_iter_]);
+                    } else {
                     }
                     reply_phase_ = true;
                     push_iter_ += 1;
@@ -138,7 +143,7 @@ class BSPServer : public ServerBase {
             pull_count_[progress] += 1;
             pull_progress_[src] += 1;
             if (!reply_phase_ || pull_iter_ != progress) {  // buffer it
-                if (progress >= blocked_pulls_.size());
+                if (progress >= blocked_pulls_.size())
                     blocked_pulls_.resize(progress + 1);
                 blocked_pulls_[progress].emplace_back(cmd, src, ts, std::move(bin));
             } else { // first src in pull_iter_, reply
@@ -146,7 +151,7 @@ class BSPServer : public ServerBase {
                     KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd);
                     Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
-                if (pull_count_[progress] == num_workers_) {
+                if (pull_count_[pull_iter_] == num_workers_) {
                     // release the blocked push
                     if (blocked_pushes_.size() > push_iter_) {
                         for (auto& push_pair : blocked_pushes_[push_iter_]) {
@@ -170,6 +175,36 @@ class BSPServer : public ServerBase {
     BSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, bool init_reply_phase) : 
         server_id_(server_id), num_workers_(num_workers), store_(std::move(store)), is_vector_(is_vector), init_reply_phase_(init_reply_phase) {}
 
+   private:
+
+    void print_debug(bool push) {
+        // debug
+        std::stringstream ss;
+        ss << "reply_phase: " << reply_phase_;
+        ss << "\npush_progress: ";
+        for (int i = 0; i < push_progress_.size(); ++ i) {
+            ss << push_progress_[i] << " ";
+        }
+        ss << "\npush_count: ";
+        for (int i = 0; i < push_count_.size(); ++ i) {
+            ss << push_count_[i] << " ";
+        }
+        // ss << "\nblocked_push size: " << blocked_pushes_.size();
+        ss << "\npush_iter: " << push_iter_;
+        ss << "\npull_progress: ";
+        for (int i = 0; i < pull_progress_.size(); ++ i) {
+            ss << pull_progress_[i] << " ";
+        }
+        ss << "\npull_count: ";
+        for (int i = 0; i < pull_count_.size(); ++ i) {
+            ss << pull_count_[i] << " ";
+        }
+        // ss << "\nblocked_pull size: " << blocked_pulls_.size();
+        ss << "\npull_iter: " << pull_iter_;
+        ss << "\nnext is: " << (push?"push":"pull");
+        // husky::LOG_I << CLAY(ss.str());
+        std::cout << ss.str();
+    };
    private:
     int num_workers_;
 

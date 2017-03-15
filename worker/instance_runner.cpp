@@ -27,7 +27,10 @@ Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std
         try {
             if (hint.at(husky::constants::kType) == husky::constants::kPS) {
                 if (hint.find(husky::constants::kWorkerType) != hint.end()) {
-                    if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
+                    if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSWorker) {
+                        husky::LOG_I << "using PSWorker";
+                        info.set_mlworker(new ml::mlworker::PSWorker(info));
+                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
                         husky::LOG_I << "using SSPWorker";
                         info.set_mlworker(new ml::mlworker::SSPWorker(info));
                     } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSSharedWorkerChunk) {

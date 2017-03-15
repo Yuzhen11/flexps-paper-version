@@ -38,6 +38,10 @@ class PSWorker : public mlworker::GenericMLWorker {
             kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
         }
     }
+    ~PSWorker() {
+        if (ts_ != -1)
+            kvworker_->Wait(model_id_, ts_);
+    }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
