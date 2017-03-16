@@ -26,6 +26,7 @@ namespace ml {
 namespace mlworker {
 
 
+template<typename Val>
 class SPMTWorker : public mlworker::GenericMLWorker {
     /*
      * The shared state needed by SPMT
@@ -34,7 +35,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         // pointer to consistency controller
         consistency::AbstractConsistencyController* p_controller_;
         // pointer to model
-        model::Model* p_model_;
+        model::Model<Val>* p_model_;
     };
    public:
     SPMTWorker() = delete;
@@ -94,13 +95,13 @@ class SPMTWorker : public mlworker::GenericMLWorker {
             if (use_chunk_model_ == true) {
                 // Use Chunk model
                 if (is_hogwild_) {
-                    state->p_model_ = (model::Model*) new model::ChunkBasedMTModel(model_id, num_params);
+                    state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTModel<Val>(model_id, num_params);
                 } else {
-                    state->p_model_ = (model::Model*) new model::ChunkBasedMTLockModel(model_id, num_params);
+                    state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTLockModel<Val>(model_id, num_params);
                 }
             } else {
                 // Use Integral model
-                state->p_model_ = (model::Model*) new model::IntegralModel(model_id, num_params);
+                state->p_model_ = (model::Model<Val>*) new model::IntegralModel<Val>(model_id, num_params);
             }
             // 1. Init shared_state_
             shared_state_.Init(state);
@@ -135,12 +136,12 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         shared_state_.Get()->p_controller_->BeforePush(info_.get_cluster_id());
         shared_state_.Get()->p_model_->Push(keys, vals);
         shared_state_.Get()->p_controller_->AfterPush(info_.get_cluster_id());
     }
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         shared_state_.Get()->p_controller_->BeforePull(info_.get_cluster_id());
         shared_state_.Get()->p_model_->Pull(keys, vals, info_.get_local_id());
         shared_state_.Get()->p_controller_->AfterPull(info_.get_cluster_id());
@@ -155,12 +156,12 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         delta_.clear();
         delta_.resize(keys.size());
     }
-    virtual float Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
-    virtual void Update_v2(husky::constants::Key idx, float val) override {
+    virtual Val Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
         vals_[idx] += val;
     }
-    virtual void Update_v2(const std::vector<float>& vals) override {
+    virtual void Update_v2(const std::vector<Val>& vals) override {
         assert(vals.size() == vals_.size());
         for (size_t i = 0; i < vals.size(); ++i) {
             vals_[i] += vals[i];
@@ -208,8 +209,8 @@ class SPMTWorker : public mlworker::GenericMLWorker {
     bool enable_direct_model_transfer_ = false;
 
     // For v2
-    std::vector<float> vals_;
-    std::vector<float> delta_;
+    std::vector<Val> vals_;
+    std::vector<Val> delta_;
 };
 
 }  // namespace mlworker

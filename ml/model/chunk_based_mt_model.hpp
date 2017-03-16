@@ -19,11 +19,15 @@ namespace model {
  * The ChunkBased Model for Push/Pull in a lock free manner for Multi-threads
  *
  */
-class ChunkBasedMTModel : public ChunkBasedModel {
+template<typename Val>
+class ChunkBasedMTModel : public ChunkBasedModel<Val> {
    public:
+    using Model<Val>::model_id_;
+    using ChunkBasedModel<Val>::is_cached_;
+
     ChunkBasedMTModel() = delete;
     ChunkBasedMTModel(int model_id, int num_params):
-        ChunkBasedModel(model_id, num_params),
+        ChunkBasedModel<Val>(model_id, num_params),
         mtx_(kvstore::RangeManager::Get().GetChunkNum(model_id)) {}
 
     /*
@@ -60,8 +64,8 @@ class ChunkBasedMTModel : public ChunkBasedModel {
 
         // 2. Pull chunks_to_fetch from kvstore
         if (chunks_to_fetch.size() > 0) {
-            auto ts = fetch_chunk(chunks_to_fetch, local_id);
-            wait(ts, local_id);
+            auto ts = ChunkBasedModel<Val>::fetch_chunk(chunks_to_fetch, local_id);
+            ChunkBasedModel<Val>::wait(ts, local_id);
             // 3. Unlock the mutices
             for (auto chunk_id : chunks_to_fetch) {
                 is_cached_[chunk_id] = true;
@@ -96,17 +100,22 @@ class ChunkBasedMTModel : public ChunkBasedModel {
  *
  * TODO: handle writer starvation (prioritize write or read?)
  */
-class ChunkBasedMTLockModel : public ChunkBasedMTModel {
+template<typename Val>
+class ChunkBasedMTLockModel : public ChunkBasedMTModel<Val> {
    public:
+    using Model<Val>::model_id_;
+    using ChunkBasedModel<Val>::params_;
+    using ChunkBasedMTModel<Val>::mtx_;
+
     ChunkBasedMTLockModel(int model_id, int num_params):
-        ChunkBasedMTModel(model_id, num_params) {}
+        ChunkBasedMTModel<Val>(model_id, num_params) {}
 
     /*
      * Update locally by chunks
      * Override the Push function in ChunkBasedModel
      * TODO use try_lock and continue with next chunk without blocking?
      */
-    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         if (keys.empty()) return;
         auto& range_manager = kvstore::RangeManager::Get();
 
@@ -133,10 +142,10 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel {
     /* Get local cache and pull from kvstore on miss
      * Override the Pull function in ChunkBasedModel
      */
-    void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
+    void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) override {
         if (keys.empty()) return;
         // Prepare the keys
-        Prepare(keys, local_id);
+        ChunkBasedMTModel<Val>::Prepare(keys, local_id);
 
         vals->resize(keys.size());
 

@@ -52,7 +52,7 @@ class TestChunkBasedModel : public testing::Test {
 TEST_F(TestChunkBasedModel, Start) {}  // For Setup and TearDown
 
 TEST_F(TestChunkBasedModel, Prepare) {
-    ChunkBasedModel model(kv, num_params);
+    ChunkBasedModel<float> model(kv, num_params);
 
     std::vector<husky::constants::Key> some_keys(num_params/2);
     for (int i = 0; i < some_keys.size(); ++i) { some_keys[i] = i; }
@@ -61,7 +61,7 @@ TEST_F(TestChunkBasedModel, Prepare) {
 }
 
 TEST_F(TestChunkBasedModel, PullPush) {
-    ChunkBasedModel model(kv, num_params);
+    ChunkBasedModel<float> model(kv, num_params);
     
     std::vector<husky::constants::Key> all_keys(num_params);
     for (int i = 0; i < num_params; ++i) { all_keys[i] = i; }

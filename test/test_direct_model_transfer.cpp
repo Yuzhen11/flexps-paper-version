@@ -1,4 +1,5 @@
 #include "worker/engine.hpp"
+#include "ml/ml.hpp"
 
 #include "core/color.hpp"
 
@@ -22,7 +23,7 @@ int main(int argc, char** argv) {
     task1.set_kvstore(kv1);
     task1.set_hint({{husky::constants::kType, husky::constants::kSingle}});  // set the running type explicitly
     engine.AddTask(task1, [num_params](const Info& info) {
-        auto& worker = info.get_mlworker();
+        auto worker = ml::CreateMLWorker<float>(info);
         std::vector<husky::constants::Key> keys(num_params);
         for (size_t i = 0; i < keys.size(); ++ i) keys[i] = i;
         std::vector<float> res;

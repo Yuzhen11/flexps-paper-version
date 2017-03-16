@@ -18,6 +18,7 @@ namespace mlworker {
  *
  * Assume that in each epoch, Pull will be invoked first and then the Push.
  */
+template<typename Val>
 class PSWorker : public mlworker::GenericMLWorker {
    public:
     PSWorker() = delete;
@@ -39,12 +40,12 @@ class PSWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
         ts_ = kvworker_->Push(model_id_, keys, vals, true, true);
     }
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         if (ts_ != -1)
@@ -60,12 +61,12 @@ class PSWorker : public mlworker::GenericMLWorker {
         delta_.clear();
         delta_.resize(keys.size());
     }
-    virtual float Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
-    virtual void Update_v2(husky::constants::Key idx, float val) override {
+    virtual Val Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
         vals_[idx] += val;
     }
-    virtual void Update_v2(const std::vector<float>& vals) override {
+    virtual void Update_v2(const std::vector<Val>& vals) override {
         assert(vals.size() == vals_.size());
         for (size_t i = 0; i < vals.size(); ++i) {
             vals_[i] += vals[i];
@@ -87,10 +88,11 @@ class PSWorker : public mlworker::GenericMLWorker {
     // For v2
     // Pointer to keys
     std::vector<husky::constants::Key>* keys_;
-    std::vector<float> vals_;
-    std::vector<float> delta_;
+    std::vector<Val> vals_;
+    std::vector<Val> delta_;
 };
 
+template<typename Val>
 class SSPWorker : public mlworker::GenericMLWorker {
    public:
     SSPWorker() = delete;
@@ -108,7 +110,7 @@ class SSPWorker : public mlworker::GenericMLWorker {
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
         kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
         ts_ = kvworker_->Push(model_id_, keys, vals);
@@ -121,7 +123,7 @@ class SSPWorker : public mlworker::GenericMLWorker {
             }
         }
     }
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         if (ts_ != -1)
@@ -174,12 +176,12 @@ class SSPWorker : public mlworker::GenericMLWorker {
         delta_.clear();
         delta_.resize(keys.size());
     }
-    virtual float Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
-    virtual void Update_v2(husky::constants::Key idx, float val) override {
+    virtual Val Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
         vals_[idx] += val;
     }
-    virtual void Update_v2(const std::vector<float>& vals) override {
+    virtual void Update_v2(const std::vector<Val>& vals) override {
         assert(vals.size() == vals_.size());
         for (int i = 0; i < vals.size(); ++i) {
             vals_[i] += vals[i];
@@ -194,7 +196,7 @@ class SSPWorker : public mlworker::GenericMLWorker {
     int staleness_ = -1;
     int cache_ts_;
     kvstore::KVWorker* kvworker_ = nullptr;
-    std::unordered_map<husky::constants::Key, float> cached_kv_;  // timestamp, key_val dictionary
+    std::unordered_map<husky::constants::Key, Val> cached_kv_;  // timestamp, key_val dictionary
 
     // Just to restrict the usage of the Push/Pull APIs,
     // The correct usage should be Pull, Push, Pull, Push...
@@ -205,10 +207,11 @@ class SSPWorker : public mlworker::GenericMLWorker {
     // For v2
     // Pointer to keys
     std::vector<husky::constants::Key>* keys_;
-    std::vector<float> vals_;
-    std::vector<float> delta_;
+    std::vector<Val> vals_;
+    std::vector<Val> delta_;
 };
 
+template<typename Val>
 class SSPWorkerChunk : public mlworker::GenericMLWorker {
    public:
     SSPWorkerChunk() = delete;
@@ -228,7 +231,7 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker {
             kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         assert(++push_count_ == pull_count_);
         // 1. Push updates to kvstore
         ts_ = kvworker_->Push(model_id_, keys, vals);
@@ -237,7 +240,7 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker {
         model_.Push(keys, vals);
     }
 
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         assert(push_count_ == pull_count_);
         ++pull_count_;
 
@@ -254,14 +257,14 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker {
         delta_.resize(keys.size());
     }
 
-    virtual float Get_v2(husky::constants::Key idx) override {
+    virtual Val Get_v2(husky::constants::Key idx) override {
         return model_.At(keys_->at(idx));
     }
-    virtual void Update_v2(husky::constants::Key idx, float val) override {
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
         model_.Inc(keys_->at(idx), val);
     }
-    virtual void Update_v2(const std::vector<float>& vals) override {
+    virtual void Update_v2(const std::vector<Val>& vals) override {
         for (int i = 0; i < vals.size(); ++i) {
             model_.Inc(keys_->at(i), vals[i]);
             delta_[i] += vals[i];
@@ -280,15 +283,16 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker {
     int pull_count_ = 0;
     int ts_ = -1;
 
-    model::ChunkBasedModelWithClocks model_;
+    model::ChunkBasedModelWithClocks<Val> model_;
     // For v2
     std::vector<husky::constants::Key>* keys_;
-    std::vector<float> delta_;
+    std::vector<Val> delta_;
 };
 
+template<typename Val>
 class PSSharedWorker : public mlworker::GenericMLWorker {
     struct PSState {
-        model::ChunkBasedPSModel* p_model_;
+        model::ChunkBasedPSModel<Val>* p_model_;
     };
 
    public:
@@ -305,7 +309,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         if (info.is_leader()) {
             PSState* state = new PSState;
-            state->p_model_ = new model::ChunkBasedPSModel(model_id_, num_params);
+            state->p_model_ = new model::ChunkBasedPSModel<Val>(model_id_, num_params);
             // 1. Init
             shared_state_.Init(state);
         }
@@ -326,7 +330,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         assert(pull_count_ == push_count_ + 1);
         ++push_count_;
         // 1. Push updates to PS
@@ -338,7 +342,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         assert(pull_count_ == push_count_);
         ++pull_count_;
         // TODO: is it necessary to wait?
@@ -375,7 +379,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
 
         // 3. Pull missing keys from process cache
         if (!uncached_keys.empty()) {
-            std::vector<float> tmp_vals;
+            std::vector<Val> tmp_vals;
             int stale = std::max(pull_count_ - staleness_, 0);
             auto cache_ts = shared_state_.Get()->p_model_->PullWithMinClock(uncached_keys, &tmp_vals, local_id_, stale);
             if (keys.size() == uncached_keys.size()) {
@@ -387,12 +391,12 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual float Get_v2(husky::constants::Key idx) override { return cached_kv_[keys_->at(idx)]; }
-    virtual void Update_v2(husky::constants::Key idx, float val) override {
+    virtual Val Get_v2(husky::constants::Key idx) override { return cached_kv_[keys_->at(idx)]; }
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
         cached_kv_[keys_->at(idx)] += val;
     }
-    virtual void Update_v2(const std::vector<float>& vals) override {
+    virtual void Update_v2(const std::vector<Val>& vals) override {
         for (int i = 0; i < vals.size(); ++i) {
             cached_kv_[keys_->at(i)] += vals[i];
             delta_[i] += vals[i];
@@ -410,7 +414,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
     // Shared Model
     SharedState<PSState> shared_state_;
     // Local Model
-    std::unordered_map<husky::constants::Key, float> cached_kv_;  // key_val dictionary
+    std::unordered_map<husky::constants::Key, Val> cached_kv_;  // key_val dictionary
     int cache_ts_;
     int ts_ = -1;
     
@@ -421,12 +425,13 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
 
     // For v2
     std::vector<husky::constants::Key>* keys_;
-    std::vector<float> delta_;
+    std::vector<Val> delta_;
 };
 
+template<typename Val>
 class PSSharedChunkWorker : public mlworker::GenericMLWorker {
     struct PSState {
-        model::ChunkBasedPSModel* p_model_;
+        model::ChunkBasedPSModel<Val>* p_model_;
     };
 
    public:
@@ -445,7 +450,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         if (info.is_leader()) {
             PSState* state = new PSState;
-            state->p_model_ = new model::ChunkBasedPSModel(model_id_, num_params);
+            state->p_model_ = new model::ChunkBasedPSModel<Val>(model_id_, num_params);
             // 1. Init
             shared_state_.Init(state);
         }
@@ -467,7 +472,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         assert(pull_count_ == push_count_ + 1);
         ++push_count_;
         // 1. Push updates to PS
@@ -481,7 +486,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         assert(pull_count_ == push_count_);
         ++pull_count_;
         // TODO: is it necessary to wait?
@@ -523,7 +528,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
 
         // 3. Pull missing chunks from process cache
         if (!uncached_chunks.empty()) {
-            std::vector<std::vector<float>*> chunk_ptrs;
+            std::vector<std::vector<Val>*> chunk_ptrs;
             chunk_ptrs.reserve(uncached_chunks.size());
             for (auto chunk_id : uncached_chunks) {
                 chunk_ptrs.push_back(&params_[chunk_id]);
@@ -532,20 +537,20 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
         }
     }
 
-    virtual float Get_v2(husky::constants::Key idx) override {
+    virtual Val Get_v2(husky::constants::Key idx) override {
         auto& range_manager = kvstore::RangeManager::Get();
         auto loc = range_manager.GetLocation(model_id_, keys_->at(idx));
         return params_[loc.first][loc.second];
     }
 
-    virtual void Update_v2(husky::constants::Key idx, float val) override {
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
         auto& range_manager = kvstore::RangeManager::Get();
         auto loc = range_manager.GetLocation(model_id_, keys_->at(idx));
         params_[loc.first][loc.second] += val;
     }
 
-    virtual void Update_v2(const std::vector<float>& vals) override {
+    virtual void Update_v2(const std::vector<Val>& vals) override {
         auto& range_manager = kvstore::RangeManager::Get();
         for (int i = 0; i < vals.size(); ++i) {
             auto loc = range_manager.GetLocation(model_id_, keys_->at(i));
@@ -566,7 +571,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
     // Shared Model
     SharedState<PSState> shared_state_;
     // Local Model
-    std::vector<std::vector<float>> params_;
+    std::vector<std::vector<Val>> params_;
     std::vector<int> chunk_clocks_;
     int ts_ = -1;
     
@@ -577,7 +582,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
 
     // For v2
     std::vector<husky::constants::Key>* keys_;
-    std::vector<float> delta_;
+    std::vector<Val> delta_;
 };
 
 }  // namespace mlworker

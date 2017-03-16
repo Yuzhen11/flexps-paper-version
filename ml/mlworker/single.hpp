@@ -17,6 +17,7 @@
 namespace ml {
 namespace mlworker {
 
+template<typename Val>
 class SingleWorker : public mlworker::GenericMLWorker {
    public:
     SingleWorker() = delete;
@@ -38,14 +39,14 @@ class SingleWorker : public mlworker::GenericMLWorker {
                 && hint.at(husky::constants::kParamType) == husky::constants::kChunkType) {
             assert(enable_direct_model_transfer_ == false);
             // Use Chunk model
-            model_.reset(new model::ChunkBasedModel(model_id, num_params));
-            p_chunk_params_ = static_cast<model::ChunkBasedModel*>(model_.get())->GetParamsPtr();
+            model_.reset(new model::ChunkBasedModel<Val>(model_id, num_params));
+            p_chunk_params_ = static_cast<model::ChunkBasedModel<Val>*>(model_.get())->GetParamsPtr();
             use_chunk_model_ = true;
             chunk_size_ = kvstore::RangeManager::Get().GetChunkSize(model_id);
         } else {
             // Use Integral model
-            model_.reset(new model::IntegralModel(model_id, num_params));
-            p_integral_params_= static_cast<model::IntegralModel*>(model_.get())->GetParamsPtr();
+            model_.reset(new model::IntegralModel<Val>(model_id, num_params));
+            p_integral_params_= static_cast<model::IntegralModel<Val>*>(model_.get())->GetParamsPtr();
             use_chunk_model_ = false;
             // Load 
             Load();
@@ -79,10 +80,10 @@ class SingleWorker : public mlworker::GenericMLWorker {
     /*
      * Put/Get, Push/Pull APIs
      */
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         model_->Push(keys, vals);
     }
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         model_->Pull(keys, vals, info_.get_local_id());
     }
 
@@ -90,15 +91,15 @@ class SingleWorker : public mlworker::GenericMLWorker {
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
         if (!p_integral_params_)
-            static_cast<model::ChunkBasedModel*>(model_.get())->Prepare(keys, info_.get_local_id());
+            static_cast<model::ChunkBasedModel<Val>*>(model_.get())->Prepare(keys, info_.get_local_id());
     }
-    virtual float Get_v2(size_t idx) override { 
+    virtual Val Get_v2(size_t idx) override { 
         if (p_integral_params_)
             return (*p_integral_params_)[(*keys_)[idx]]; 
         else
             return (*p_chunk_params_)[(*keys_)[idx]/chunk_size_][(*keys_)[idx]%chunk_size_];
     }
-    virtual void Update_v2(size_t idx, float val) override { 
+    virtual void Update_v2(size_t idx, Val val) override { 
         if (p_integral_params_)
             (*p_integral_params_)[(*keys_)[idx]] += val; 
         else
@@ -106,10 +107,10 @@ class SingleWorker : public mlworker::GenericMLWorker {
     }
 
    private:
-    std::unique_ptr<model::Model> model_;
+    std::unique_ptr<model::Model<Val>> model_;
     // A pointer ponints to the parameter directly
-    std::vector<float>* p_integral_params_ = nullptr;
-    std::vector<std::vector<float>>* p_chunk_params_ = nullptr;
+    std::vector<Val>* p_integral_params_ = nullptr;
+    std::vector<std::vector<Val>>* p_chunk_params_ = nullptr;
     int chunk_size_ = -1;  // Only for ChunkBasedModel
     
     const husky::Info& info_;

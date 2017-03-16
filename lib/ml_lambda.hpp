@@ -6,6 +6,7 @@
 
 #include "core/info.hpp"
 
+#include "ml/ml.hpp"
 #include "lib/app_config.hpp"
 #include "datastore/datastore.hpp"
 #include "datastore/datastore_utils.hpp"
@@ -20,7 +21,7 @@ namespace {
 auto train = [](datastore::DataStore<LabeledPointHObj<float, float, true>>& data_store,
                 config::AppConfig config,
                 const Info& info) {
-    auto& worker = info.get_mlworker();
+    auto worker = ml::CreateMLWorker<float>(info);
     // Create a DataSampler for SGD
     datastore::DataSampler<LabeledPointHObj<float, float, true>> data_sampler(data_store);
     data_sampler.random_start_point();
@@ -58,7 +59,7 @@ auto train = [](datastore::DataStore<LabeledPointHObj<float, float, true>>& data
  */
 auto dummy_train(config::AppConfig config, const Info& info) {
     for (int iter = 0; iter < config.num_iters; ++iter) {
-        auto& worker = info.get_mlworker();
+        auto worker = ml::CreateMLWorker<float>(info);
         std::vector<husky::constants::Key> keys;
         // random keys
         // for (int i = 0; i < config.num_params/10; ++ i) {

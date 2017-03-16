@@ -8,7 +8,7 @@
 namespace ml {
 namespace model {
 
-void push_pull_job(ModelWithCM * model, std::vector<husky::constants::Key> keys, int local_id) {
+void push_pull_job(ModelWithCM<float> * model, std::vector<husky::constants::Key> keys, int local_id) {
     std::vector<float> res;
     std::vector<float> update(keys.size(), 1.0);
     for (int i = 0; i < 10; ++i) {
@@ -92,7 +92,7 @@ TEST_F(TestChunkFileEditor, ReadWrite) {
     std::vector<size_t> w_ids {2, 4, 5, 8, 9};
     std::vector<size_t> r_ids {2, 5, 9};
 
-    ChunkFileEditor edi(&chunks, chunk_size, last_chunk_size, num_chunks);
+    ChunkFileEditor<float> edi(&chunks, chunk_size, last_chunk_size, num_chunks);
     edi.write_chunks(w_ids);
     for (auto id : w_ids) {
         chunks[id].clear();
@@ -109,7 +109,7 @@ TEST_F(TestChunkFileEditor, ReadWrite) {
 
 TEST_F(TestModelWithCM, Start) {}  // For Setup and TearDown
 
-void test_model_push_pull(ModelWithCM* model) {
+void test_model_push_pull(ModelWithCM<float>* model) {
     std::vector<husky::constants::Key> keys1{0, 10, 20, 30};
     std::vector<husky::constants::Key> keys2{10, 20, 30, 40, 50};
     std::vector<husky::constants::Key> keys3{30, 40, 50, 60, 70};
@@ -128,14 +128,14 @@ void test_model_push_pull(ModelWithCM* model) {
     model->Pull(keys2, &res, 0);
     EXPECT_EQ(res, ans_val);
 }
-void push_pull(ModelWithCM* model, std::vector<husky::constants::Key>& keys) {
+void push_pull(ModelWithCM<float>* model, std::vector<husky::constants::Key>& keys) {
     std::vector<float> res;
     std::vector<float> vals1(keys.size(), 1.0);
     model->Pull(keys, &res, 0);
     model->Push(keys, vals1);
 }
     
-void test_mt_model_push_pull(ModelWithCM* model) {
+void test_mt_model_push_pull(ModelWithCM<float>* model) {
     std::vector<husky::constants::Key> keys1{0, 10, 20, 30};
     std::vector<husky::constants::Key> keys2{10, 20, 30, 40, 50};
     std::vector<husky::constants::Key> keys3{30, 40, 50, 60, 70};
@@ -154,32 +154,32 @@ void test_mt_model_push_pull(ModelWithCM* model) {
 }
 
 TEST_F(TestModelWithCM, PushPullLFU) {
-    ModelWithCMLFU model(kv, num_params, 5);  // threshold set to 5
+    ModelWithCMLFU<float> model(kv, num_params, 5);  // threshold set to 5
     test_model_push_pull(&model);
 }
 
 TEST_F(TestModelWithCM, PushPullLRU) {
-    ModelWithCMLRU model(kv, num_params, 5);  // threshold set to 5
+    ModelWithCMLRU<float> model(kv, num_params, 5);  // threshold set to 5
     test_model_push_pull(&model);
 }
 
 TEST_F(TestModelWithCM, PushPullRandom) {
-    ModelWithCMRandom model(kv, num_params, 5);  // threshold set to 5
+    ModelWithCMRandom<float> model(kv, num_params, 5);  // threshold set to 5
     test_model_push_pull(&model);
 }
 
 TEST_F(TestModelWithCM, MTPushPullLFU) {
-    ModelWithCMLFU model(kv, num_params, 5);  // threshold set to 5
+    ModelWithCMLFU<float> model(kv, num_params, 5);  // threshold set to 5
     test_mt_model_push_pull(&model);
 }
 
 TEST_F(TestModelWithCM, MTPushPullLRU) {
-    ModelWithCMLRU model(kv, num_params, 5);  // threshold set to 5
+    ModelWithCMLRU<float> model(kv, num_params, 5);  // threshold set to 5
     test_mt_model_push_pull(&model);
 }
 
 TEST_F(TestModelWithCM, MTPushPullRandom) {
-    ModelWithCMRandom model(kv, num_params, 5);  // threshold set to 5
+    ModelWithCMRandom<float> model(kv, num_params, 5);  // threshold set to 5
     test_mt_model_push_pull(&model);
 }
 

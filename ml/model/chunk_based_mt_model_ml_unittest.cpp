@@ -54,7 +54,7 @@ class TestChunkBasedMTModel : public testing::Test {
 TEST_F(TestChunkBasedMTModel, Start) {}  // For Setup and TearDown
 
 TEST_F(TestChunkBasedMTModel, Prepare) {
-    ChunkBasedMTLockModel model(kv, num_params);
+    ChunkBasedMTLockModel<float> model(kv, num_params);
 
     std::vector<husky::constants::Key> some_keys(num_params/2);
     for (int i = 0; i < some_keys.size(); ++i) { some_keys[i] = i; }
@@ -63,7 +63,7 @@ TEST_F(TestChunkBasedMTModel, Prepare) {
 }
 
 TEST_F(TestChunkBasedMTModel, PullPush) {
-    ChunkBasedMTLockModel model(kv, num_params);
+    ChunkBasedMTLockModel<float> model(kv, num_params);
     
     std::vector<husky::constants::Key> all_keys(num_params);
     for (int i = 0; i < num_params; ++i) { all_keys[i] = i; }
@@ -77,7 +77,7 @@ TEST_F(TestChunkBasedMTModel, PullPush) {
     EXPECT_EQ(vals, res);
 }
 
-void push_pull_job(ChunkBasedMTLockModel* model, std::vector<husky::constants::Key> keys, int local_id) {
+void push_pull_job(ChunkBasedMTLockModel<float>* model, std::vector<husky::constants::Key> keys, int local_id) {
     std::vector<float> res;
     std::vector<float> update(keys.size(), 1.0);
     for (int i = 0; i < 10; ++i) {
@@ -87,7 +87,7 @@ void push_pull_job(ChunkBasedMTLockModel* model, std::vector<husky::constants::K
 }
 
 TEST_F(TestChunkBasedMTModel, MTPushPull) {
-    ChunkBasedMTLockModel model(kv, num_params);
+    ChunkBasedMTLockModel<float> model(kv, num_params);
 
     // all keys
     std::vector<husky::constants::Key> all_keys(num_params);

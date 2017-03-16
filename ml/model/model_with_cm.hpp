@@ -18,9 +18,10 @@ namespace model {
 
 enum CacheStatus { InKVStore = 0, InDisk = 1 };
 
+template<typename Val>
 class ChunkFileEditor {
    public:
-    ChunkFileEditor(std::vector<std::vector<float>>* params, int chunk_size, int last_chunk_size, int num_chunks):
+    ChunkFileEditor(std::vector<std::vector<Val>>* params, int chunk_size, int last_chunk_size, int num_chunks):
         chunks_ptr_(params), chunk_size_(chunk_size), last_chunk_size_(last_chunk_size), num_chunks_(num_chunks) {
             file_ = tmpfile();
             if (file_ == NULL) {
@@ -46,7 +47,7 @@ class ChunkFileEditor {
             chunks_ptr_->at(id).resize(size);
 
             fseek(file_, iter->second, SEEK_SET);
-            fread(chunks_ptr_->at(id).data(), sizeof(float), size, file_);
+            fread(chunks_ptr_->at(id).data(), sizeof(Val), size, file_);
         }
     }
 
@@ -60,12 +61,12 @@ class ChunkFileEditor {
 
             if (iter != chunk_map_.end()) {  // if the chunk is previously written
                 fseek(file_, iter->second, SEEK_SET);
-                fwrite(chunks_ptr_->at(id).data(), sizeof(float), size, file_);
+                fwrite(chunks_ptr_->at(id).data(), sizeof(Val), size, file_);
             } else {  // first time to write the chunk
                 chunk_map_[id] = bytes_written_;
                 fseek(file_, 0, SEEK_END);
-                fwrite(chunks_ptr_->at(id).data(), sizeof(float), size, file_);
-                bytes_written_ += size * sizeof(float);
+                fwrite(chunks_ptr_->at(id).data(), sizeof(Val), size, file_);
+                bytes_written_ += size * sizeof(Val);
             }
         }
     }
@@ -74,21 +75,27 @@ class ChunkFileEditor {
     FILE* file_;
     boost::mutex mtx_;
     std::unordered_map<size_t, int> chunk_map_;  // chunk_id, byte position
-    std::vector<std::vector<float>> * chunks_ptr_ = NULL;
+    std::vector<std::vector<Val>> * chunks_ptr_ = NULL;
     int bytes_written_ = 0;
     int last_chunk_size_;
     int chunk_size_;
     int num_chunks_;
 };
 
-class ModelWithCM : public ChunkBasedMTLockModel {
+template<typename Val>
+class ModelWithCM : public ChunkBasedMTLockModel<Val> {
    public:
+    using ChunkBasedMTLockModel<Val>::num_chunks_;
+    using ChunkBasedMTLockModel<Val>::params_;
+    using ChunkBasedMTLockModel<Val>::mtx_;
+    using ChunkBasedModel<Val>::is_cached_;
+    using Model<Val>::model_id_;
     ModelWithCM(int model_id, int num_params, int cache_threshold = 0) :
-        ChunkBasedMTLockModel(model_id, num_params), cache_threshold_(cache_threshold),
+        ChunkBasedMTLockModel<Val>(model_id, num_params), cache_threshold_(cache_threshold),
         status_(num_chunks_, 0), prepare_count_(num_chunks_, 0),
         cfe_(&params_, kvstore::RangeManager::Get().GetChunkSize(model_id), kvstore::RangeManager::Get().GetLastChunkSize(model_id), num_chunks_) {}
 
-    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         if (keys.empty()) return;
         auto& range_manager = kvstore::RangeManager::Get();
 
@@ -184,7 +191,7 @@ class ModelWithCM : public ChunkBasedMTLockModel {
         // 5. Fetch chunks
         auto ts = fetch_chunk(chunks_to_fetch, local_id);
         if (ts != -1) {
-            wait(ts, local_id);
+            ChunkBasedModel<Val>::wait(ts, local_id);
         }
 
         // 6. Release the write locks
@@ -216,7 +223,7 @@ class ModelWithCM : public ChunkBasedMTLockModel {
 
         // 2. find the chunks: in disk or kvstore
         std::vector<size_t> chunks_kvstore;
-        std::vector<std::vector<float>*> chunk_ptrs;
+        std::vector<std::vector<Val>*> chunk_ptrs;
         chunks_kvstore.reserve(chunks.size());
         chunk_ptrs.reserve(chunks.size());
 
@@ -248,17 +255,23 @@ class ModelWithCM : public ChunkBasedMTLockModel {
     virtual void touch(size_t chunk_id) {}
 
     boost::mutex global_mtx_;
-    ChunkFileEditor cfe_;
+    ChunkFileEditor<Val> cfe_;
     std::vector<int> status_;
     std::vector<int> prepare_count_;
     int num_cached_ = 0;
     int cache_threshold_;
 };
 
-class ModelWithCMLRU : public ModelWithCM {
+template<typename Val>
+class ModelWithCMLRU : public ModelWithCM<Val> {
    public:
+    using ChunkBasedModel<Val>::num_chunks_;
+    using ChunkBasedModel<Val>::is_cached_;
+    using ModelWithCM<Val>::num_cached_;
+    using ModelWithCM<Val>::prepare_count_;
+    using ChunkBasedMTModel<Val>::mtx_;
     ModelWithCMLRU(int model_id, int num_params, int cache_threshold):
-        ModelWithCM(model_id, num_params, cache_threshold),
+        ModelWithCM<Val>(model_id, num_params, cache_threshold),
         access_count_(0),
         recency_(num_chunks_, 0) {}
 
@@ -308,10 +321,17 @@ class ModelWithCMLRU : public ModelWithCM {
     std::atomic_int access_count_;
 };
 
-class ModelWithCMLFU : public ModelWithCM {
+template<typename Val>
+class ModelWithCMLFU : public ModelWithCM<Val> {
    public:
+    using ChunkBasedModel<Val>::num_chunks_;
+    using ChunkBasedModel<Val>::is_cached_;
+    using ModelWithCM<Val>::num_cached_;
+    using ModelWithCM<Val>::prepare_count_;
+    using ChunkBasedMTModel<Val>::mtx_;
+
     ModelWithCMLFU(int model_id, int num_params, int cache_threshold):
-        ModelWithCM(model_id, num_params, cache_threshold),
+        ModelWithCM<Val>(model_id, num_params, cache_threshold),
         frequency_(kvstore::RangeManager::Get().GetChunkNum(model_id), 0) {}
 
    protected:
@@ -357,10 +377,17 @@ class ModelWithCMLFU : public ModelWithCM {
     std::vector<int> frequency_;
 };
 
-class ModelWithCMRandom : public ModelWithCM {
+template<typename Val>
+class ModelWithCMRandom : public ModelWithCM<Val> {
    public:
+    using ChunkBasedModel<Val>::num_chunks_;
+    using ChunkBasedModel<Val>::is_cached_;
+    using ModelWithCM<Val>::num_cached_;
+    using ModelWithCM<Val>::prepare_count_;
+    using ChunkBasedMTModel<Val>::mtx_;
+
     ModelWithCMRandom(int model_id, int num_params, int cache_threshold):
-        ModelWithCM(model_id, num_params, cache_threshold) {}
+        ModelWithCM<Val>(model_id, num_params, cache_threshold) {}
 
    protected:
     void replace_lock(int num_to_replace, std::vector<size_t>& chunks_to_replace) override {

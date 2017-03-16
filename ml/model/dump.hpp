@@ -10,8 +10,10 @@ namespace ml {
 namespace model {
 namespace {
 
+
+template<typename Val>
 void DumpAllIntegral(int local_id, int model_id, int num_params, 
-        const std::vector<float>& params) {
+        const std::vector<Val>& params) {
     husky::LOG_I << PURPLE("[DumpAllIntegral] Dumping model_id: " + std::to_string(model_id) + " local_id: " +
                         std::to_string(local_id) + " model_size: " + std::to_string(num_params));
     auto start_time = std::chrono::steady_clock::now();
@@ -30,15 +32,19 @@ void DumpAllIntegral(int local_id, int model_id, int num_params,
 /*
  * Dump the params into model_transfer_store
  */
-void DumpIntegralToStore(int model_id, std::vector<float>&& params) {
+template<typename Val>
+void DumpIntegralToStore(int model_id, std::vector<Val>&& params) {
     husky::LOG_I << PURPLE("[DumpIntegralToStore] Dumping model_id: " + std::to_string(model_id)
             + "model_size: "+std::to_string(params.size()));
     auto& store = husky::ModelTransferStore::Get();
-    store.Add(model_id, std::move(params));
+    husky::base::BinStream bin;
+    bin << params;
+    store.Add(model_id, std::move(bin));
 }
 
+template<typename Val>
 void DumpChunks(int local_id, int model_id,
-        const std::vector<size_t>& keys, const std::vector<std::vector<float>*>& chunks) {
+        const std::vector<size_t>& keys, const std::vector<std::vector<Val>*>& chunks) {
     husky::LOG_I << PURPLE("[DumpChunks] Dumping model_id:" + std::to_string(model_id) + " local_id: " +
                         std::to_string(local_id) + " chunk_num: " + std::to_string(keys.size()));
     auto start_time = std::chrono::steady_clock::now();
@@ -51,14 +57,15 @@ void DumpChunks(int local_id, int model_id,
                  + " ms");
 }
 
-void DumpAllChunks(int local_id, int model_id, const std::vector<std::vector<float>>& chunks) {
+template<typename Val>
+void DumpAllChunks(int local_id, int model_id, const std::vector<std::vector<Val>>& chunks) {
     std::vector<size_t> keys;
     keys.reserve(chunks.size());
-    std::vector<std::vector<float>*> params;
+    std::vector<std::vector<Val>*> params;
     params.reserve(chunks.size());
     for (size_t i = 0; i < chunks.size(); ++ i) {
         keys.push_back(i);
-        params.push_back(const_cast<std::vector<float>*>(&chunks[i]));
+        params.push_back(const_cast<std::vector<Val>*>(&chunks[i]));
     }
     DumpChunks(local_id, model_id, keys, params);
 }

@@ -14,8 +14,6 @@
 #include "worker/cluster_manager_connector.hpp"
 #include "worker/task_store.hpp"
 
-#include "ml/ml.hpp"
-
 #include "core/color.hpp"
 
 namespace husky {
@@ -37,14 +35,6 @@ class InstanceRunner {
      * Method to extract local instance
      */
     std::vector<std::pair<int, int>> extract_local_instance(const std::shared_ptr<Instance>& instance) const;
-    /*
-     * Factory method to generate Info for each running Unit
-     */
-    Info info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid, bool is_leader);
-    /*
-     * postprocess function
-     */
-    void postprocess(const std::shared_ptr<Instance>& instance, const Info& info);
     /*
      * Run the instances
      */

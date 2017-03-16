@@ -1,13 +1,14 @@
 #include <vector>
 
 #include "worker/engine.hpp"
+#include "ml/ml.hpp"
 
 #include "core/color.hpp"
 
 using namespace husky;
 
 auto test_mlworker_lambda = [](const Info& info) {
-    auto& worker = info.get_mlworker();
+    auto worker = ml::CreateMLWorker<float>(info);
     int num_iter = 1001;
     for (int i = 0; i < num_iter; ++ i) {
         std::vector<float> rets;
@@ -47,7 +48,7 @@ int main(int argc, char** argv) {
     task1.set_total_epoch(2);                             // 2 epochs
     task1.set_num_workers(4);                             // 4 workers
     engine.AddTask(task1, [](const Info& info) {
-        auto& worker = info.get_mlworker();
+        auto worker = ml::CreateMLWorker<float>(info);
         // int k = 3;
         // worker->Put(k, 0.456);
         // float v = worker->Get(k);
@@ -74,7 +75,7 @@ int main(int argc, char** argv) {
     task2.set_kvstore(kv2);
     task2.set_hint(hint);
     engine.AddTask(task2, [](const Info& info) {
-        auto& worker = info.get_mlworker();
+        auto worker = ml::CreateMLWorker<float>(info);
         worker->Push({2}, {3});
         std::vector<float> res;
         worker->Pull({2}, &res);

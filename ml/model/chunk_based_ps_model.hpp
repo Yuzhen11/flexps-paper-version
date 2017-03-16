@@ -12,6 +12,7 @@
 namespace ml {
 namespace model {
 
+template<typename Val>
 class ChunkBasedPSModel {
    public:
     ChunkBasedPSModel(int model_id, int num_params):
@@ -19,7 +20,7 @@ class ChunkBasedPSModel {
         num_chunks_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
         params_(num_chunks_), chunk_clocks_(num_chunks_, -1), mtx_(num_chunks_) {}
 
-    virtual int PullWithMinClock(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id, int min_clock) {
+    virtual int PullWithMinClock(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id, int min_clock) {
         // Prepare the keys
         Prepare(keys, local_id, min_clock);
 
@@ -48,7 +49,7 @@ class ChunkBasedPSModel {
         return clock;
     }
 
-    virtual void PullChunksWithMinClock(std::vector<size_t>& chunks, std::vector<std::vector<float>*>& chunk_ptrs, std::vector<int>& chunk_clocks, int local_id, int min_clock) {
+    virtual void PullChunksWithMinClock(std::vector<size_t>& chunks, std::vector<std::vector<Val>*>& chunk_ptrs, std::vector<int>& chunk_clocks, int local_id, int min_clock) {
         // Collect chunks that are too stale
         std::vector<size_t> chunks_to_fetch;
         for (auto chunk_id : chunks) {
@@ -101,9 +102,9 @@ class ChunkBasedPSModel {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
 
         // 2. pull chunks
-        std::vector<std::vector<float>*> chunk_ptrs;
+        std::vector<std::vector<Val>*> chunk_ptrs;
         chunk_ptrs.reserve(chunks.size());
-        std::vector<std::vector<float>> tmp_chunks(chunks.size());
+        std::vector<std::vector<Val>> tmp_chunks(chunks.size());
         for (int i = 0; i < chunks.size(); ++i) { chunk_ptrs.push_back(&tmp_chunks[i]); }
         auto ts = kvworker->PullChunksWithMinClock(this->model_id_, chunks, chunk_ptrs, &clock);
         kvworker->Wait(this->model_id_, ts);
@@ -122,23 +123,29 @@ class ChunkBasedPSModel {
     int model_id_;
     int num_params_;
     int num_chunks_;
-    std::vector<std::vector<float>> params_;
+    std::vector<std::vector<Val>> params_;
     std::vector<int> chunk_clocks_;
     std::vector<boost::mutex> mtx_;
 };
 
-class ChunkBasedModelWithClocks : public ChunkBasedModel {
+template<typename Val>
+class ChunkBasedModelWithClocks : public ChunkBasedModel<Val> {
    public:
+   using ChunkBasedModel<Val>::num_chunks_;
+   using ChunkBasedModel<Val>::model_id_;
+   using ChunkBasedModel<Val>::params_;
+   using ChunkBasedModel<Val>::is_cached_;
+
     ChunkBasedModelWithClocks(int model_id, int num_params) :
-        ChunkBasedModel(model_id, num_params),
+        ChunkBasedModel<Val>(model_id, num_params),
         chunk_clocks_(num_chunks_, -1),
         range_manager_(&kvstore::RangeManager::Get()) {}
 
     inline void SetStaleness(int staleness) { staleness_ = staleness; }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         // 1. Update local model
-        ChunkBasedModel::Push(keys, vals);
+        ChunkBasedModel<Val>::Push(keys, vals);
 
         // 2. Inc clock
         ++clock_;
@@ -160,12 +167,12 @@ class ChunkBasedModelWithClocks : public ChunkBasedModel {
     }
 
 
-    float At(const husky::constants::Key& idx) {
+    Val At(const husky::constants::Key& idx) {
         auto loc = range_manager_->GetLocation(model_id_, idx);
         return params_[loc.first][loc.second];
     }
 
-    void Inc(const husky::constants::Key& idx, const float& val) {
+    void Inc(const husky::constants::Key& idx, const Val& val) {
         auto loc = range_manager_->GetLocation(model_id_, idx);
         params_[loc.first][loc.second] += val;
     }
@@ -176,7 +183,7 @@ class ChunkBasedModelWithClocks : public ChunkBasedModel {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
 
         // 2. Pull Chunks
-        std::vector<std::vector<float>*> chunk_ptrs(chunks.size());
+        std::vector<std::vector<Val>*> chunk_ptrs(chunks.size());
         for (int i = 0; i < chunks.size(); ++i) { chunk_ptrs[i] = &params_[chunks[i]]; }
         int clock;
         auto ts = kvworker->PullChunksWithMinClock(model_id_, chunks, chunk_ptrs, &clock);

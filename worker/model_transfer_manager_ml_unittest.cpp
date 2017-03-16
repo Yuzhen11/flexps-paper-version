@@ -50,7 +50,10 @@ TEST_F(TestModelTransferManager, Send) {
     el->register_mailbox(mailbox1);
 
     // Add to ModelTransferStore
-    ModelTransferStore::Get().Add(0, {0.1, 0.2});
+    std::vector<float> v{0.1, 0.2};
+    husky::base::BinStream bin;
+    bin << v;
+    ModelTransferStore::Get().Add(0, std::move(bin));
 
     // send task
     model_transfer_manager.SendTask(1, 0);  // send to param 0 to 1

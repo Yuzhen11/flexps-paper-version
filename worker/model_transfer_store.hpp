@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <mutex>
+#include "husky/base/serialization.hpp"
 
 namespace husky {
 
@@ -16,12 +17,12 @@ class ModelTransferStore {
     /*
      * Add a model
      */
-    void Add(int id, std::vector<float>&& param);
+    void Add(int id, husky::base::BinStream&& bin);
 
     /*
      * Pop the model
      */
-    std::vector<float> Pop(int id);
+    husky::base::BinStream Pop(int id);
 
     /*
      * Clear the ModelTransferStore
@@ -42,7 +43,7 @@ class ModelTransferStore {
    private:
     ModelTransferStore() = default;
 
-    std::unordered_map<int, std::vector<float>> model_store_;
+    std::unordered_map<int, husky::base::BinStream> model_store_;
     std::mutex mtx_;
 };
 

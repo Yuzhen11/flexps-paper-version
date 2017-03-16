@@ -74,9 +74,7 @@ void ModelTransferManager::Main() {
         case kCmdTask: {
             int dst = zmq_recv_int32(recv_socket_.get());
             int model_id = zmq_recv_int32(recv_socket_.get());
-            std::vector<float> msg = ModelTransferStore::Get().Pop(model_id);
-            base::BinStream bin;
-            bin << msg;
+            base::BinStream bin = ModelTransferStore::Get().Pop(model_id);
             husky::LOG_I<< RED("Sending model: dst: "+std::to_string(dst)+" model_id: "+std::to_string(model_id));
             mailbox_->send(dst, 0, 0, bin);
             break;

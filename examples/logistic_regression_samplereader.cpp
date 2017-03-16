@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "worker/engine.hpp"
+#include "ml/ml.hpp"
 #include "lib/sample_reader.hpp"
 #include "lib/task_utils.hpp"
 #include "lib/app_config.hpp"
@@ -152,7 +153,7 @@ int main(int argc, char** argv) {
             return;  // return if there's no data
         }
 
-        auto& worker = info.get_mlworker();
+        auto worker = ml::CreateMLWorker<float>(info);
 
         float train_loss = 0.0f;
         int sample_count = 0;

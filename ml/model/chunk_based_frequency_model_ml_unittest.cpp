@@ -9,7 +9,7 @@
 namespace ml {
 namespace model {
 
-void push_pull_job(ChunkBasedFrequencyModel* model, std::vector<husky::constants::Key> keys, int local_id) {
+void push_pull_job(ChunkBasedFrequencyModel<float>* model, std::vector<husky::constants::Key> keys, int local_id) {
     std::vector<float> res;
     std::vector<float> update(keys.size(), 1.0);
     for (int i = 0; i < 10; ++i) {
@@ -64,7 +64,7 @@ class TestFrequencyModel : public testing::Test {
 TEST_F(TestFrequencyModel, Start) {}  // For Setup and TearDown
 
 TEST_F(TestFrequencyModel, LoadFrequentPull) {
-    ChunkBasedFrequencyModel model(kv, num_params);
+    ChunkBasedFrequencyModel<float> model(kv, num_params);
 
     // frequent keys
     std::vector<husky::constants::Key> frequent_keys(10);
@@ -78,7 +78,7 @@ TEST_F(TestFrequencyModel, LoadFrequentPull) {
 }
 
 TEST_F(TestFrequencyModel, PushPull) {
-    ChunkBasedFrequencyModel model(kv, num_params);
+    ChunkBasedFrequencyModel<float> model(kv, num_params);
 
     // all keys
     std::vector<husky::constants::Key> all_keys(num_params);
@@ -94,8 +94,8 @@ TEST_F(TestFrequencyModel, PushPull) {
 }
 
 TEST_F(TestFrequencyModel, Dump) {
-    ChunkBasedFrequencyModel model1(kv, num_params);
-    ChunkBasedFrequencyModel model2(kv, num_params);
+    ChunkBasedFrequencyModel<float> model1(kv, num_params);
+    ChunkBasedFrequencyModel<float> model2(kv, num_params);
 
     // all keys
     std::vector<husky::constants::Key> all_keys(num_params);
@@ -112,7 +112,7 @@ TEST_F(TestFrequencyModel, Dump) {
 }
 
 TEST_F(TestFrequencyModel, MTPushPull) {
-    ChunkBasedMTLockFrequencyModel model(kv, num_params);
+    ChunkBasedMTLockFrequencyModel<float> model(kv, num_params);
 
     // all keys
     std::vector<husky::constants::Key> all_keys(num_params);

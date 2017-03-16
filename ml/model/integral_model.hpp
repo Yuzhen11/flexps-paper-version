@@ -17,19 +17,23 @@
 namespace ml {
 namespace model {
 
-class IntegralModel : public Model {
+template<typename Val>
+class IntegralModel : public Model<Val> {
    public:
-    IntegralModel(int model_id, int num_params):
-        Model(model_id, num_params) {}
+    using Model<Val>::model_id_;
+    using Model<Val>::num_params_;
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    IntegralModel(int model_id, int num_params):
+        Model<Val>(model_id, num_params) {}
+
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         for (size_t i = 0; i < keys.size(); ++i) {
             assert(keys[i] < params_.size());
             params_[keys[i]] += vals[i];
         }
     }
 
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) override {
         vals->resize(keys.size());
         for (size_t i = 0; i < keys.size(); ++i) {
             assert(keys[i] < params_.size());
@@ -60,26 +64,27 @@ class IntegralModel : public Model {
     /*
      * Return the raw pointer to the params_
      */
-    std::vector<float>* GetParamsPtr() {
+    std::vector<Val>* GetParamsPtr() {
         return &params_;
     }
    protected:
-    std::vector<float> params_;
+    std::vector<Val> params_;
 };
 
-class IntegralLockModel : public IntegralModel {
+template<typename Val>
+class IntegralLockModel : public IntegralModel<Val> {
    public:
     IntegralLockModel(int model_id, int num_params):
-        IntegralModel(model_id, num_params) {}
+        IntegralModel<Val>(model_id, num_params) {}
 
-    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         boost::lock_guard<boost::shared_mutex> lock(mtx_);
-        IntegralModel::Push(keys, vals);
+        IntegralModel<Val>::Push(keys, vals);
     }
 
-    void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
+    void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) override {
         boost::shared_lock<boost::shared_mutex> lock(mtx_);
-        IntegralModel::Pull(keys, vals, local_id);
+        IntegralModel<Val>::Pull(keys, vals, local_id);
     }
 
    protected:

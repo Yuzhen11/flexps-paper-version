@@ -60,10 +60,10 @@ TEST_F(TestSingle, Construct) {
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0}, true);
     // Create SingleWorker
-    ml::mlworker::SingleWorker worker(info);
+    ml::mlworker::SingleWorker<float> worker(info);
 }
 
-void testPushPull(ml::mlworker::SingleWorker& worker) {
+void testPushPull(ml::mlworker::SingleWorker<float>& worker) {
     // PushPull
     std::vector<husky::constants::Key> keys = {1,3,5};
     std::vector<float> vals;
@@ -77,7 +77,7 @@ void testPushPull(ml::mlworker::SingleWorker& worker) {
     EXPECT_EQ(vals, params);
     // The data will be dumped
 }
-void testV2(ml::mlworker::SingleWorker& worker) {
+void testV2(ml::mlworker::SingleWorker<float>& worker) {
     // v2 APIs
     std::vector<husky::constants::Key> keys = {2,4,6};
     worker.Prepare_v2(keys);
@@ -103,12 +103,12 @@ TEST_F(TestSingle, Integral) {
 
     // Test Push/Pull API
     {
-        ml::mlworker::SingleWorker worker(info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testPushPull(worker);
     }
     // Test V2 API
     {
-        ml::mlworker::SingleWorker worker(info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testV2(worker);
     }
 }
@@ -134,12 +134,12 @@ TEST_F(TestSingle, Chunk) {
 
     // Test Push/Pull API
     {
-        ml::mlworker::SingleWorker worker(info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testPushPull(worker);
     }
     // Test V2 API
     {
-        ml::mlworker::SingleWorker worker(info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testV2(worker);
     }
 }

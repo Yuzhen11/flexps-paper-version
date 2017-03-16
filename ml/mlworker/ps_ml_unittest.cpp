@@ -77,15 +77,15 @@ TEST_F(TestPS, Construct) {
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0}, true);
     // Create PSSharedChunkWorker
-    ml::mlworker::PSSharedChunkWorker worker1(info, *zmq_context);
+    ml::mlworker::PSSharedChunkWorker<float> worker1(info, *zmq_context);
     /*
     // Create PSSharedWorker
-    ml::mlworker::PSSharedWorker worker2(info, *zmq_context);
+    ml::mlworker::PSSharedWorker<float> worker2(info, *zmq_context);
     */
     // Create SSPWorkerChunk
-    ml::mlworker::SSPWorkerChunk worker3(info);
+    ml::mlworker::SSPWorkerChunk<float> worker3(info);
     // Create SSPWorker
-    ml::mlworker::SSPWorker worker4(info);
+    ml::mlworker::SSPWorker<float> worker4(info);
 }
 
 void testPushPull(ml::mlworker::GenericMLWorker* worker) {
@@ -136,25 +136,25 @@ void test_multiple_threads(TestPS* obj, int type) {
     boost::thread t1([&instance, &obj, &iters, &type](){
         husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {0, 0}, true);
         if (type == 3) {
-            ml::mlworker::PSSharedChunkWorker worker(info, *obj->zmq_context);
+            ml::mlworker::PSSharedChunkWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 2) {
-            ml::mlworker::PSSharedWorker worker(info, *obj->zmq_context);
+            ml::mlworker::PSSharedWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 1) {
-            ml::mlworker::SSPWorkerChunk worker(info);
+            ml::mlworker::SSPWorkerChunk<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 0) {
-            ml::mlworker::SSPWorker worker(info);
+            ml::mlworker::SSPWorker<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
@@ -164,28 +164,28 @@ void test_multiple_threads(TestPS* obj, int type) {
     boost::thread t2([&instance, &obj, &iters, &type](){
         husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {1, 1}, false);
         if (type == 3) {
-            ml::mlworker::PSSharedChunkWorker worker(info, *obj->zmq_context);
+            ml::mlworker::PSSharedChunkWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 2) {
-            ml::mlworker::PSSharedWorker worker(info, *obj->zmq_context);
+            ml::mlworker::PSSharedWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 1) {
-            ml::mlworker::SSPWorkerChunk worker(info);
+            ml::mlworker::SSPWorkerChunk<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 0) {
-            ml::mlworker::SSPWorker worker(info);
+            ml::mlworker::SSPWorker<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);

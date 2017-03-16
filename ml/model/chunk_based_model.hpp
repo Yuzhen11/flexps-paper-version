@@ -19,10 +19,13 @@ namespace model {
  * ChunkBased Model for Single. Since there's only one thread,
  * no need to use double checked locking to allow the concurrecny Pull operations to kvstore
  */
-class ChunkBasedModel : public Model {
+template<typename Val>
+class ChunkBasedModel : public Model<Val> {
    public:
+    using Model<Val>::model_id_;
+
     ChunkBasedModel(int model_id, int num_params):
-        Model(model_id, num_params),
+        Model<Val>(model_id, num_params),
         num_chunks_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
         params_(num_chunks_),
         is_cached_(num_chunks_, false) {}
@@ -31,7 +34,7 @@ class ChunkBasedModel : public Model {
 
     virtual void Dump(int local_id, const std::string& hint) override {
         // just need to dump some chunks, if chunk is null, it needn't dumped
-        std::vector<std::vector<float>*> chunks;
+        std::vector<std::vector<Val>*> chunks;
         // chunk ids
         std::vector<size_t> chunk_ids;
         for (size_t i = 0; i < params_.size(); i++) {
@@ -43,7 +46,7 @@ class ChunkBasedModel : public Model {
         DumpChunks(local_id, model_id_, chunk_ids, chunks);
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         // chunks must be pulled before push
         auto& range_manager = kvstore::RangeManager::Get();
         for (size_t i = 0; i < keys.size(); ++i) {
@@ -52,7 +55,7 @@ class ChunkBasedModel : public Model {
             params_[loc.first][loc.second] += vals[i];
         }
     }
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) override {
         Prepare(keys, local_id);
         vals->resize(keys.size());
         auto& range_manager = kvstore::RangeManager::Get();
@@ -87,7 +90,7 @@ class ChunkBasedModel : public Model {
     /*
      * Get the raw pointer to the params_
      */
-    std::vector<std::vector<float>>* GetParamsPtr() {
+    std::vector<std::vector<Val>>* GetParamsPtr() {
         return &params_;
     }
    protected:
@@ -99,7 +102,7 @@ class ChunkBasedModel : public Model {
         // 1. get kvworker
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
         // 2. pull chunks and return ts
-        std::vector<std::vector<float>*> chunk_ptrs;
+        std::vector<std::vector<Val>*> chunk_ptrs;
         chunk_ptrs.reserve(chunks.size());
         for (auto chunk_id : chunks) {
             chunk_ptrs.push_back(&(params_[chunk_id]));
@@ -116,7 +119,7 @@ class ChunkBasedModel : public Model {
     }
 
     int num_chunks_;
-    std::vector<std::vector<float>> params_;  // params in chunks
+    std::vector<std::vector<Val>> params_;  // params in chunks
     std::vector<bool> is_cached_;  // indicate whether chunk has been pulled from kvstore
 };
 

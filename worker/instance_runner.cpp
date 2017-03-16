@@ -13,58 +13,6 @@ std::vector<std::pair<int, int>> InstanceRunner::extract_local_instance(const st
     return local_threads;
 }
 
-/*
- * Factory method to generate Info for each running Unit
- */
-Info InstanceRunner::info_factory(const std::shared_ptr<Instance>& instance, std::pair<int, int> tid_cid, bool is_leader) {
-    Info info = utility::instance_to_info(*instance, worker_info_, tid_cid, is_leader);
-
-    // if TaskType is GenericMLTaskType, set the mlworker according to the instance task type assigned by
-    // cluster_manager
-    if (info.get_task()->get_type() == Task::Type::MLTaskType) {
-        auto& hint = instance->get_task()->get_hint();
-        
-        try {
-            if (hint.at(husky::constants::kType) == husky::constants::kPS) {
-                if (hint.find(husky::constants::kWorkerType) != hint.end()) {
-                    if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSWorker) {
-                        husky::LOG_I << "using PSWorker";
-                        info.set_mlworker(new ml::mlworker::PSWorker(info));
-                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
-                        husky::LOG_I << "using SSPWorker";
-                        info.set_mlworker(new ml::mlworker::SSPWorker(info));
-                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSSharedWorkerChunk) {
-                        husky::LOG_I << "using PSSharedChunkWorker";
-                        info.set_mlworker(new ml::mlworker::PSSharedChunkWorker(info, cluster_manager_connector_.get_context()));
-                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorkerChunk) {
-                        husky::LOG_I << "using SSPWorkerChunk";
-                        info.set_mlworker(new ml::mlworker::SSPWorkerChunk(info));
-                    } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSSharedWorker) {
-                        husky::LOG_I << "using PSSharedWorker";
-                        info.set_mlworker(new ml::mlworker::PSSharedWorker(info, cluster_manager_connector_.get_context()));
-                    } 
-                } else {
-                    info.set_mlworker(new ml::mlworker::PSWorker(info));
-                }
-            } else if (hint.at(husky::constants::kType) == husky::constants::kSingle) {
-                info.set_mlworker(new ml::mlworker::SingleWorker(info));
-            } else if (hint.at(husky::constants::kType) == husky::constants::kHogwild) {
-                info.set_mlworker(new ml::mlworker::HogwildWorker(info,
-                    cluster_manager_connector_.get_context()));
-            } else if (hint.at(husky::constants::kType) == husky::constants::kSPMT) {
-                info.set_mlworker(new ml::mlworker::SPMTWorker(info,
-                    cluster_manager_connector_.get_context()));
-            } else {
-                throw;
-            }
-        } catch(...) {
-            utility::print_hint(hint);
-            throw base::HuskyException("instance_runner.cpp: Unknown hint");
-        }
-    }
-
-    return info;
-}
 
 /*
  * Run the instances
@@ -87,7 +35,7 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
         assert(units_[tid_cid.first].joinable() == false);
         units_[tid_cid.first] = boost::thread([this, instance, tid_cid, is_leader] {
             // set the info
-            Info info = info_factory(instance, tid_cid, is_leader);
+            Info info = utility::instance_to_info(*instance, worker_info_, tid_cid, is_leader);
 
             // if (info.get_cluster_id() == 0)
             //     husky::LOG_I << "[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + "
@@ -95,9 +43,6 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
 
             // run the UDF!!!
             task_store_.get_func(instance->get_id())(info);
-
-            // reset the mlworker
-            info.get_mlworker().reset();
 
             // if (info.get_cluster_id() == 0)
             //     husky::LOG_I << "[Running Task] current_epoch: "+std::to_string(info.get_current_epoch()) + "

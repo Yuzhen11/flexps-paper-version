@@ -14,14 +14,19 @@
 namespace ml {
 namespace model {
 
-class ChunkBasedFrequencyModel : public ChunkBasedModel {
+template<typename Val>
+class ChunkBasedFrequencyModel : public ChunkBasedModel<Val> {
    public:
+    using ChunkBasedModel<Val>::model_id_;
+    using ChunkBasedModel<Val>::params_;
+    using ChunkBasedModel<Val>::is_cached_;
+
     ChunkBasedFrequencyModel(int model_id, int num_params):
-        ChunkBasedModel(model_id, num_params) {}
+        ChunkBasedModel<Val>(model_id, num_params) {}
 
     void LoadFrequent(int local_id, const std::vector<husky::constants::Key>& frequent_ids) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
-        std::vector<float> params;
+        std::vector<Val> params;
         int ts = kvworker->Pull(model_id_, frequent_ids, &params);
         kvworker->Wait(model_id_, ts);
         for (size_t i = 0; i < frequent_ids.size(); ++i) {
@@ -35,7 +40,7 @@ class ChunkBasedFrequencyModel : public ChunkBasedModel {
 
         // 2. Dump frequent parameters
         auto size = frequent_pool_.size();
-        std::vector<float> vals(size);
+        std::vector<Val> vals(size);
         std::vector<husky::constants::Key> keys(size);
         size_t index = 0;
         for (auto f : frequent_pool_) {
@@ -48,7 +53,7 @@ class ChunkBasedFrequencyModel : public ChunkBasedModel {
         kvworker->Wait(model_id_, ts);
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         auto& range_manager = kvstore::RangeManager::Get();
         for (size_t i = 0; i < keys.size(); ++i) {
             // 1. find the key in frequent pool
@@ -64,7 +69,7 @@ class ChunkBasedFrequencyModel : public ChunkBasedModel {
         }
     }
 
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) override {
         Prepare(keys, local_id);
         vals->resize(keys.size());
         auto& range_manager = kvstore::RangeManager::Get();
@@ -94,18 +99,24 @@ class ChunkBasedFrequencyModel : public ChunkBasedModel {
             }
         }
         if (!chunks_to_fetch.empty()) {
-            int ts = fetch_chunk(chunks_to_fetch, local_id);
-            wait(ts, local_id);
+            int ts = ChunkBasedModel<Val>::fetch_chunk(chunks_to_fetch, local_id);
+            ChunkBasedModel<Val>::wait(ts, local_id);
         }
     }
 
-    std::unordered_map<husky::constants::Key, float> frequent_pool_;
+    std::unordered_map<husky::constants::Key, Val> frequent_pool_;
 };
 
-class ChunkBasedMTFrequencyModel : public ChunkBasedFrequencyModel {
+template<typename Val>
+class ChunkBasedMTFrequencyModel : public ChunkBasedFrequencyModel<Val> {
    public:
+    using ChunkBasedFrequencyModel<Val>::frequent_pool_;
+    using ChunkBasedModel<Val>::model_id_;
+    using ChunkBasedModel<Val>::params_;
+    using ChunkBasedModel<Val>::is_cached_;
+
     ChunkBasedMTFrequencyModel(int model_id, int num_params):
-        ChunkBasedFrequencyModel(model_id, num_params),
+        ChunkBasedFrequencyModel<float>(model_id, num_params),
         mtx_(kvstore::RangeManager::Get().GetChunkNum(model_id)) {}
 
     virtual void Prepare(const std::vector<husky::constants::Key>& keys, int local_id) override {
@@ -134,8 +145,8 @@ class ChunkBasedMTFrequencyModel : public ChunkBasedFrequencyModel {
         }
 
         if (!chunks_to_fetch.empty()) {
-            auto ts = fetch_chunk(chunks_to_fetch, local_id);
-            wait(ts, local_id);
+            auto ts = ChunkBasedFrequencyModel<Val>::fetch_chunk(chunks_to_fetch, local_id);
+            ChunkBasedModel<Val>::wait(ts, local_id);
             for (auto chunk_id : chunks_to_fetch) {
                 assert(params_[chunk_id].size() > 0);  // for debug
                 is_cached_[chunk_id] = true;
@@ -161,12 +172,19 @@ class ChunkBasedMTFrequencyModel : public ChunkBasedFrequencyModel {
     std::vector<boost::mutex> mtx_;
 };
 
-class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel {
+template<typename Val>
+class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel<Val> {
    public:
-    ChunkBasedMTLockFrequencyModel(int model_id, int num_params):
-        ChunkBasedMTFrequencyModel(model_id, num_params) {}
+    using ChunkBasedFrequencyModel<Val>::frequent_pool_;
+    using ChunkBasedModel<Val>::model_id_;
+    using ChunkBasedModel<Val>::params_;
+    using ChunkBasedModel<Val>::is_cached_;
+    using ChunkBasedMTFrequencyModel<Val>::mtx_;
 
-    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
+    ChunkBasedMTLockFrequencyModel(int model_id, int num_params):
+        ChunkBasedMTFrequencyModel<Val>(model_id, num_params) {}
+
+    void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         auto& range_manager = kvstore::RangeManager::Get();
 
         size_t current_chunk_id;
@@ -196,9 +214,9 @@ class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel {
         mtx_[current_chunk_id].unlock();
     }
 
-    void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals, int local_id) override {
+    void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) override {
         // Prepare the keys
-        Prepare(keys, local_id);
+        ChunkBasedMTFrequencyModel<Val>::Prepare(keys, local_id);
 
         auto& range_manager = kvstore::RangeManager::Get();
         vals->resize(keys.size());

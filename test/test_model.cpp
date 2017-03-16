@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "worker/engine.hpp"
+#include "ml/ml.hpp"
 
 #include "core/color.hpp"
 
@@ -26,7 +27,7 @@ bool check(std::vector<husky::constants::Key>& keys, std::vector<float>& rets) {
 }
 
 auto test = [](const Info& info) {
-    auto& worker = info.get_mlworker();
+    auto worker = ml::CreateMLWorker<float>(info);
     int num_iter = 1001;
     std::vector<float> rets;
     std::vector<husky::constants::Key> keys;

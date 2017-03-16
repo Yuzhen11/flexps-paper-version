@@ -72,10 +72,10 @@ TEST_F(TestSPMT, Construct) {
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0}, true);
     // Create SPMTWorker
-    ml::mlworker::SPMTWorker worker(info, *zmq_context);
+    ml::mlworker::SPMTWorker<float> worker(info, *zmq_context);
 }
 
-void testPushPull(ml::mlworker::SPMTWorker& worker, bool check = false) {
+void testPushPull(ml::mlworker::SPMTWorker<float>& worker, bool check = false) {
     // PushPull
     std::vector<husky::constants::Key> keys = {1,3,5};
     std::vector<float> old_vals;
@@ -90,7 +90,7 @@ void testPushPull(ml::mlworker::SPMTWorker& worker, bool check = false) {
     }
     worker.Push(keys, {0, 0, 0});
 }
-void testV2(ml::mlworker::SPMTWorker& worker, bool check = false) {
+void testV2(ml::mlworker::SPMTWorker<float>& worker, bool check = false) {
     // v2 APIs
     std::vector<husky::constants::Key> keys = {1,3,5};
     worker.Prepare_v2(keys);
@@ -136,10 +136,10 @@ void test_single_thread(const std::string& param_type, const std::string& consis
     // Test Push/Pull API
     {
         if (is_hogwild) {
-            ml::mlworker::HogwildWorker worker(info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
             testPushPull(worker, true);
         } else {
-            ml::mlworker::SPMTWorker worker(info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
             testPushPull(worker, true);
         }
     }
@@ -147,10 +147,10 @@ void test_single_thread(const std::string& param_type, const std::string& consis
     // Test V2 API
     {
         if (is_hogwild) {
-            ml::mlworker::HogwildWorker worker(info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
             testV2(worker, true);
         } else {
-            ml::mlworker::SPMTWorker worker(info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
             testV2(worker, true);
         }
     }
@@ -182,14 +182,14 @@ void test_multiple_threads(const std::string& param_type, const std::string& con
         if (is_hogwild) {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {0, 0}, true);
-            ml::mlworker::HogwildWorker worker(info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);
         } else {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {0, 0}, true);
-            ml::mlworker::SPMTWorker worker(info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);
@@ -199,7 +199,7 @@ void test_multiple_threads(const std::string& param_type, const std::string& con
         if (is_hogwild) {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {1, 1}, false);
-            ml::mlworker::HogwildWorker worker(info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);
@@ -213,7 +213,7 @@ void test_multiple_threads(const std::string& param_type, const std::string& con
         } else {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {1, 1}, false);
-            ml::mlworker::SPMTWorker worker(info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);

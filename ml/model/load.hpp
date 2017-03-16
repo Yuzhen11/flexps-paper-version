@@ -14,7 +14,8 @@ namespace {
 /*
  * LoadAllIntegral is to load all the parameters and store in std::vector
  */
-void LoadAllIntegral(int local_id, int model_id, int num_params, std::vector<float>* params) {
+template<typename Val>
+void LoadAllIntegral(int local_id, int model_id, int num_params, std::vector<Val>* params) {
     husky::LOG_I << PURPLE("[LoadAllIntegral] Loading model_id: " + std::to_string(model_id) + " local_id: " +
                         std::to_string(local_id) + " model_size: " + std::to_string(num_params));
     auto start_time = std::chrono::steady_clock::now();
@@ -34,7 +35,8 @@ void LoadAllIntegral(int local_id, int model_id, int num_params, std::vector<flo
 /*
  * Load the params from ModelTransferManager
  */
-void LoadIntegralFromStore(int local_id, int model_id, std::vector<float>* params) {
+template<typename Val>
+void LoadIntegralFromStore(int local_id, int model_id, std::vector<Val>* params) {
     husky::LOG_I << PURPLE("[LoadIntegralFromStore] Loading model_id: " + std::to_string(model_id) + " local_id: " + 
                         std::to_string(local_id));
     // Receive from mailbox
@@ -48,8 +50,9 @@ void LoadIntegralFromStore(int local_id, int model_id, std::vector<float>* param
 /*
  * LoadChunks is to load part of the chunks
  */
+template<typename Val>
 void LoadChunks(int local_id, int model_id,
-        const std::vector<size_t>& keys, std::vector<std::vector<float>*>* chunks) {
+        const std::vector<size_t>& keys, std::vector<std::vector<Val>*>* chunks) {
     husky::LOG_I << PURPLE("[LoadChunks] Loading model_id:" + std::to_string(model_id) + " local_id:" +
                         std::to_string(local_id) + " chunk_num: " + std::to_string(keys.size()));
     auto start_time = std::chrono::steady_clock::now();
@@ -67,10 +70,11 @@ void LoadChunks(int local_id, int model_id,
  * Make sure that the chunks are ready
  * TODO: This part can actually be parallelized
  */
-void LoadAllChunks(int local_id, int model_id, std::vector<std::vector<float>>* chunks) {
+template<typename Val>
+void LoadAllChunks(int local_id, int model_id, std::vector<std::vector<Val>>* chunks) {
     std::vector<size_t> keys;
     keys.reserve(chunks->size());
-    std::vector<std::vector<float>*> params;
+    std::vector<std::vector<Val>*> params;
     params.reserve(chunks->size());
     for (size_t i = 0; i < chunks->size(); ++ i) {
         keys.push_back(i);

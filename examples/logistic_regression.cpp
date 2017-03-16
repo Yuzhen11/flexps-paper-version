@@ -2,6 +2,8 @@
 
 #include "datastore/datastore.hpp"
 #include "worker/engine.hpp"
+#include "kvstore/kvstore.hpp"
+#include "ml/ml.hpp"
 
 #include "lib/load_data.hpp"
 
@@ -58,7 +60,7 @@ int main(int argc, char** argv) {
         auto& training_data = data_store.Pull(info.get_local_id());  // since this is a single thread task
         if (training_data.empty())
             return;
-        auto& worker = info.get_mlworker();
+        auto worker = ml::CreateMLWorker<float>(info);
         std::vector<husky::constants::Key> all_keys;
         for (int i = 0; i < num_params; i++)
             all_keys.push_back(i);

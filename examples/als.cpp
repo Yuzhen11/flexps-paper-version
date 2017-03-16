@@ -1,6 +1,7 @@
 #include "datastore/datastore.hpp"
 #include "husky/io/input/line_inputformat.hpp"
 #include "worker/engine.hpp"
+#include "kvstore/kvstore.hpp"
 
 #include <boost/tokenizer.hpp>
 
