@@ -38,10 +38,6 @@ class PSWorker : public mlworker::GenericMLWorker {
             kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
         }
     }
-    ~PSWorker() {
-        if (ts_ != -1)
-            kvworker_->Wait(model_id_, ts_);
-    }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
@@ -110,6 +106,7 @@ class SSPWorker : public mlworker::GenericMLWorker {
         // set kvworker
         int local_id = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
         assert(push_count_ + 1 == pull_count_);
@@ -228,6 +225,7 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker {
             model_.SetStaleness(stoi(info.get_task()->get_hint().at(husky::constants::kStaleness)));
             // Set kvworker
             kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
+            kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) override {
@@ -317,6 +315,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
         // set local id and kvworker
         local_id_ = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
 
     ~PSSharedWorker() {
@@ -457,6 +456,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker {
         // Set local id and kvworker
         local_id_ = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
 
     ~PSSharedChunkWorker() {
