@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+#include <sstream>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -28,6 +30,22 @@ namespace kvstore {
  * worker 0 push
  * Iter: 1, 0, 0, 0
  * worker 1 pull will see the push result of worker 0
+ *
+ * Workflow:
+ * if push:
+ *   advance push iter
+ *   if not too fast
+ *     response
+ *     if pass the min_clock
+ *       min_clock += 1
+ *       release buffered push/pull in min_clock
+ *   else
+ *     block
+ * else if pull:
+ *   if not too fast
+ *     response
+ *   else
+ *     block
  */
 template <typename Val, typename StorageT>
 class SSPServer : public ServerBase {
@@ -72,10 +90,15 @@ class SSPServer : public ServerBase {
             return;
         }
 
+        if (src >= worker_progress_.size())
+            worker_progress_.resize(src + 1);
         if (push) {  // if is push
-            if (src >= worker_progress_.size())
-                worker_progress_.resize(src + 1);
-            int expected_min_clock = worker_progress_[src] - staleness_;
+            int progress = worker_progress_[src];
+            if (progress >= clock_count_.size())
+                clock_count_.resize(progress + 1);
+            clock_count_[progress] += 1;  // add clock_count_
+            worker_progress_[src] += 1;  // advance progress
+            int expected_min_clock = progress - staleness_;
             if (expected_min_clock <= min_clock_) {  // acceptable staleness so process it
                 process_push(kv_id, ts, cmd, src, bin, customer);
             } else {  // blocked to expected_min_clock
@@ -84,8 +107,6 @@ class SSPServer : public ServerBase {
                 blocked_pushes_[expected_min_clock].emplace_back(cmd, src, ts, std::move(bin));
             }
         } else {  // if is pull
-            if (src >= worker_progress_.size())
-                worker_progress_.resize(src + 1);
             int expected_min_clock = worker_progress_[src] - staleness_;
             if (expected_min_clock <= min_clock_) {  // acceptable staleness so reply it
                 if (bin.size()) {  // if bin is empty, don't reply
@@ -115,13 +136,7 @@ class SSPServer : public ServerBase {
             update<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_, false);
             Response<Val>(kv_id, ts, cmd, true, src, KVPairs<Val>(), customer);
         }
-        if (src >= worker_progress_.size())
-            worker_progress_.resize(src + 1);
-        int progress = worker_progress_[src];
-        if (progress >= clock_count_.size())
-            clock_count_.resize(progress + 1);
-        clock_count_[progress] += 1;  // add clock_count_
-        if (progress == min_clock_ && clock_count_[min_clock_] == num_workers_) {
+        if (clock_count_[min_clock_] == num_workers_) {
             min_clock_ += 1;
             // release all push blocked at min_clock_
             if (blocked_pushes_.size() <= min_clock_)
@@ -149,7 +164,6 @@ class SSPServer : public ServerBase {
             }
             std::vector<std::tuple<int, int, int, husky::base::BinStream>>().swap(blocked_pulls_[min_clock_]);
         }
-        worker_progress_[src] += 1;
     }
 
    private:
