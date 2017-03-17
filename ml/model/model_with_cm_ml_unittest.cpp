@@ -128,10 +128,11 @@ void test_model_push_pull(ModelWithCM<float>* model) {
     model->Pull(keys2, &res, 0);
     EXPECT_EQ(res, ans_val);
 }
-void push_pull(ModelWithCM<float>* model, std::vector<husky::constants::Key>& keys) {
+
+void push_pull(ModelWithCM<float>* model, std::vector<husky::constants::Key>& keys, int local_id) {
     std::vector<float> res;
     std::vector<float> vals1(keys.size(), 1.0);
-    model->Pull(keys, &res, 0);
+    model->Pull(keys, &res, local_id);
     model->Push(keys, vals1);
 }
     
@@ -141,9 +142,9 @@ void test_mt_model_push_pull(ModelWithCM<float>* model) {
     std::vector<husky::constants::Key> keys3{30, 40, 50, 60, 70};
     std::vector<float> ans_val{2, 2, 3, 2, 2};
 
-    std::thread t1(push_pull, model, std::ref(keys1));
-    std::thread t2(push_pull, model, std::ref(keys2));
-    std::thread t3(push_pull, model, std::ref(keys3));
+    std::thread t1(push_pull, model, std::ref(keys1), 0);
+    std::thread t2(push_pull, model, std::ref(keys2), 1);
+    std::thread t3(push_pull, model, std::ref(keys3), 2);
     t1.join();
     t2.join();
     t3.join();
