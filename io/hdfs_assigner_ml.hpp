@@ -95,32 +95,33 @@ class HDFSBlockAssignerML : public HDFSBlockAssigner {
          */
         std::string selected_host;
         if (load_type.empty() || load_type == husky::constants::kLoadHdfsGlobally) { // default is load data globally
-            // when loading data globally, util that all hosts finished means finishing
-            bool is_finish = true;
-            for(auto& item:all_files_locality) {
-                // when loading globally, any host havingn't been finished means unfinished  
-                if (item.second.size() != 0) {
-                    is_finish = false;
-                    // in fact, there can be optimizing. for example, everytime, we can calculate the host
-                    // which has the longest blocks. It may be good for load balance but search is time-consuming
-                    selected_host = item.first;   // default allocate a unfinished host block
-                    break;
+            // selected_file
+            // if there is local file, allocate local file
+            if (all_files_locality[host].size()) {  
+                selected_host = host;
+            } else {  // there is no local file, so need to check all hosts
+                // when loading data globally, util that all hosts finished means finishing
+                bool is_finish = true;
+                for(auto& item:all_files_locality) {
+                    // when loading globally, any host havingn't been finished means unfinished  
+                    if (item.second.size() != 0) {
+                        is_finish = false;
+                        // in fact, there can be optimizing. for example, everytime, we can calculate the host
+                        // which has the longest blocks. It may be good for load balance but search is time-consuming
+                        selected_host = item.first;   // default allocate a unfinished host block
+                        break;
+                    }
                 }
-            }
 
-            if (is_finish) {
-                finish_multi_dict[id][url].second += 1;
-                if(finish_multi_dict[id][url].second == num_workers_alive) {
-                    // this means all workers's requests about this url are rejected
-                    // blocks under this url are all allocated
-                    files_locality_multi_dict[id].erase(url); 
-                }
-                return {"", 0};
-            } else {
-                // selected_file
-                if (all_files_locality[host].size()) {  // if there is local file, allocate local file
-                    selected_host = host;
-                }
+                if (is_finish) {
+                    finish_multi_dict[id][url].second += 1;
+                    if(finish_multi_dict[id][url].second == num_workers_alive) {
+                        // this means all workers's requests about this url are rejected
+                        // blocks under this url are all allocated
+                        files_locality_multi_dict[id].erase(url); 
+                    }
+                    return {"", 0};
+                } 
             }
         } else {    // load data globally
             auto& local_files_locality = all_files_locality[host];
@@ -142,9 +143,16 @@ class HDFSBlockAssignerML : public HDFSBlockAssigner {
         // select
         ret = {selected_file->filename, selected_file->offset};
 
-        // remove
-        all_files_locality[selected_host].erase(selected_file);
-        
+        // cautious: need to remove all replicas in different host
+	for (auto its = all_files_locality.begin(); its != all_files_locality.end(); its++) {
+	    for (auto it = its->second.begin(); it != its->second.end(); it++) {
+		if (it->filename == ret.first && it->offset == ret.second) {
+                    all_files_locality[its->first].erase(it);
+                    break;
+                }
+	    }   
+	}
+
         return ret;
     }
 

@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
             count++;
         }
         
-        husky::LOG_I << RED(" task0 read: "
+        husky::LOG_I << RED(" task1 read: "
             + std::to_string(count)
             + " records in total.");
     });
