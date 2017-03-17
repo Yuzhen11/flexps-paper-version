@@ -64,7 +64,7 @@ class ChunkBasedMTModel : public ChunkBasedModel<Val> {
 
         // 2. Pull chunks_to_fetch from kvstore
         if (chunks_to_fetch.size() > 0) {
-            auto ts = ChunkBasedModel<Val>::fetch_chunk(chunks_to_fetch, local_id);
+            auto ts = this->fetch_chunk(chunks_to_fetch, local_id);
             ChunkBasedModel<Val>::wait(ts, local_id);
             // 3. Unlock the mutices
             for (auto chunk_id : chunks_to_fetch) {
@@ -145,7 +145,7 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel<Val> {
     void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) override {
         if (keys.empty()) return;
         // Prepare the keys
-        ChunkBasedMTModel<Val>::Prepare(keys, local_id);
+        this->Prepare(keys, local_id);
 
         vals->resize(keys.size());
 
