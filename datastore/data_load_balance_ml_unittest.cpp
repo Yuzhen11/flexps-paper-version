@@ -43,7 +43,6 @@ TEST_F(TestDataLoadBalance, TestNext) {
     std::thread t1([&data_map, &data_store]() {
         std::set<int> data_set1;
         DataLoadBalance<int> data_load_balance(data_store, 3, 0);
-        data_load_balance.start_point();
 
         while(data_load_balance.has_next()) {
             data_set1.insert(data_load_balance.next());
@@ -55,7 +54,6 @@ TEST_F(TestDataLoadBalance, TestNext) {
     std::thread t2([&data_map, &data_store]() {
         std::set<int> data_set2;
         DataLoadBalance<int> data_load_balance(data_store, 3, 1);
-        data_load_balance.start_point();
 
         while(data_load_balance.has_next()) {
             data_set2.insert(data_load_balance.next());
@@ -67,7 +65,6 @@ TEST_F(TestDataLoadBalance, TestNext) {
     std::thread t3([&data_map, &data_store]() {
         std::set<int> data_set3;
         DataLoadBalance<int> data_load_balance(data_store, 3, 2);
-        data_load_balance.start_point();
 
         while(data_load_balance.has_next()) {
             data_set3.insert(data_load_balance.next());

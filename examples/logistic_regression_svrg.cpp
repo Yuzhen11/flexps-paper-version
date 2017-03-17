@@ -111,7 +111,6 @@ int main(int argc, char** argv) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         // Create a DataLoadBalance for SGD
         datastore::DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, worker_num.size(), pos);
-        data_load_balance.start_point();
         if (current_epoch % worker_num.size() == 0) {
             // do FGD
             // pull from kvstore_w

@@ -17,8 +17,28 @@ template<typename T>
 class DataLoadBalance {
    public:
     DataLoadBalance() = delete;
-    DataLoadBalance(datastore::DataStore<T>& datastore, int thread_num, int thread_pos) : datastore_(datastore), thread_num_(thread_num), local_id_(thread_pos - thread_num), thread_pos_(thread_pos) {}
+    DataLoadBalance(const datastore::DataStore<T>& datastore, int thread_num, int thread_pos) 
+        : datastore_(datastore), thread_num_(thread_num), local_id_(thread_pos - thread_num), thread_pos_(thread_pos) {
+        DataStoreWrapper<T> wrapper(datastore_);
+        is_empty_ = wrapper.empty();
+        if (!is_empty_) {
+            chunk_id_ = 0;
+            // find a non-empty chunk
+            while (datastore_[chunk_id_].empty()) {
+                chunk_id_ += 1;
+                chunk_id_ %= datastore_.size();
+            }
+        }
+    }
+    /*
+     * Whether the internal datastore is empty
+     */
+    bool empty() {
+        return is_empty_;
+    }
     bool has_next() {
+        if (is_empty_)
+            return false;
         local_id_ += thread_num_;
         while (true) {
             if (chunk_id_ == datastore_.size() - 1 && local_id_ >= datastore_[datastore_.size()-1].size()) {
@@ -33,14 +53,6 @@ class DataLoadBalance {
             }
         }
     }
-    void start_point() {
-      chunk_id_ = 0;
-      // find a non-empty chunk
-      while (datastore_[chunk_id_].empty()) {
-          chunk_id_ += 1;
-          chunk_id_ %= datastore_.size();
-      }
-    }
     const T& next() {
         return datastore_[chunk_id_][local_id_];
     }
@@ -51,6 +63,7 @@ class DataLoadBalance {
     int thread_num_;
     int thread_pos_;
     const datastore::DataStore<T>& datastore_;
+    bool is_empty_ = false;
 };
 
 }  // namespace datastore
