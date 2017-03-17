@@ -10,6 +10,7 @@ void ServerCustomer::Start() {
 void ServerCustomer::Stop() {
     husky::base::BinStream bin;  // send an empty BinStream
     mailbox_.send(mailbox_.get_thread_id(), channel_id_, 0, bin);
+    recv_thread_->join();
 }
 
 void ServerCustomer::send(int dst, husky::base::BinStream& bin) { mailbox_.send(dst, channel_id_, 0, bin); }

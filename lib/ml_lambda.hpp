@@ -79,11 +79,11 @@ auto dummy_train(config::AppConfig config, const Info& info) {
         //     keys = {0};
         // else
         //     keys = {123};
-        keys = {0, 122};
+        // keys = {0, 122};
         
         // all keys
-        // for (int i = 0; i < config.num_params; ++ i)
-        //     keys.push_back(i);
+        for (int i = 0; i < config.num_params; ++ i)
+            keys.push_back(i);
 
         std::vector<float> vals;
         // husky::LOG_I << "pull " << info.get_cluster_id() << " Dummy train iter: " << std::to_string(iter);

@@ -6,6 +6,7 @@
 #include <thread>
 #include "base/serialization.hpp"
 #include "core/mailbox.hpp"
+#include "husky/base/log.hpp"
 
 namespace kvstore {
 
@@ -21,7 +22,7 @@ class ServerCustomer {
 
     ServerCustomer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int channel_id)
         : mailbox_(mailbox), recv_handle_(recv_handle), channel_id_(channel_id) {}
-    ~ServerCustomer() { recv_thread_->join(); }
+    ~ServerCustomer() {  }
     void Start();
     void Stop();
     void send(int dst, husky::base::BinStream& bin);

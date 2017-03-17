@@ -9,6 +9,7 @@ void WorkerCustomer::Start() {
 void WorkerCustomer::Stop() {
     husky::base::BinStream bin;  // send an empty BinStream
     mailbox_.send(mailbox_.get_thread_id(), channel_id_, 0, bin);
+    recv_thread_->join();
 }
 
 int WorkerCustomer::NewRequest(int kv_id, int num_responses) {

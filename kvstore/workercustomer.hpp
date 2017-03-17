@@ -28,7 +28,7 @@ class WorkerCustomer {
 
     WorkerCustomer(husky::LocalMailbox& mailbox, const RecvHandle& recv_handle, int channel_id)
         : mailbox_(mailbox), recv_handle_(recv_handle), channel_id_(channel_id) {}
-    ~WorkerCustomer() { recv_thread_->join(); }
+    ~WorkerCustomer() {  }
 
     /*
      * Function to Start and Stop the customer
