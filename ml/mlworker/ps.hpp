@@ -158,7 +158,7 @@ class SSPWorker : public mlworker::GenericMLWorker {
                 cache_ts_ = pull_count_;
             }
             for (int i = 0; i < uncached_keys.size(); i++) {
-                cached_kv_.insert(std::make_pair(uncached_keys[i], (*vals)[uncached_keys[i]]));
+                cached_kv_.insert(std::make_pair(uncached_keys[i], (*vals)[i]));
             }
         }
 
