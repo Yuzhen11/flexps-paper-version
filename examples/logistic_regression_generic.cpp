@@ -80,7 +80,8 @@ int main(int argc, char** argv) {
     engine.Submit();
     auto end_time = std::chrono::steady_clock::now();
     auto load_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
+    if (Context::get_worker_info().get_process_id() == 0)
+        husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
     // Submit train_task
     engine.AddTask(train_task, train_task_lambda);
@@ -88,7 +89,8 @@ int main(int argc, char** argv) {
     engine.Submit();
     end_time = std::chrono::steady_clock::now();
     auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    husky::LOG_I << YELLOW("train time: " + std::to_string(train_time) + " ms");
+    if (Context::get_worker_info().get_process_id() == 0)
+        husky::LOG_I << YELLOW("train time: " + std::to_string(train_time) + " ms");
 
     engine.Exit();
     kvstore::KVStore::Get().Stop();

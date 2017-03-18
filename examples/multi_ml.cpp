@@ -172,7 +172,8 @@ int main(int argc, char** argv) {
     engine.Submit();
     auto end_time = std::chrono::steady_clock::now();
     auto load_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
+    if (Context::get_worker_info().get_process_id() == 0)
+        husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
     // Submit train_task
     for (int i = 0; i < tasks.size(); ++ i) {
@@ -184,7 +185,8 @@ int main(int argc, char** argv) {
     engine.Submit();
     end_time = std::chrono::steady_clock::now();
     auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    husky::LOG_I << YELLOW("train time: " + std::to_string(train_time) + " ms");
+    if (Context::get_worker_info().get_process_id() == 0)
+        husky::LOG_I << YELLOW("train time: " + std::to_string(train_time) + " ms");
 
     // Submit test_task
     auto test_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();

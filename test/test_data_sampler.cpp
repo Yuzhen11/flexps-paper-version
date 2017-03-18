@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
         if (data_store_wrapper.get_data_size() == 0) {
             return;  // return if there is no data
         }
-// cast task
+        // cast task
         std::vector<int> worker_num = static_cast<const ConfigurableWorkersTask*>(info.get_task())->get_worker_num();
         std::vector<int> tids = info.get_worker_info().get_local_tids();
         // find the pos of local_id
@@ -52,7 +52,6 @@ int main(int argc, char** argv) {
 
         // Create a DataLoadBalance for SGD
         datastore::DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, worker_num.size(), pos);
-        data_load_balance.start_point();
 
         int sum = 0;
         while (data_load_balance.has_next()) {

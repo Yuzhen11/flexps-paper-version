@@ -1,6 +1,7 @@
 #pragma once
 
 #include "datastore/datastore.hpp"
+#include "datastore/data_store_wrapper.hpp"
 
 namespace datastore {
 
