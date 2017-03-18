@@ -119,13 +119,13 @@ class MLTask : public Task {
  * ConfigurableWorkersTask Task
  *
  */
-class ConfigurableWorkersTask : public Task {
+class ConfigurableWorkersTask : public MLTask {
    public:
     // For serialization usage only
     ConfigurableWorkersTask() = default;
-    ConfigurableWorkersTask(int id) : Task(id, Type::ConfigurableWorkersTaskType) {}
+    ConfigurableWorkersTask(int id) : MLTask(id) { type_ = Type::ConfigurableWorkersTaskType; }
     ConfigurableWorkersTask(int id, int total_epoch, int num_workers)
-        : Task(id, total_epoch, num_workers, Type::ConfigurableWorkersTaskType) {}
+        : MLTask(id, total_epoch, num_workers, Type::ConfigurableWorkersTaskType) {}
 
     void set_worker_num(const std::vector<int>& worker_num) { worker_num_ = worker_num; }
     void set_worker_num_type(const std::vector<std::string>& worker_num_type) { worker_num_type_ = worker_num_type; }
@@ -134,11 +134,11 @@ class ConfigurableWorkersTask : public Task {
     std::vector<std::string> get_worker_num_type() const { return worker_num_type_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
-        Task::serialize(bin);
+        MLTask::serialize(bin);
         return bin << worker_num_ << worker_num_type_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
-        Task::deserialize(bin);
+        MLTask::deserialize(bin);
         return bin >> worker_num_ >> worker_num_type_;
     }
     friend BinStream& operator<<(BinStream& bin, const ConfigurableWorkersTask& task) { return task.serialize(bin); }
