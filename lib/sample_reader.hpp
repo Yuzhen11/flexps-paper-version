@@ -36,7 +36,7 @@ class AsyncReadBuffer final {
         batch_num_ = 0;
         load_cv_.notify_all();
         get_cv_.notify_all();
-        thread_.join();
+        if (thread_.joinable()) thread_.join();
     }
 
     /*
