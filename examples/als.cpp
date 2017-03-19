@@ -32,6 +32,11 @@ using namespace husky;
  *  # num_users=1823179
  *  # num_items=136736
  *  # start_from_one=0
+ *
+ *  # num_workers_per_process=10
+ *  # num_servers_per_process=10
+ *  # num_iter=10
+ *  # num_latent_factor=10
  */
 struct Node {
     int id;
@@ -41,23 +46,25 @@ struct Node {
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input",
                                           "hdfs_namenode", "hdfs_namenode_port",
-                                          "num_users", "num_items", "start_from_one"});
+                                          "num_users", "num_items", "start_from_one",
+                                          "num_workers_per_process", "num_servers_per_process",
+                                          "num_iters", "num_latent_factors"});
     if (!rt)
         return 1;
 
     const int kStartFromOne = std::stoi(Context::get_param("start_from_one"));
     const int kNumUsers = std::stoi(Context::get_param("num_users"));
     const int kNumItems = std::stoi(Context::get_param("num_items"));
+    const int kWorkersPerProcess = std::stoi(Context::get_param("num_workers_per_process"));
+    const int kServersPerProcess = std::stoi(Context::get_param("num_servers_per_process"));  // 20 is the largest
+    const int kNumIters = std::stoi(Context::get_param("num_iters"));
+    const int kNumLatentFactor = std::stoi(Context::get_param("num_latent_factors"));
 
     const int kNumNodes = kNumUsers + kNumItems;
     const int MAGIC = kNumUsers + kStartFromOne;
 
-    const int kServersPerWorker = 10;  // 20 is the largest
-    const int kThreadsPerWorker = 20;
-    const int kNumLatentFactor = 10;
     const int kChunkSize = kNumLatentFactor;
     const float kLambda = 0.01;
-    const int kNumIters = 4;
     const bool kDoTest = true;
     const int kLocalReadCount = -1;
 
@@ -66,7 +73,7 @@ int main(int argc, char** argv) {
     datastore::DataStore<std::string> data_store1(Context::get_worker_info().get_num_local_workers());
     // Start kvstore, should start after mailbox is up
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
-                                  Context::get_zmq_context(), kServersPerWorker);
+                                  Context::get_zmq_context(), kServersPerProcess);
 
     // 1. Server partition setup
     std::vector<kvstore::pslite::Range> server_key_ranges;
@@ -124,15 +131,15 @@ int main(int argc, char** argv) {
 
     // All the process should have this task running
     auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
-    task.set_worker_num({kThreadsPerWorker});
+    task.set_worker_num({kWorkersPerProcess});
     task.set_worker_num_type({"threads_per_worker"});
-    engine.AddTask(task, [&data_store1, kv1, kLambda, kNumIters, kNumUsers, kChunkNum, MAGIC](const Info& info) {
+    engine.AddTask(task, [&data_store1, kv1, kLambda, kNumIters, kNumLatentFactor, kWorkersPerProcess, kNumUsers, kChunkNum, MAGIC](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         auto& range_manager = kvstore::RangeManager::Get();
 
         std::vector<husky::base::BinStream> send_buffer(info.get_worker_info().get_largest_tid()+1);
         // load
-        auto parse_func = [&info, &send_buffer, &range_manager, kv1, kNumUsers](boost::string_ref& chunk) {
+        auto parse_func = [&info, &send_buffer, &range_manager, kv1, kNumUsers, kWorkersPerProcess](boost::string_ref& chunk) {
             // parse
             boost::char_separator<char> sep(" \t");
             boost::tokenizer<boost::char_separator<char>> tok(chunk, sep);
@@ -155,15 +162,15 @@ int main(int argc, char** argv) {
             server_id = range_manager.GetServerFromChunk(kv1, user);
             pid = server_id % num_processes;
             tids = info.get_worker_info().get_tids_by_pid(pid);  // the result tids must be the same in each machine
-            assert(tids.size() == kThreadsPerWorker);
-            dst = tids[user % kThreadsPerWorker];  // first locate the process, then hash partition
+            assert(tids.size() == kWorkersPerProcess);
+            dst = tids[user % kWorkersPerProcess];  // first locate the process, then hash partition
             send_buffer[dst] << user << item << rating;
 
             server_id = range_manager.GetServerFromChunk(kv1, item);
             pid = server_id % num_processes;
             tids = info.get_worker_info().get_tids_by_pid(pid);
-            assert(tids.size() == kThreadsPerWorker);
-            dst = tids[item % kThreadsPerWorker];
+            assert(tids.size() == kWorkersPerProcess);
+            dst = tids[item % kWorkersPerProcess];
             send_buffer[dst] << item << user << rating;
         };
         husky::io::LineInputFormat infmt;
@@ -277,6 +284,10 @@ int main(int argc, char** argv) {
                     other_factors[key] = std::move(v);
                 }
             }
+            auto prepare_end_time = std::chrono::steady_clock::now();
+            auto prepare_time = std::chrono::duration_cast<std::chrono::milliseconds>(prepare_end_time-start_time).count();
+            if (info.get_cluster_id() == 0)
+                husky::LOG_I << CLAY("[Iter] "+std::to_string(iter) + " prepare time: " + std::to_string(prepare_time) + " ms");
 
             // 6. Update
             std::vector<size_t> send_chunk_ids;
@@ -329,6 +340,10 @@ int main(int argc, char** argv) {
                     send_params.push_back(std::vector<float>(factor.data(), factor.data()+factor.rows()*factor.cols()));  // copy
                 }
             }
+            auto compute_end_time = std::chrono::steady_clock::now();
+            auto compute_time = std::chrono::duration_cast<std::chrono::milliseconds>(compute_end_time-prepare_end_time).count();
+            if (info.get_cluster_id() == 0)
+                husky::LOG_I << CLAY("[Iter] "+std::to_string(iter) + " compute time: " + std::to_string(compute_time) + " ms");
 
             p_send_params.reserve(send_chunk_ids.size());
             for (auto& vec : send_params) {
@@ -354,7 +369,7 @@ int main(int argc, char** argv) {
             // 9. Test error
             if (kDoTest) {
                 // if (info.get_cluster_id() == 0)
-                if (num_local_edges != 0)
+                if (num_local_edges != 0 && info.get_cluster_id() < 5)
                     husky::LOG_I << BLUE("cluster id: " + std::to_string(info.get_cluster_id()) + 
                             "; nums of local edges: " + std::to_string(num_local_edges) + 
                             "; local rmse: " + std::to_string(local_rmse) +
