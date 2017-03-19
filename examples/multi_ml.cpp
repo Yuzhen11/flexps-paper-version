@@ -60,14 +60,7 @@ void test_lambda(datastore::DataStore<LabeledPointHObj<float, float, true>>& dat
         const Info& info) {
     // find pos for DataLoadBalance
     auto local_tids = info.get_local_tids();
-    int pos = -1;
-    for (int i = 0; i < local_tids.size(); ++ i) {
-        if (local_tids[i] == info.get_global_id()) {
-            pos = i;
-            break;
-        }
-    }
-    assert(pos != -1);
+    int pos = info.get_local_pos();
     // use DataLoadBalance to work on a partition of local data
     datastore::DataLoadBalance<LabeledPointHObj<float, float, true>> data_load_balance(data_store, local_tids.size(), pos);
 

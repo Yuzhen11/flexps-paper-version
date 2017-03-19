@@ -21,6 +21,18 @@ class Info {
     int get_proc_id() const { return worker_info_.get_process_id(); }
     int get_num_local_workers() const { return worker_info_.get_num_local_workers(); }
     int get_num_workers() const { return worker_info_.get_num_workers(); }
+    int get_local_pos() const {
+        int pos = -1;
+        auto local_tids = get_local_tids();
+        for (int i = 0; i < local_tids.size(); ++ i) {
+            if (local_tids[i] == global_id_) {
+                pos = i;
+                break;
+            }
+        }
+        assert(pos != -1);
+        return pos;
+    }
     const WorkerInfo& get_worker_info() const { return worker_info_; }
     WorkerInfo& get_worker_info() { return worker_info_; }
     std::vector<int> get_local_tids() const { return worker_info_.get_local_tids(); }
