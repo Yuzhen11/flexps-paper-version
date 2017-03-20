@@ -87,6 +87,13 @@ target_link_libraries(LRSampleReader husky-ml)
 target_link_libraries(LRSampleReader ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(LRSampleReader)
 
+# SPMT_PS
+add_executable(SPMT_PS spmt_ps_compare.cpp)
+target_link_libraries(SPMT_PS husky)
+target_link_libraries(SPMT_PS husky-ml)
+target_link_libraries(SPMT_PS ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(SPMT_PS)
+
 # ALS
 add_executable(ALS als.cpp)
 target_link_libraries(ALS husky)

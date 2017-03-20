@@ -132,7 +132,13 @@ int main(int argc, char** argv) {
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
 
-    auto task1 = TaskFactory::Get().CreateTask<MLTask>();
+    auto task1 = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
+    if (config.num_train_workers == 1 && config.kType == husky::constants::kSingle && config.kLoadHdfsType == "load_hdfs_locally") {
+        task1.set_worker_num({1});
+        task1.set_worker_num_type({"threads_traverse_cluster"});
+    } else {
+        task1.set_type(husky::Task::Type::MLTaskType);
+    }
     task1.set_dimensions(config.num_params);
     task1.set_total_epoch(config.train_epoch);  // set epoch number
     task1.set_num_workers(config.num_train_workers);
@@ -149,7 +155,7 @@ int main(int argc, char** argv) {
         std::unique_ptr<SampleReader<LabeledPointHObj<float,float,true>>> reader(new LIBSVMSampleReader<float, float, true>(batch_size, config.num_features, &buffer));
 
         if (reader->is_empty()) {
-            husky::LOG_I << "no data";
+            husky::LOG_I << "no data";  // for debug
             return;  // return if there's no data
         }
 
@@ -172,9 +178,14 @@ int main(int argc, char** argv) {
             }
         }
 
+        sample_total += sample_count;
+        husky::LOG_I << "total training samples in phase " << info.get_current_epoch() << ": " << sample_total;
+
         // auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
         // husky::LOG_I << "accuracy: " << accuracy;
     });
+
+    // Submit Task
     auto start_time = std::chrono::steady_clock::now();
     engine.Submit();
     auto end_time = std::chrono::steady_clock::now();
