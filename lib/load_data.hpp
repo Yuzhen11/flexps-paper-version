@@ -22,48 +22,62 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
     switch(format) {
         case DataFormat::kLIBSVMFormat: {
             load_line_input(url, [&](boost::string_ref chunk) {
-                if (chunk.empty())
-                    return;
-                boost::char_separator<char> sep(" \t");
-                boost::tokenizer<boost::char_separator<char>> tok(chunk, sep);
+                if (chunk.empty()) return;
 
                 DataObj this_obj(num_features);
 
-                bool is_y = true;
-                for (auto& w : tok) {
-                    if (!is_y) {
-                        boost::char_separator<char> sep2(":");
-                        boost::tokenizer<boost::char_separator<char>> tok2(w, sep2);
-                        auto it = tok2.begin();
-                        int idx = std::stoi(*it++) - 1;// feature index from 0 to num_fea - 1
-                        double val = std::stod(*it++);
+                char* pos;
+                std::unique_ptr<char> chunk_ptr(new char[chunk.size() + 1]);
+                strncpy(chunk_ptr.get(), chunk.data(), chunk.size());
+                chunk_ptr.get()[chunk.size()] = '\0';
+                char* tok = strtok_r(chunk_ptr.get(), " \t:", &pos);
+
+                int i = -1;
+                int idx;
+                float val;
+                while (tok != NULL) {
+                    if (i == 0) {
+                        idx = std::atoi(tok) - 1;
+                        i = 1;
+                    } else if (i == 1) {
+                        val = std::atol(tok);
                         this_obj.x.set(idx, val);
+                        i = 0;
                     } else {
-                        this_obj.y = std::stod(w);
-                        is_y = false;
+                        this_obj.y = std::atol(tok);
+                        i = 0;
                     }
+                    // Next key/value pair
+                    tok = strtok_r(NULL, " \t:", &pos);
                 }
+
                 data.Push(local_id, std::move(this_obj));
             });
             break;
        }
        case DataFormat::kTSVFormat: {
             load_line_input(url, [&](boost::string_ref chunk) {
-                if (chunk.empty())
-                    return;
-                boost::char_separator<char> sep(" \t");
-                boost::tokenizer<boost::char_separator<char>> tok(chunk, sep);
+                if (chunk.empty()) return;
 
                 DataObj this_obj(num_features);
 
+                char* pos;
+                std::unique_ptr<char> chunk_ptr(new char[chunk.size() + 1]);
+                strncpy(chunk_ptr.get(), chunk.data(), chunk.size());
+                chunk_ptr.get()[chunk.size()] = '\0';
+                char* tok = strtok_r(chunk_ptr.get(), " \t", &pos);
+
                 int i = 0;
-                for (auto& w : tok) {
+                while (tok != NULL) {
                     if (i < num_features) {
-                        this_obj.x.set(i++, std::stod(w));
+                        this_obj.x.set(i++, std::stol(tok));
                     } else {
-                        this_obj.y = std::stod(w);
+                        this_obj.y = std::stol(tok);
                     }
+                    // Next key/value pair
+                    tok = strtok_r(NULL, " \t", &pos);
                 }
+
                 data.Push(local_id, std::move(this_obj));
             });
             break;
