@@ -12,8 +12,10 @@ namespace husky {
 
 void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task);
 
-std::vector<std::pair<int, int>> select_threads(std::shared_ptr<Instance>& instance,
-        AvailableWorkers& available_workers, int num_processes);
+/*
+ * Using task history information to let task travel in different processes
+ */
+std::vector<int> get_preferred_proc(int task_id);
 
 std::vector<std::pair<int, int>> select_threads_from_subset(
         std::shared_ptr<Instance>& instance, AvailableWorkers& available_workers, int num_processes, 

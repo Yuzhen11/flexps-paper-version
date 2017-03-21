@@ -48,24 +48,6 @@ std::vector<std::shared_ptr<Instance>> SequentialTaskScheduler::extract_instance
 
 bool SequentialTaskScheduler::is_finished() { return tasks_queue_.empty(); }
 
-// Select the processes which are leat visited by this task as candidates
-std::vector<int> SequentialTaskScheduler::get_preferred_proc(int task_id) {
-    std::vector<int> task_history = HistoryManager::get().get_task_history(task_id);
-    std::vector<int> plan;
-    int smallest = std::numeric_limits<int>::max();
-    for (int i=0; i<task_history.size(); i++) {
-        if (task_history[i] < smallest) {
-            smallest = task_history[i];
-        }
-    }
-    for (int i=0; i<task_history.size(); i++) {
-        if (task_history[i] == smallest) {
-            plan.push_back(i);
-        }
-    }
-    return plan;
-}
-
 std::shared_ptr<Instance> SequentialTaskScheduler::task_to_instance(const Task& task) {
     // create the instance
     std::shared_ptr<Instance> instance(new Instance);

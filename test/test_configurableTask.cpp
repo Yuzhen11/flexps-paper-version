@@ -14,20 +14,20 @@ int main(int argc, char** argv) {
 
     auto& engine = Engine::Get();
 
-    auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>(5, 4);
+    auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>(10, 6);
     task.set_worker_num({3, 2, 1, 1, 2});
     task.set_worker_num_type({"threads_per_worker", "threads_per_cluster", "local_threads", "threads_traverse_cluster", "threads_on_worker:0"});
     engine.AddTask(task, [](const Info& info) {
-      if (info.get_current_epoch() % 4 == 0) {
+      if (info.get_current_epoch() % 5 == 0) {
         husky::LOG_I << RED("Running (3, threads_per_worker) ");
-      } else if (info.get_current_epoch() % 4 == 1) {
+      } else if (info.get_current_epoch() % 5 == 1) {
         husky::LOG_I << RED("Running (2, threads_per_cluster) ");
-      } else if (info.get_current_epoch() % 4 == 2) {
+      } else if (info.get_current_epoch() % 5 == 2) {
         husky::LOG_I << RED("Running (1, local_threads) ");
-      } else if (info.get_current_epoch() % 4 == 3) {
+      } else if (info.get_current_epoch() % 5 == 3) {
         husky::LOG_I << RED("Running (1, threads_traverse_cluster) ");
       } else {
-        husky::LOG_I << RED("Running (2, threads_on_worker:2) ");
+        husky::LOG_I << RED("Running (2, threads_on_worker:0) ");
       }
 
     });

@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "cluster_manager/task_scheduler/available_workers.hpp"
+#include "cluster_manager/task_scheduler/history_manager.hpp"
 #include "core/instance.hpp"
 #include "core/task.hpp"
 
@@ -25,9 +26,30 @@ void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task)
         instance->set_num_workers(1);
 }
 
-std::vector<std::pair<int, int>> select_threads(std::shared_ptr<Instance>& instance, AvailableWorkers& available_workers, int num_processes) {
-    // randomly select threads
+// Select the processes which are least visited by this task as candidates
+std::vector<int> get_preferred_proc(int task_id) {
+    std::vector<int> task_history = HistoryManager::get().get_task_history(task_id);
+    std::vector<int> plan;
+    int smallest = std::numeric_limits<int>::max();
+    for (int i=0; i<task_history.size(); i++) {
+        if (task_history[i] < smallest) {
+            smallest = task_history[i];
+        }
+    }
+    for (int i=0; i<task_history.size(); i++) {
+        if (task_history[i] == smallest) {
+            plan.push_back(i);
+        }
+    }
+    return plan;
+}
+
+std::vector<std::pair<int, int>> select_threads_from_subset(
+        std::shared_ptr<Instance>& instance, AvailableWorkers& available_workers, int num_processes, 
+        int required_num_threads, const std::vector<int>& candidate_proc) {
+
     std::vector<std::pair<int, int>> pid_tids;
+    auto& hint = instance->get_task()->get_hint();
     if (instance->get_type() == Task::Type::ConfigurableWorkersTaskType) {
         std::vector<int> worker_num = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num();
         std::vector<std::string> worker_num_type = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num_type();
@@ -57,35 +79,7 @@ std::vector<std::pair<int, int>> select_threads(std::shared_ptr<Instance>& insta
         else {
 	       husky::LOG_I << "illegal worker_num_type!";
         }
-    } else if (instance->get_type() == Task::Type::MLTaskType) {
-        auto& hint = instance->get_task()->get_hint();
-        if (hint.at(husky::constants::kType) == husky::constants::kHogwild
-            || hint.at(husky::constants::kType) == husky::constants::kSPMT) {
-            // extract from one process
-            pid_tids = available_workers.get_local_workers(instance->get_num_workers());
-        } else {
-            if (hint.at(husky::constants::kType) == husky::constants::kSingle) {  // Single must use 1 thread
-                assert(instance->get_num_workers() == 1);
-            }
-            // extract from global workers
-            pid_tids = available_workers.get_workers(instance->get_num_workers());
-        }
-    }
-    else {
-        // extract from global workers
-        pid_tids = available_workers.get_workers(instance->get_num_workers());
-    }
-
-    return pid_tids;
-}
-
-std::vector<std::pair<int, int>> select_threads_from_subset(
-        std::shared_ptr<Instance>& instance, AvailableWorkers& available_workers, int num_processes, 
-        int required_num_threads, const std::vector<int>& candidate_proc) {
-
-    std::vector<std::pair<int, int>> pid_tids;
-    auto& hint = instance->get_task()->get_hint();
-    if (instance->get_type() == Task::Type::MLTaskType && (
+    } else if (instance->get_type() == Task::Type::MLTaskType && (
             hint.at(husky::constants::kType) == husky::constants::kSingle
             || hint.at(husky::constants::kType) == husky::constants::kHogwild
             || hint.at(husky::constants::kType) == husky::constants::kSPMT)
