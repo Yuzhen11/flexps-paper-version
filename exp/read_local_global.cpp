@@ -41,11 +41,13 @@ int main(int argc, char** argv) {
         infmt.set_input(Context::get_param("input"));
         typename io::LineInputFormat::RecordT record;
 
+        bool parse = true;
+        int parse_time = 0;
         int read_count = 0;
         while(infmt.next(record)) {
             // parse
-            bool parse = false;
             if (parse) {
+                auto start_time = std::chrono::steady_clock::now();
                 boost::char_separator<char> sep(" \t");
                 boost::tokenizer<boost::char_separator<char>> tok(record, sep);
                 bool is_y = true;
@@ -60,12 +62,16 @@ int main(int argc, char** argv) {
                         is_y = false;
                     }
                 }
+                auto end_time = std::chrono::steady_clock::now();
+                parse_time += std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
             }
-        
             read_count += 1;
             if (read_count != 0 && read_count%10000 == 0)
                 husky::LOG_I << "read_count: " << read_count;
         }
+        if (parse)
+            husky::LOG_I << "parse time: " << parse_time/1000 << " ms";
+        
         husky::LOG_I << "read_count: " << read_count;
     });
 
