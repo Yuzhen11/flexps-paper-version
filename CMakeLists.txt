@@ -47,3 +47,4 @@ endif(USE_PROFILER)
 # build the examples and test
 add_subdirectory(examples)
 add_subdirectory(test)
+add_subdirectory(exp)
