@@ -28,6 +28,7 @@ void InstanceRunner::run_instance(std::shared_ptr<Instance> instance) {
 
     husky::LOG_I << GREEN("[InstanceRunner] Instance id " + std::to_string(instance->get_id()) + " " +
                           std::to_string(local_threads.size()) + "/" + std::to_string(instance->get_num_threads()) +
+                          " current epoch " + std::to_string(instance->get_epoch()) +
                           " run on process " + std::to_string(worker_info_.get_process_id()));
     bool is_leader = true;  // the first thread in each process is the leader
     for (auto tid_cid : local_threads) {

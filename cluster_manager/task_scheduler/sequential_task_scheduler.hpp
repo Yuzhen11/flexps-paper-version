@@ -38,10 +38,6 @@ class SequentialTaskScheduler : public TaskScheduler {
     virtual bool is_finished() override;
 
    private:
-    /*
-     * Using task history information to let task travel in different processes
-     */
-    std::vector<int> get_preferred_proc(int task_id);
 
     /*
      * Generate real running instance from task

@@ -53,8 +53,11 @@ std::vector<std::shared_ptr<Instance>> GreedyTaskScheduler::extract_instances() 
             std::shared_ptr<Instance> instance(new Instance);
             instance_basic_setup(instance, *tasks_[i]);
 
+            int required_num_threads = instance->get_num_workers();
+            std::vector<int> candidate_proc = get_preferred_proc(instance->get_id());
+
             // select threads according to the instance
-            std::vector<std::pair<int,int>> pid_tids = select_threads(instance, available_workers_, num_processes_);
+            std::vector<std::pair<int,int>> pid_tids = select_threads_from_subset(instance, available_workers_, num_processes_, required_num_threads, candidate_proc);
 
             // If requirement is satisfied, add the instance
             if (!pid_tids.empty()) {
