@@ -92,6 +92,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
             }
 
             // Set chunk or integral
+            // SPMT Integral is in terms of preparing all the parameter beforehand, it's still chunk based
             if (use_chunk_model_ == true) {
                 // Use Chunk model
                 if (is_hogwild_) {
@@ -101,7 +102,10 @@ class SPMTWorker : public mlworker::GenericMLWorker {
                 }
             } else {
                 // Use Integral model
-                state->p_model_ = (model::Model<Val>*) new model::IntegralModel<Val>(model_id, num_params);
+                if (is_hogwild_)
+                    state->p_model_ = (model::Model<Val>*) new model::IntegralModel<Val>(model_id, num_params);
+                else
+                    state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTLockModel<Val>(model_id, num_params);
             }
             // 1. Init shared_state_
             shared_state_.Init(state);
@@ -109,8 +113,7 @@ class SPMTWorker : public mlworker::GenericMLWorker {
         // 2. Sync shared_state_
         shared_state_.SyncState();
         // 3. Load
-        if (use_chunk_model_ == false)
-            Load();
+        Load();
 
         // For logging debug message
         if (info.is_leader() == true) {
@@ -175,8 +178,18 @@ class SPMTWorker : public mlworker::GenericMLWorker {
      */
     void Load() {
         if (info_.is_leader() == true) {
-            // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
-            std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransfer : husky::constants::kKVStore;
+            std::string hint;
+            if (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) {
+                assert(use_chunk_model_ == false);
+                hint = husky::constants::kTransferIntegral;
+            } else {
+                // kvstore
+                if (use_chunk_model_) {
+                    hint = husky::constants::kKVStoreChunks;
+                } else {
+                    hint = husky::constants::kKVStoreIntegral;
+                }
+            }
             shared_state_.Get()->p_model_->Load(info_.get_local_id(), hint);
         }
         shared_state_.Barrier();
@@ -188,8 +201,19 @@ class SPMTWorker : public mlworker::GenericMLWorker {
     void Dump() {
         shared_state_.Barrier();
         if (info_.is_leader() == true) {
-            // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the last epoch
-            std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) ? husky::constants::kTransfer : husky::constants::kKVStore;
+            std::string hint;
+            if (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) {
+                // transfer
+                assert(use_chunk_model_ == false);
+                hint = husky::constants::kTransferIntegral;
+            } else {
+                // kvstore
+                if (use_chunk_model_) {
+                    hint = husky::constants::kKVStoreChunks;
+                } else {
+                    hint = husky::constants::kKVStoreIntegral;
+                }
+            }
             shared_state_.Get()->p_model_->Dump(info_.get_local_id(), hint);
         }
         shared_state_.Barrier();

@@ -67,13 +67,13 @@ class SingleWorker : public mlworker::GenericMLWorker {
 
     void Load() {
         // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
-        std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransfer : husky::constants::kKVStore;
+        std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransferIntegral : husky::constants::kKVStoreIntegral;
         model_->Load(info_.get_local_id(), hint);
     }
 
     void Dump() {
         // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the last epoch
-        std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) ? husky::constants::kTransfer : husky::constants::kKVStore;
+        std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) ? husky::constants::kTransferIntegral : husky::constants::kKVStoreIntegral;
         model_->Dump(info_.get_local_id(), hint);
     }
 

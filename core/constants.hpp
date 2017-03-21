@@ -83,8 +83,9 @@ constexpr const char* const kStaleness = "staleness";
 
 
 constexpr const char* const kEnableDirectModelTransfer = "direct_model_transfer";
-constexpr const char* const kKVStore = "kvstore";
-constexpr const char* const kTransfer = "transfer";
+constexpr const char* const kKVStoreChunks = "kvstore_chunks";
+constexpr const char* const kKVStoreIntegral = "kvstore_integral";
+constexpr const char* const kTransferIntegral = "transfer_integral";
 
 /*
  * param_type

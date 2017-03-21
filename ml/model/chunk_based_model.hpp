@@ -30,20 +30,40 @@ class ChunkBasedModel : public Model<Val> {
         params_(num_chunks_),
         is_cached_(num_chunks_, false) {}
 
-    void Load(int local_id, const std::string& hint) override {}
+    void Load(int local_id, const std::string& hint) override {
+        if (hint == husky::constants::kKVStoreChunks) {
+            // Do nothing
+        } else if (hint == husky::constants::kKVStoreIntegral) {
+            // Load all from KVStore 
+            LoadAllChunksFromKV(local_id, model_id_, &params_);
+        } else if (hint == husky::constants::kTransferIntegral) {
+            // Load from kTransferChunks
+            LoadAllChunksFromStore(local_id, model_id_, &params_);
+        } else {
+            throw husky::base::HuskyException("Unknown hint in ChunkModel: "+hint);
+        }
+    }
 
     virtual void Dump(int local_id, const std::string& hint) override {
-        // just need to dump some chunks, if chunk is null, it needn't dumped
-        std::vector<std::vector<Val>*> chunks;
-        // chunk ids
-        std::vector<size_t> chunk_ids;
-        for (size_t i = 0; i < params_.size(); i++) {
-            if (params_[i].size()) {
-                chunk_ids.push_back(i);
-                chunks.push_back(&params_[i]);
+        if (hint == husky::constants::kKVStoreChunks) {
+            // just need to dump some chunks, if chunk is null, it needn't dumped
+            std::vector<std::vector<Val>*> chunks;
+            // chunk ids
+            std::vector<size_t> chunk_ids;
+            for (size_t i = 0; i < params_.size(); i++) {
+                if (params_[i].size()) {
+                    chunk_ids.push_back(i);
+                    chunks.push_back(&params_[i]);
+                }
             }
+            DumpChunks(local_id, model_id_, chunk_ids, chunks);
+        } else if (hint == husky::constants::kKVStoreIntegral) {
+            DumpAllChunksToKV(local_id, model_id_, params_);
+        } else if (hint == husky::constants::kTransferIntegral) {
+            DumpAllChunksToStore(model_id_, params_);
+        } else {
+            throw husky::base::HuskyException("Unknown hint in ChunkModel: "+hint);
         }
-        DumpChunks(local_id, model_id_, chunk_ids, chunks);
     }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {

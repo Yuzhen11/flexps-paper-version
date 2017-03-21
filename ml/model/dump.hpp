@@ -12,9 +12,9 @@ namespace {
 
 
 template<typename Val>
-void DumpAllIntegral(int local_id, int model_id, int num_params, 
+void DumpIntegralToKV(int local_id, int model_id, int num_params, 
         const std::vector<Val>& params) {
-    husky::LOG_I << PURPLE("[DumpAllIntegral] Dumping model_id: " + std::to_string(model_id) + " local_id: " +
+    husky::LOG_I << PURPLE("[DumpIntegralToKV] model_id: " + std::to_string(model_id) + " local_id: " +
                         std::to_string(local_id) + " model_size: " + std::to_string(num_params));
     auto start_time = std::chrono::steady_clock::now();
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
@@ -24,7 +24,7 @@ void DumpAllIntegral(int local_id, int model_id, int num_params,
     int ts = kvworker->Push(model_id, keys, params);
     kvworker->Wait(model_id, ts);
     auto end_time = std::chrono::steady_clock::now();
-    husky::LOG_I << PURPLE("[DumpAllIntegral] Dump time: "
+    husky::LOG_I << PURPLE("[DumpIntegralToKV] Dump time: "
                  + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count())
                  + " ms");
 }
@@ -33,9 +33,19 @@ void DumpAllIntegral(int local_id, int model_id, int num_params,
  * Dump the params into model_transfer_store
  */
 template<typename Val>
-void DumpIntegralToStore(int model_id, std::vector<Val>&& params) {
-    husky::LOG_I << PURPLE("[DumpIntegralToStore] Dumping model_id: " + std::to_string(model_id)
+void DumpIntegralToStore(int model_id, const std::vector<Val>& params) {
+    husky::LOG_I << PURPLE("[DumpIntegralToStore] model_id: " + std::to_string(model_id)
             + "model_size: "+std::to_string(params.size()));
+    auto& store = husky::ModelTransferStore::Get();
+    husky::base::BinStream bin;
+    bin << params;
+    store.Add(model_id, std::move(bin));
+}
+
+template<typename Val>
+void DumpAllChunksToStore(int model_id, const std::vector<std::vector<Val>>& params) {
+    husky::LOG_I << PURPLE("[DumpAllChunksToStore] model_id: " + std::to_string(model_id)
+            + " chunk_num: "+std::to_string(params.size()));
     auto& store = husky::ModelTransferStore::Get();
     husky::base::BinStream bin;
     bin << params;
@@ -45,8 +55,6 @@ void DumpIntegralToStore(int model_id, std::vector<Val>&& params) {
 template<typename Val>
 void DumpChunks(int local_id, int model_id,
         const std::vector<size_t>& keys, const std::vector<std::vector<Val>*>& chunks) {
-    husky::LOG_I << PURPLE("[DumpChunks] Dumping model_id:" + std::to_string(model_id) + " local_id: " +
-                        std::to_string(local_id) + " chunk_num: " + std::to_string(keys.size()));
     auto start_time = std::chrono::steady_clock::now();
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
     int ts = kvworker->PushChunks(model_id, keys, chunks, false);
@@ -58,7 +66,9 @@ void DumpChunks(int local_id, int model_id,
 }
 
 template<typename Val>
-void DumpAllChunks(int local_id, int model_id, const std::vector<std::vector<Val>>& chunks) {
+void DumpAllChunksToKV(int local_id, int model_id, const std::vector<std::vector<Val>>& chunks) {
+    husky::LOG_I << PURPLE("[DumpAllChunksToKV] model_id:" + std::to_string(model_id) + " local_id: " +
+                        std::to_string(local_id));
     std::vector<size_t> keys;
     keys.reserve(chunks.size());
     std::vector<std::vector<Val>*> params;
