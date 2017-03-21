@@ -5,6 +5,7 @@
 
 #include "core/constants.hpp"
 #include "kvstore/kvstore.hpp"
+#include "ml/model/load.hpp"
 #include "ml/model/dump.hpp"
 #include "ml/model/model.hpp"
 

@@ -95,7 +95,8 @@ std::map<std::string, std::string> ExtractHint(const AppConfig& config) {
         {husky::constants::kType, config.kType},
         {husky::constants::kConsistency, config.kConsistency},
         {husky::constants::kNumWorkers, std::to_string(config.num_train_workers)},
-        {husky::constants::kStaleness, std::to_string(config.staleness)}  // default staleness
+        {husky::constants::kStaleness, std::to_string(config.staleness)},  // default staleness
+        {husky::constants::kStorageType, husky::constants::kVectorStorage}  // Use vector storage
     };
     
     if (config.kType == husky::constants::kPS && config.kConsistency == husky::constants::kSSP) {

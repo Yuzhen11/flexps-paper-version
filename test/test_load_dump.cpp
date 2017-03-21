@@ -23,32 +23,32 @@ int main(int argc, char** argv) {
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, num_params, chunk_size);
     engine.AddTask(task, [kv1, num_params, chunk_size](const Info& info) {
         {
-            // Test LoadAllIntegral, DumpAllIntegral
+            // Test LoadIntegralFromKV, DumpIntegralToKV
             std::vector<float> params;
-            ml::model::LoadAllIntegral(info.get_local_id(), kv1, num_params, &params);
+            ml::model::LoadIntegralFromKV(info.get_local_id(), kv1, num_params, &params);
             for (int i = 0; i < params.size(); ++ i) {
                 assert(params[i] == 0);
                 params[i] = 1;
             }
-            ml::model::DumpAllIntegral(info.get_local_id(), kv1, num_params, params);
-            ml::model::LoadAllIntegral(info.get_local_id(), kv1, num_params, &params);
+            ml::model::DumpIntegralToKV(info.get_local_id(), kv1, num_params, params);
+            ml::model::LoadIntegralFromKV(info.get_local_id(), kv1, num_params, &params);
             for (int i = 0; i < params.size(); ++ i) {
                 assert(params[i] == 1);
             }
         }
 
         {
-            // Test LoadAllChunks/DumpAllChunks
+            // Test LoadAllChunksFromKV/DumpAllChunksToKV
             std::vector<std::vector<float>> chunks(chunk_size);
-            ml::model::LoadAllChunks(info.get_local_id(), kv1, &chunks);
+            ml::model::LoadAllChunksFromKV(info.get_local_id(), kv1, &chunks);
             for (int i = 0; i < chunks.size(); ++ i) {
                 for (auto& elem : chunks[i]) {
                     assert(elem == 1);
                     elem = 2;
                 }
             }
-            ml::model::DumpAllChunks(info.get_local_id(), kv1, chunks);
-            ml::model::LoadAllChunks(info.get_local_id(), kv1, &chunks);
+            ml::model::DumpAllChunksToKV(info.get_local_id(), kv1, chunks);
+            ml::model::LoadAllChunksFromKV(info.get_local_id(), kv1, &chunks);
             for (int i = 0; i < chunks.size(); ++ i) {
                 for (auto& elem : chunks[i]) {
                     assert(elem == 2);

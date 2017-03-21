@@ -36,7 +36,7 @@ class ChunkBasedFrequencyModel : public ChunkBasedModel<Val> {
 
     void Dump(int local_id, const std::string& hint) override {
         // 1. Dump all chunks
-        DumpAllChunks(local_id, model_id_, params_);
+        DumpAllChunksToKV(local_id, model_id_, params_);
 
         // 2. Dump frequent parameters
         auto size = frequent_pool_.size();
