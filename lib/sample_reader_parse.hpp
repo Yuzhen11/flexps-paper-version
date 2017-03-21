@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string.h>
 #include <mutex>
 #include <set>
 #include <string>
@@ -17,22 +18,26 @@
 namespace husky {
 namespace {
 
-class AsyncReadBuffer final {
+template <typename Sample>
+class AsyncReadParseBuffer {
    public:
-    using BatchT = std::vector<std::string>;
+    struct BatchT {
+        BatchT() = default;
+        explicit BatchT(int batch_size) { data.reserve(batch_size); }
 
-    /* 
-     * contructor takes 2 args: number of lines per batch, number of batches
-     */
-    AsyncReadBuffer() = default;
+        std::vector<Sample> data;
+        std::set<husky::constants::Key> keys;
+    };
 
-    AsyncReadBuffer(const AsyncReadBuffer&) = delete;
-    AsyncReadBuffer& operator=(const AsyncReadBuffer&) = delete;
-    AsyncReadBuffer(AsyncReadBuffer&&) = delete;
-    AsyncReadBuffer& operator=(AsyncReadBuffer&&) = delete;
+    AsyncReadParseBuffer() = default;
+
+    AsyncReadParseBuffer(const AsyncReadParseBuffer&) = delete;
+    AsyncReadParseBuffer& operator=(const AsyncReadParseBuffer&) = delete;
+    AsyncReadParseBuffer(AsyncReadParseBuffer&&) = delete;
+    AsyncReadParseBuffer& operator=(AsyncReadParseBuffer&&) = delete;
 
     // destructor: stop thread and clear buffer
-    ~AsyncReadBuffer() {
+    ~AsyncReadParseBuffer() {
         batch_num_ = 0;
         load_cv_.notify_all();
         get_cv_.notify_all();
@@ -47,9 +52,10 @@ class AsyncReadBuffer final {
      * \param task_id identifier to this running task
      * \param num_threads the number of worker threads we are using
      * \param batch_size the size of each batch
-     * \param batch_num the number of each batch
+     * \param batch_num the number of batches
+     * \param num_features the number of features in a sample
      */
-    void init(const std::string& url, int task_id, int num_threads, int batch_size, int batch_num) {
+    void init(const std::string& url, int task_id, int num_threads, int batch_size, int batch_num, int num_features) {
         if (init_) return;
         std::lock_guard<std::mutex> lock(mutex_);
         if (init_) return;
@@ -57,14 +63,15 @@ class AsyncReadBuffer final {
         // The initialization work
         batch_size_ = batch_size;
         batch_num_ = batch_num;
+        num_features_ = num_features;
         buffer_.resize(batch_num);
         infmt_.reset(new io::LineInputFormatML(num_threads, task_id));
         infmt_->set_input(url);
-        thread_ = std::thread(&AsyncReadBuffer::main, this);
+        thread_ = std::thread(&AsyncReadParseBuffer::main, this);
         init_ = true;
     }
 
-    // store batch_size_ lines in the batch and return true if success
+    // store batch_size_ samples in the batch and return true if success
     bool get_batch(BatchT& batch) {
         assert(init_ == true);
         {
@@ -110,11 +117,10 @@ class AsyncReadBuffer final {
             if (batch_num_ == 0) return;
 
             // Try to fill a batch
-            BatchT tmp;
-            tmp.reserve(batch_size_);
+            BatchT tmp(batch_size_);
             for (int i = 0; i < batch_size_; ++i) {
                 if (infmt_->next(record)) {
-                    tmp.push_back(record.to_string());
+                    parse_line(record, tmp);
                 } else {
                     eof_ = true;
                     break;
@@ -128,7 +134,7 @@ class AsyncReadBuffer final {
                     if (batch_num_ == 0) return;
                     load_cv_.wait(lock);
                 }
-                if (!tmp.empty()) {
+                if (!tmp.data.empty()) {
                     ++batch_count_;
                     buffer_[end_] = std::move(tmp);
                     if (++end_ >= batch_num_) end_ -= batch_num_;
@@ -140,9 +146,12 @@ class AsyncReadBuffer final {
         husky::LOG_I << "loading thread finished";  // for debug
     }
 
+    virtual void parse_line(const boost::string_ref& chunk, BatchT& batch) = 0;
+
     // input
-    std::unique_ptr<io::LineInputFormat> infmt_;
+    std::unique_ptr<io::LineInputFormatML> infmt_;
     std::atomic<bool> eof_{false};
+    int num_features_ = 0;
 
     // buffer
     std::vector<BatchT> buffer_;
@@ -160,66 +169,50 @@ class AsyncReadBuffer final {
     bool init_ = false;
 };
 
-template <typename T>
-class SampleReader {
+template <typename Sample>
+class SimpleSampleReader{
    public:
-    SampleReader() = delete;
-    SampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : batch_size_(batch_size), num_features_(num_features), tbf_(tbf) {
-        assert(tbf->get_batch_size() == batch_size_);  // may not require equality
-    }
-
-    int get_batch_size() const {
-        return batch_size_;
-    }
+    SimpleSampleReader() = delete;
+    SimpleSampleReader(AsyncReadParseBuffer<Sample>* tbf) : tbf_(tbf) {}
 
     virtual std::vector<husky::constants::Key> prepare_next_batch() {
-        index_set_.clear();
-        typename AsyncReadBuffer::BatchT raw;
-        if (!tbf_->get_batch(raw)) {
-            this->batch_data_.clear();
+        typename AsyncReadParseBuffer<Sample>::BatchT batch;
+        if (!tbf_->get_batch(batch)) {
+            batch_data_.clear();
             return {0};  // dummy key
         }
-        int idx = 0;
-        this->batch_data_.resize(raw.size());
-        for (auto record : raw) {
-            parse_line(record, idx++);
-        }
-        return {index_set_.begin(), index_set_.end()};
+        batch_data_ = std::move(batch.data);
+        return {batch.keys.begin(), batch.keys.end()};
     }
 
-    const std::vector<T>& get_data() {
+    const std::vector<Sample>& get_data() {
         return batch_data_;
     }
 
     inline bool is_empty() { return tbf_->end_of_file() && !tbf_->ask(); }
+    inline int get_batch_size() const { return tbf_->get_batch_size(); }
 
    protected:
-    virtual void parse_line(const std::string& chunk, int pos) = 0;
-
-    AsyncReadBuffer* tbf_;
-    int batch_size_;
-    int num_features_;
-    std::vector<T> batch_data_;
-    std::set<husky::constants::Key> index_set_;
+    AsyncReadParseBuffer<Sample>* tbf_;
+    std::vector<Sample> batch_data_;
 };
 
-template <typename FeatureT, typename LabelT, bool is_sparse>
-class LIBSVMSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<FeatureT, LabelT, is_sparse>> {
+template <typename Sample>
+class LIBSVMAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample> {
    public:
-    using Sample = husky::lib::ml::LabeledPointHObj<FeatureT, LabelT, is_sparse>;
-
-    LIBSVMSampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
+    LIBSVMAsyncReadParseBuffer() : AsyncReadParseBuffer<Sample>() {}
     
-    void parse_line(const std::string& chunk, int pos) override {
+    void parse_line(const boost::string_ref& chunk, typename AsyncReadParseBuffer<Sample>::BatchT& batch) override {
         if (chunk.empty()) return;
 
         Sample this_obj(this->num_features_);
 
-        char* chunk_pos = NULL;
+        // parse
+        char* pos;
         std::unique_ptr<char> chunk_ptr(new char[chunk.size() + 1]);
         strncpy(chunk_ptr.get(), chunk.data(), chunk.size());
         chunk_ptr.get()[chunk.size()] = '\0';
-        char* tok = strtok_r(chunk_ptr.get(), " \t:", &chunk_pos);
+        char* tok = strtok_r(chunk_ptr.get(), " \t:", &pos);
 
         int i = -1;
         int idx;
@@ -227,55 +220,51 @@ class LIBSVMSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<
         while (tok != NULL) {
             if (i == 0) {
                 idx = std::atoi(tok) - 1;
-                this->index_set_.insert(idx);
+                batch.keys.insert(idx);
                 i = 1;
             } else if (i == 1) {
                 val = std::atol(tok);
                 this_obj.x.set(idx, val);
                 i = 0;
-            } else {  // the first is the label
+            } else {
                 this_obj.y = std::atol(tok);
                 i = 0;
             }
             // Next key/value pair
-            tok = strtok_r(NULL, " \t:", &chunk_pos);
+            tok = strtok_r(NULL, " \t:", &pos);
         }
-
-        this->batch_data_[pos] = std::move(this_obj);
+        batch.data.push_back(std::move(this_obj));
     }
 };
 
-template <typename FeatureT, typename LabelT, bool is_sparse>
-class TSVSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<FeatureT, LabelT, is_sparse>> {
+template <typename Sample>
+class TSVAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample> {
    public:
-    using Sample = husky::lib::ml::LabeledPointHObj<FeatureT, LabelT, is_sparse>;
+    TSVAsyncReadParseBuffer() : AsyncReadParseBuffer<Sample>() {}
 
-    TSVSampleReader(int batch_size, int num_features, AsyncReadBuffer* tbf) : SampleReader<Sample>(batch_size, num_features, tbf) {}
-
-    void parse_line(const std::string& chunk, int pos) override {
+    void parse_line(const boost::string_ref& chunk, typename AsyncReadParseBuffer<Sample>::BatchT& batch) override {
         if (chunk.empty()) return;
 
         Sample this_obj(this->num_features_);
 
-        char* chunk_pos = NULL;
+        char* pos;
         std::unique_ptr<char> chunk_ptr(new char[chunk.size() + 1]);
         strncpy(chunk_ptr.get(), chunk.data(), chunk.size());
         chunk_ptr.get()[chunk.size()] = '\0';
-        char* tok = strtok_r(chunk_ptr.get(), " \t", &chunk_pos);
+        char* tok = strtok_r(chunk_ptr.get(), " \t", &pos);
 
         int i = 0;
         while (tok != NULL) {
             if (i < this->num_features_) {
-                this->index_set_.insert(i);  // TODO: not necessary to store keys for dense form
+                batch.keys.insert(i);  // TODO: not necessary to store keys for dense form
                 this_obj.x.set(i++, std::stol(tok));
             } else {
                 this_obj.y = std::stol(tok);
             }
             // Next key/value pair
-            tok = strtok_r(NULL, " \t", &chunk_pos);
+            tok = strtok_r(NULL, " \t", &pos);
         }
-
-        this->batch_data_[pos] = std::move(this_obj);
+        batch.data.push_back(std::move(this_obj));
     }
 };
 

@@ -87,6 +87,13 @@ target_link_libraries(LRSampleReader husky-ml)
 target_link_libraries(LRSampleReader ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(LRSampleReader)
 
+# LRSampleReaderParse
+add_executable(LRSampleReaderParse logistic_regression_simplesr.cpp)
+target_link_libraries(LRSampleReaderParse husky)
+target_link_libraries(LRSampleReaderParse husky-ml)
+target_link_libraries(LRSampleReaderParse ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(LRSampleReaderParse)
+
 # SPMT_PS
 add_executable(SPMT_PS spmt_ps_compare.cpp)
 target_link_libraries(SPMT_PS husky)

@@ -1,4 +1,5 @@
 #include "lib/sample_reader.hpp"
+#include "lib/sample_reader_parse.hpp"
 
 #include "worker/engine.hpp"
 
@@ -66,6 +67,20 @@ int main(int argc, char** argv) {
         husky::LOG_I << "task1 read " << count << " records in total.";
     });
     
+    auto task2 = TaskFactory::Get().CreateTask<HuskyTask>(2, 3);
+    LIBSVMAsyncReadParseBuffer<husky::lib::ml::LabeledPointHObj<float, float, true>> libsvm_buffer;
+    engine.AddTask(std::move(task2), [&libsvm_buffer, batch_size, batch_num, num_features](const Info& info) {
+        libsvm_buffer.init(Context::get_param("input"), info.get_task_id(), 1, batch_size, batch_num, num_features);
+        SampleReaderPure<lib::ml::LabeledPointHObj<float, float, true>> reader(&libsvm_buffer);
+        int count = 0;
+        while (!reader.is_empty()) {
+            auto keys = reader.prepare_next_batch();
+            auto data = reader.get_data();
+            count += data.size();
+        }
+        husky::LOG_I << "task2 read " << count << " records in total.";
+    });
+
     engine.Submit();
     engine.Exit();
 }
