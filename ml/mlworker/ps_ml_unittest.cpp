@@ -88,7 +88,7 @@ TEST_F(TestPS, Construct) {
     ml::mlworker::SSPWorker<float> worker4(info);
 }
 
-void testPushPull(ml::mlworker::GenericMLWorker* worker) {
+void testPushPull(ml::mlworker::GenericMLWorker<float>* worker) {
     // PushPull
     std::vector<husky::constants::Key> keys = {0,10,20,30,40,50,60,70,80,90};
     std::vector<float> old_vals;
@@ -97,7 +97,7 @@ void testPushPull(ml::mlworker::GenericMLWorker* worker) {
     worker->Push(keys, vals);
 }
 
-void testV2(ml::mlworker::GenericMLWorker* worker) {
+void testV2(ml::mlworker::GenericMLWorker<float>* worker) {
     // v2 APIs
     std::vector<husky::constants::Key> keys = {0,10,20,30,40,50,60,70,80,90};
     worker->Prepare_v2(keys);
