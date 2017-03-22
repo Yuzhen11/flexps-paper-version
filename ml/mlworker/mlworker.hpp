@@ -11,9 +11,8 @@ namespace mlworker {
 
 /*
  * It serves as an interface for all the parameter-update model in ML
- *
- * TODO: Now we assume the parameters are float
  */
+template<typename Val>
 class GenericMLWorker {
    public:
     using Callback = std::function<void()>;
@@ -23,10 +22,10 @@ class GenericMLWorker {
      * Push/Pull APIs are very suitable for PS, but may not be suitable for
      * Hogwild! and Single
      */
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<float>& vals) {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) {
         throw husky::base::HuskyException("Push Not implemented");
     }
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<float>* vals) {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) {
         throw husky::base::HuskyException("Pull Not implemented");
     }
 
@@ -39,9 +38,9 @@ class GenericMLWorker {
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) {
         throw husky::base::HuskyException("v2 Not implemented");
     }
-    virtual float Get_v2(size_t idx) { throw husky::base::HuskyException("v2 Not implemented"); }
-    virtual void Update_v2(size_t idx, float val) { throw husky::base::HuskyException("v2 Not implemented"); }
-    virtual void Update_v2(const std::vector<float>& vals) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual Val Get_v2(size_t idx) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual void Update_v2(size_t idx, Val val) { throw husky::base::HuskyException("v2 Not implemented"); }
+    virtual void Update_v2(const std::vector<Val>& vals) { throw husky::base::HuskyException("v2 Not implemented"); }
     virtual void Clock_v2(){};  // only for PS
 };
 

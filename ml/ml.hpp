@@ -16,10 +16,10 @@
 namespace ml {
 
 template<typename Val>
-std::unique_ptr<mlworker::GenericMLWorker> 
+std::unique_ptr<mlworker::GenericMLWorker<Val>> 
 CreateMLWorker(const husky::Info& info) {
     auto& hint = info.get_hint();
-    std::unique_ptr<mlworker::GenericMLWorker> mlworker;
+    std::unique_ptr<mlworker::GenericMLWorker<Val>> mlworker;
     try {
         if (hint.at(husky::constants::kType) == husky::constants::kPS) {
             if (hint.find(husky::constants::kWorkerType) != hint.end()) {

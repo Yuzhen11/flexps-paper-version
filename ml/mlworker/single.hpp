@@ -18,7 +18,7 @@ namespace ml {
 namespace mlworker {
 
 template<typename Val>
-class SingleWorker : public mlworker::GenericMLWorker {
+class SingleWorker : public mlworker::GenericMLWorker<Val> {
    public:
     SingleWorker() = delete;
     SingleWorker(const SingleWorker&) = delete;

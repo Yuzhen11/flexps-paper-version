@@ -148,7 +148,7 @@ class BSPServer : public ServerBase {
                 blocked_pulls_[progress].emplace_back(cmd, src, ts, std::move(bin));
             } else { // first src in pull_iter_, reply
                 if (bin.size()) {
-                    KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd);
+                    KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, bin, store_, cmd, is_vector_);
                     Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
                 if (pull_count_[pull_iter_] == num_workers_) {

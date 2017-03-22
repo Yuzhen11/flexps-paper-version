@@ -19,7 +19,7 @@ namespace mlworker {
  * Assume that in each epoch, Pull will be invoked first and then the Push.
  */
 template<typename Val>
-class PSWorker : public mlworker::GenericMLWorker {
+class PSWorker : public mlworker::GenericMLWorker<Val> {
    public:
     PSWorker() = delete;
     PSWorker(const PSWorker&) = delete;
@@ -44,6 +44,7 @@ class PSWorker : public mlworker::GenericMLWorker {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
         ts_ = kvworker_->Push(model_id_, keys, vals, true, true);
+        kvworker_->Wait(model_id_, ts_);
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         assert(push_count_ == pull_count_);
@@ -93,7 +94,7 @@ class PSWorker : public mlworker::GenericMLWorker {
 };
 
 template<typename Val>
-class SSPWorker : public mlworker::GenericMLWorker {
+class SSPWorker : public mlworker::GenericMLWorker<Val> {
    public:
     SSPWorker() = delete;
     SSPWorker(const SSPWorker&) = delete;
@@ -206,7 +207,7 @@ class SSPWorker : public mlworker::GenericMLWorker {
 };
 
 template<typename Val>
-class SSPWorkerChunk : public mlworker::GenericMLWorker {
+class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
    public:
     SSPWorkerChunk() = delete;
     SSPWorkerChunk(const SSPWorkerChunk&) = delete;
@@ -284,7 +285,7 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker {
 };
 
 template<typename Val>
-class PSSharedWorker : public mlworker::GenericMLWorker {
+class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
     struct PSState {
         model::ChunkBasedPSModel<Val>* p_model_;
     };
@@ -423,7 +424,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker {
 };
 
 template<typename Val>
-class PSSharedChunkWorker : public mlworker::GenericMLWorker {
+class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
     struct PSState {
         model::ChunkBasedPSModel<Val>* p_model_;
     };

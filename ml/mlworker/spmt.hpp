@@ -27,7 +27,7 @@ namespace mlworker {
 
 
 template<typename Val>
-class SPMTWorker : public mlworker::GenericMLWorker {
+class SPMTWorker : public mlworker::GenericMLWorker<Val> {
     /*
      * The shared state needed by SPMT
      */
