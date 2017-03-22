@@ -11,10 +11,10 @@ void KVStore::Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoo
         if (worker_info.get_process_id(i) != worker_info.get_process_id()) {
             el->register_peer_thread(worker_info.get_process_id(i), num_workers + i);  // {proc(i), num_workers+i}
         } else {
-            auto* mailbox = new husky::LocalMailbox(zmq_context);
+            auto mailbox = std::make_unique<husky::LocalMailbox>(zmq_context);
             mailbox->set_thread_id(num_workers + i);
-            el->register_mailbox(*mailbox);
-            kvworker_mailboxes.push_back(mailbox);
+            el->register_mailbox(*mailbox.get());
+            kvworker_mailboxes.push_back(std::move(mailbox));
         }
     }
 
@@ -25,10 +25,10 @@ void KVStore::Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoo
             if (i != worker_info.get_process_id()) {
                 el->register_peer_thread(i, tid);
             } else {
-                auto* mailbox = new husky::LocalMailbox(zmq_context);
+                auto mailbox = std::make_unique<husky::LocalMailbox>(zmq_context);
                 mailbox->set_thread_id(tid);
-                el->register_mailbox(*mailbox);
-                kvserver_mailboxes.push_back(mailbox);
+                el->register_mailbox(*mailbox.get());
+                kvserver_mailboxes.push_back(std::move(mailbox));
             }
         }
     }
@@ -36,7 +36,7 @@ void KVStore::Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoo
     // Create Servers
     for (int i = 0; i < num_servers_per_process; ++ i) {
         int server_id = i * num_processes_ + worker_info.get_process_id();
-        kvservers.push_back(new kvstore::KVManager(server_id, *kvserver_mailboxes[i], husky::constants::kv_channel_id));
+        kvservers.push_back(new kvstore::KVManager(server_id, *kvserver_mailboxes[i].get(), husky::constants::kv_channel_id));
     }
 
     // Create kvworkers
@@ -57,7 +57,7 @@ void KVStore::Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoo
                 info.local_server_ids.insert(worker_info.get_process_id() + j * num_processes_);
             }
             info.server_id_to_global_id= server2global;
-            kvworkers.push_back(new kvstore::KVWorker(info, *kvworker_mailboxes[k]));
+            kvworkers.push_back(new kvstore::KVWorker(info, *kvworker_mailboxes[k].get()));
             k += 1;
         }
     }
@@ -71,28 +71,20 @@ void KVStore::Stop() {
     is_started_ = false;
     kv_id = 0;
     num_processes_ = -1;
-    // Clear the RangeManager
-    RangeManager::Get().Clear();
     // 1. delete the kvworkers
     for (auto* p : kvworkers) {
         delete p;
     }
     kvworkers.clear();
-    // destroy the mailboxes
-    for (auto* p : kvworker_mailboxes) {
-        delete p;
-    }
     kvworker_mailboxes.clear();
     // 2. delete the kvservers
     for (auto* p : kvservers) {
         delete p;
     }
     kvservers.clear();
-    // destroy the mailbox
-    for (auto* p : kvserver_mailboxes) {
-        delete p;
-    }
     kvserver_mailboxes.clear();
+    // Clear the RangeManager
+    RangeManager::Get().Clear();
 }
 
 }  // namespace kvstore

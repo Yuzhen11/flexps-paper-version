@@ -102,10 +102,10 @@ class KVStore {
     // kv_id counter
     int kv_id = 0;
     // mailboxes for kvworker
-    std::vector<husky::LocalMailbox*> kvworker_mailboxes;
+    std::vector<std::unique_ptr<husky::LocalMailbox>> kvworker_mailboxes;
     std::vector<KVWorker*> kvworkers;
     // mailbox for kvserver
-    std::vector<husky::LocalMailbox*> kvserver_mailboxes;
+    std::vector<std::unique_ptr<husky::LocalMailbox>> kvserver_mailboxes;
     std::vector<KVManager*> kvservers;
 
     int num_processes_ = -1;

@@ -11,7 +11,7 @@ namespace svm {
 namespace {
 
 // The mini-batch SGD updator
-void batch_sgd_update_svm_dense(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+void batch_sgd_update_svm_dense(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker,
                       datastore::BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, 
                       float alpha,
                       int num_params) {
@@ -52,7 +52,7 @@ void batch_sgd_update_svm_dense(const std::unique_ptr<ml::mlworker::GenericMLWor
     worker->Push(keys, delta);
 }
 
-float get_test_error_svm_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+float get_test_error_svm_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker,
                         datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
                         int test_samples = -1) {
     test_samples = 1000;

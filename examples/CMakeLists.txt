@@ -19,8 +19,8 @@ include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${HUSKY_EX
 
 # ClusterManagerMain
 add_executable(ClusterManagerMain ClusterManagerMain.cpp)
-target_link_libraries(ClusterManagerMain husky)
 target_link_libraries(ClusterManagerMain husky-ml-master)
+target_link_libraries(ClusterManagerMain husky)
 target_link_libraries(ClusterManagerMain ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(ClusterManagerMain)
 

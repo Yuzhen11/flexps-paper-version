@@ -44,7 +44,7 @@ float log_loss(float label, float predict) {
 }
 
 template <template <typename> typename ContainerT>
-int batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker,
+int batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker,
         ContainerT<LabeledPointHObj<float, float, true>>* container, float alpha, int num_params, float& loss) {
     alpha /= container->get_batch_size();
     auto keys = container->prepare_next_batch();
@@ -86,7 +86,7 @@ int batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worke
 }
 
 template <template <typename> typename ContainerT>
-float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker>& worker, 
+float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker, 
         ContainerT<LabeledPointHObj<float, float, true>>* container,
         int num_params, int test_samples = -1) {
     std::vector<husky::constants::Key> all_keys;
