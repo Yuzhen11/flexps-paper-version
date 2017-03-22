@@ -13,6 +13,7 @@
 namespace husky {
 
 void GreedyTaskScheduler::init_tasks(const std::vector<std::shared_ptr<Task>>& tasks) {
+    global_guarantee_threads(tasks);
     tasks_ = tasks;
     task_status_.clear();
     task_status_.resize(tasks_.size(), 0);
@@ -52,6 +53,8 @@ std::vector<std::shared_ptr<Instance>> GreedyTaskScheduler::extract_instances() 
             // create the instance
             std::shared_ptr<Instance> instance(new Instance);
             instance_basic_setup(instance, *tasks_[i]);
+
+            global_guarantee_threads(instance);
 
             int required_num_threads = instance->get_num_workers();
             std::vector<int> candidate_proc = get_preferred_proc(instance->get_id());
