@@ -11,6 +11,7 @@
 namespace husky {
 
 void SequentialTaskScheduler::init_tasks(const std::vector<std::shared_ptr<Task>>& tasks) {
+    global_guarantee_threads(tasks);
     for (auto& task : tasks) {
         tasks_queue_.push(task);
     }
@@ -52,7 +53,9 @@ std::shared_ptr<Instance> SequentialTaskScheduler::task_to_instance(const Task& 
     // create the instance
     std::shared_ptr<Instance> instance(new Instance);
     instance_basic_setup(instance, task);
-
+    
+    // guarantee all instances
+    global_guarantee_threads(instance);
 
     int required_num_threads = instance->get_num_workers();
     std::vector<int> candidate_proc = get_preferred_proc(instance->get_id());

@@ -7,6 +7,7 @@
 #include "cluster_manager/task_scheduler/history_manager.hpp"
 #include "core/instance.hpp"
 #include "core/task.hpp"
+#include "worker/engine.hpp"
 
 namespace husky {
 
@@ -24,6 +25,48 @@ void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task)
     // TODO: ClusterManager needs to design workers number for MLTaskType if user didn't set it
     if (task.get_type() == Task::Type::MLTaskType && task.get_num_workers() == 0)
         instance->set_num_workers(1);
+}
+
+void global_guarantee_threads(const std::vector<std::shared_ptr<Task>>& tasks) {
+    int total_workers = Context::get_num_workers();
+    for(auto task:tasks) {
+        if (total_workers < task->get_num_workers()) {
+            throw base::HuskyException("[task_scheduler_utils] max num of threads overflow.");
+        }
+    }
+}
+
+void global_guarantee_threads(std::shared_ptr<Instance>& instance) {
+    int total_workers = Context::get_num_workers();
+    int total_process = Context::get_num_processes();
+    bool is_guarantee = true;
+    if (instance->get_type() == Task::Type::ConfigurableWorkersTaskType) {
+        std::vector<int> worker_num = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num();
+        std::vector<std::string> worker_num_type = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num_type();
+        for(int i = 0; i < worker_num_type.size(); i++) {
+            std::string type = worker_num_type[i];
+
+            if (type == "threads_per_worker") {
+                if (total_workers < worker_num[i] * total_process) {
+                    is_guarantee = false;
+                    break;
+                }
+            } else {
+                if (total_workers < worker_num[i]) {
+                    is_guarantee = false;
+                    break;
+                }
+            }
+        }
+    } else {
+        if (total_workers < instance->get_num_workers()){
+            is_guarantee = false;
+        }
+    }
+
+    if (!is_guarantee) {
+        throw base::HuskyException("[task_scheduler_utils] max num of threads overflow.");
+    }
 }
 
 // Select the processes which are least visited by this task as candidates

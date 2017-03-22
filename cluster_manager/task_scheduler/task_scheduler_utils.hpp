@@ -13,6 +13,16 @@ namespace husky {
 void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task);
 
 /*
+ * guarantee each task threads is not greater than all threads in cluster
+ */
+void global_guarantee_threads(std::shared_ptr<Instance>& instance);
+
+/*
+ *
+ */
+void global_guarantee_threads(const std::vector<std::shared_ptr<Task>>& tasks); 
+
+/*
  * Using task history information to let task travel in different processes
  */
 std::vector<int> get_preferred_proc(int task_id);
