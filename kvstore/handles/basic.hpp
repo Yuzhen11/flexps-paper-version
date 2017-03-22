@@ -13,7 +13,7 @@ namespace {
 
 // update function for push
 template <typename Val, typename StorageT>
-void update(int kv_id, int server_id, husky::base::BinStream& bin, StorageT& store, int cmd, bool is_vector = false, bool is_assign = true) {
+void update(int kv_id, int server_id, husky::base::BinStream& bin, StorageT& store, int cmd, bool is_vector, bool is_assign) {
     if (cmd == 0) {
         KVPairs<Val> recv;
         bin >> recv.keys >> recv.vals;
@@ -92,7 +92,7 @@ void update(int kv_id, int server_id, husky::base::BinStream& bin, StorageT& sto
 
 // retrieve function to retrieve the valued indexed by key
 template<typename Val, typename StorageT>
-KVPairs<Val> retrieve(int kv_id, int server_id, husky::base::BinStream& bin, StorageT& store, int cmd, bool is_vector = false) {
+KVPairs<Val> retrieve(int kv_id, int server_id, husky::base::BinStream& bin, StorageT& store, int cmd, bool is_vector) {
     if (cmd == 0) {
         KVPairs<Val> recv;
         KVPairs<Val> send;
