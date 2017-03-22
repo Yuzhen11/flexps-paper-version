@@ -6,6 +6,7 @@
 #include "lib/sample_reader.hpp"
 #include "lib/task_utils.hpp"
 #include "lib/app_config.hpp"
+#include "husky/io/input/binary_inputformat.hpp"
 
 using namespace husky;
 
@@ -36,43 +37,67 @@ int main(int argc, char** argv) {
     int kv1 = create_kvstore_and_set_hint(hint, task1, config.num_params);
     assert(kv1 != -1);
 
-    engine.AddTask(task1, [config](const Info& info) {
-        io::LineInputFormatML infmt(config.num_train_workers, info.get_task_id());
-        infmt.set_input(Context::get_param("input"));
-        typename io::LineInputFormat::RecordT record;
+    bool is_binary = true;
+    bool parse = true;
+    engine.AddTask(task1, [is_binary, parse, config](const Info& info) {
+        if (is_binary == false) {
+            io::LineInputFormatML infmt(config.num_train_workers, info.get_task_id());
+            infmt.set_input(Context::get_param("input"));
+            typename io::LineInputFormat::RecordT record;
 
-        bool parse = true;
-        int parse_time = 0;
-        int read_count = 0;
-        while(infmt.next(record)) {
-            // parse
-            if (parse) {
-                auto start_time = std::chrono::steady_clock::now();
-                boost::char_separator<char> sep(" \t");
-                boost::tokenizer<boost::char_separator<char>> tok(record, sep);
-                bool is_y = true;
-                for (auto& w : tok) {
-                    if (!is_y) {
-                        boost::char_separator<char> sep2(":");
-                        boost::tokenizer<boost::char_separator<char>> tok2(w, sep2);
-                        auto it = tok2.begin();
-                        int idx = std::stoi(*it++) - 1;  // feature index from 0 to num_fea - 1
-                        double val = std::stod(*it++);
-                    } else {
-                        is_y = false;
+            int parse_time = 0;
+            int read_count = 0;
+            while(infmt.next(record)) {
+                // parse
+                if (parse) {
+                    auto start_time = std::chrono::steady_clock::now();
+                    boost::char_separator<char> sep(" \t");
+                    boost::tokenizer<boost::char_separator<char>> tok(record, sep);
+                    bool is_y = true;
+                    for (auto& w : tok) {
+                        if (!is_y) {
+                            boost::char_separator<char> sep2(":");
+                            boost::tokenizer<boost::char_separator<char>> tok2(w, sep2);
+                            auto it = tok2.begin();
+                            int idx = std::stoi(*it++) - 1;  // feature index from 0 to num_fea - 1
+                            double val = std::stod(*it++);
+                        } else {
+                            is_y = false;
+                        }
+                    }
+                    auto end_time = std::chrono::steady_clock::now();
+                    parse_time += std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+                }
+                read_count += 1;
+                if (read_count != 0 && read_count%10000 == 0)
+                    husky::LOG_I << "read_count: " << read_count;
+            }
+            if (parse)
+                husky::LOG_I << "parse time: " << parse_time/1000 << " ms";
+            
+            husky::LOG_I << "read_count: " << read_count;
+        } else {
+            husky::io::BinaryInputFormat infmt(Context::get_param("input"), "");
+            typename husky::io::BinaryInputFormat::RecordT record;  // BinaryInputFormatRecord
+            int read_count = 0;
+            while (infmt.next(record)) {
+                husky::base::BinStream& bin = husky::io::BinaryInputFormat::recast(record);
+                if (parse) {
+                    float y;
+                    std::vector<std::pair<int, float>> v;
+                    while (bin.size()) {
+                        bin >> y >> v;
+                        // husky::LOG_I << y;
+                        // for (auto p : v)
+                        //     husky::LOG_I << p.first << " " << p.second;
+                        read_count += 1;
+                        if (read_count != 0 && read_count%10000 == 0)
+                            husky::LOG_I << "read_count: " << read_count;
                     }
                 }
-                auto end_time = std::chrono::steady_clock::now();
-                parse_time += std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
             }
-            read_count += 1;
-            if (read_count != 0 && read_count%10000 == 0)
-                husky::LOG_I << "read_count: " << read_count;
+            husky::LOG_I << "read_count: " << read_count;
         }
-        if (parse)
-            husky::LOG_I << "parse time: " << parse_time/1000 << " ms";
-        
-        husky::LOG_I << "read_count: " << read_count;
     });
 
     // Submit Task
