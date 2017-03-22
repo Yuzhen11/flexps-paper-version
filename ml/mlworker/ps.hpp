@@ -116,11 +116,7 @@ class SSPWorker : public mlworker::GenericMLWorker {
         ts_ = kvworker_->Push(model_id_, keys, vals);
         // update local cache but not cache timestamp
         for (int i = 0; i < keys.size(); i++) {
-            if (cached_kv_.find(keys[i]) != cached_kv_.end()) {
-                cached_kv_.at(keys[i]) = vals[i];
-            } else {
-                cached_kv_.emplace(std::make_pair(keys[i], vals[i]));
-            }
+            cached_kv_.at(keys[i]) += vals[i];
         }
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
@@ -152,19 +148,17 @@ class SSPWorker : public mlworker::GenericMLWorker {
 
             // Clear cache and update cache_ts_
             if (uncached_keys.size() == keys.size()) {
-                if (cached_kv_.size() > 0) {
-                    cached_kv_.clear();
-                }
+                cached_kv_.clear();
                 cache_ts_ = pull_count_;
             }
             for (int i = 0; i < uncached_keys.size(); i++) {
-                cached_kv_.insert(std::make_pair(uncached_keys[i], (*vals)[i]));
+                cached_kv_[uncached_keys[i]] = vals->at(i);
             }
         }
 
         // update all vals using cache
         vals->resize(keys.size());
-        for (int i = 0; i < keys.size(); i++) {
+        for (int i = 0; i < keys.size(); ++i) {
             (*vals)[i] = cached_kv_[keys[i]];
         }
     }

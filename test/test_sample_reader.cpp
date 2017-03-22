@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
     LIBSVMAsyncReadParseBuffer<husky::lib::ml::LabeledPointHObj<float, float, true>> libsvm_buffer;
     engine.AddTask(std::move(task2), [&libsvm_buffer, batch_size, batch_num, num_features](const Info& info) {
         libsvm_buffer.init(Context::get_param("input"), info.get_task_id(), 1, batch_size, batch_num, num_features);
-        SampleReaderPure<lib::ml::LabeledPointHObj<float, float, true>> reader(&libsvm_buffer);
+        SimpleSampleReader<lib::ml::LabeledPointHObj<float, float, true>> reader(&libsvm_buffer);
         int count = 0;
         while (!reader.is_empty()) {
             auto keys = reader.prepare_next_batch();
