@@ -18,15 +18,19 @@
 
 namespace kvstore {
 
-struct RecvKVPairsBase {};
+struct RecvKVPairsBase {
+    virtual ~RecvKVPairsBase() {}
+};
 
 template <typename Val>
 struct RecvKVPairs : public RecvKVPairsBase {
+    virtual ~RecvKVPairs() {}
     std::vector<KVPairs<Val>> recv_kvs;
 };
 
 template <typename Val>
 struct RecvKVPairsWithMinClock : public RecvKVPairsBase {
+    virtual ~RecvKVPairsWithMinClock() {}
     std::vector<std::pair<KVPairs<Val>, int>> recv_kvs;  // (kvpairs, min_clock)
 };
 
