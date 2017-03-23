@@ -6,3 +6,11 @@ target_link_libraries(ReadLocalGlobal husky)
 target_link_libraries(ReadLocalGlobal husky-ml)
 target_link_libraries(ReadLocalGlobal ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(ReadLocalGlobal)
+
+# LogisticRegression SVRG
+add_executable(LRSVRG logistic_regression_svrg.cpp)
+target_link_libraries(LRSVRG husky)
+target_link_libraries(LRSVRG husky-ml)
+target_link_libraries(LRSVRG ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(LRSVRG)
+
