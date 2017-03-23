@@ -12,7 +12,7 @@ using namespace husky;
 
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv);
+    config::InitContext(argc, argv, {"parse", "is_binary"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);
@@ -37,8 +37,9 @@ int main(int argc, char** argv) {
     int kv1 = create_kvstore_and_set_hint(hint, task1, config.num_params);
     assert(kv1 != -1);
 
-    bool is_binary = true;
-    bool parse = true;
+    bool is_binary = Context::get_param("is_binary") == "on" ? true : false;
+    bool parse = Context::get_param("parse") == "on"? true : false;
+    husky::LOG_I << "is_binary: " << is_binary << " parse: " << parse;
     engine.AddTask(task1, [is_binary, parse, config](const Info& info) {
         if (is_binary == false) {
             io::LineInputFormatML infmt(config.num_train_workers, info.get_task_id());

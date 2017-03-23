@@ -53,12 +53,19 @@ void ShowConfig(const AppConfig& config) {
     husky::LOG_I << RED(ss.str());
 }
 
-void InitContext(int argc, char** argv) {
+void InitContext(int argc, char** argv, const std::vector<std::string>& additional_args = {}) {
+    std::vector<std::string> default_init_args = 
+    {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
+     "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
+     "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer", 
+     "use_chunk", "use_direct_model_transfer", "staleness", "kLoadHdfsType", "ps_worker_type"};
+
+    std::vector<std::string> init_args = default_init_args;
+    // Add additional args
+    init_args.insert(init_args.end(), additional_args.begin(), additional_args.end());
+
     bool rt =
-        init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
-                                    "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
-                                    "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer", 
-                                    "use_chunk", "use_direct_model_transfer", "staleness", "kLoadHdfsType", "ps_worker_type"});
+        init_with_args(argc, argv, init_args);
     if (!rt)
         assert(0);
 }
