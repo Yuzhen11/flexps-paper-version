@@ -58,8 +58,8 @@ auto train = [](datastore::DataStore<LabeledPointHObj<float, float, true>>& data
  * This function is just used to test the Pull/Push functionalities.
  */
 auto dummy_train(config::AppConfig config, const Info& info) {
+    auto worker = ml::CreateMLWorker<float>(info);
     for (int iter = 0; iter < config.num_iters; ++iter) {
-        auto worker = ml::CreateMLWorker<float>(info);
         std::vector<husky::constants::Key> keys;
         // random keys
         // for (int i = 0; i < config.num_params/10; ++ i) {
@@ -75,6 +75,7 @@ auto dummy_train(config::AppConfig config, const Info& info) {
         // husky::LOG_I << ss.str();
         
         // 1 key
+        // keys = {0};
         // if (iter%2 == 0)
         //     keys = {0};
         // else
@@ -82,8 +83,8 @@ auto dummy_train(config::AppConfig config, const Info& info) {
         // keys = {0, 122};
         
         // all keys
-        for (int i = 0; i < config.num_params; ++ i)
-            keys.push_back(i);
+        // for (int i = 0; i < config.num_params; ++ i)
+        //     keys.push_back(i);
 
         std::vector<float> vals;
         // husky::LOG_I << "pull " << info.get_cluster_id() << " Dummy train iter: " << std::to_string(iter);
