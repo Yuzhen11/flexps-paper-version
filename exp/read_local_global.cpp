@@ -7,6 +7,8 @@
 #include "lib/task_utils.hpp"
 #include "lib/app_config.hpp"
 #include "husky/io/input/binary_inputformat.hpp"
+#include "io/input/line_inputformat_ml.hpp"
+#include "io/input/binary_inputformat_ml.hpp"
 
 using namespace husky;
 
@@ -40,7 +42,7 @@ int main(int argc, char** argv) {
     bool is_binary = Context::get_param("is_binary") == "on" ? true : false;
     bool parse = Context::get_param("parse") == "on"? true : false;
     husky::LOG_I << "is_binary: " << is_binary << " parse: " << parse;
-    engine.AddTask(task1, [is_binary, parse, config](const Info& info) {
+    engine.AddTask(task1, [is_binary, parse, config, task1](const Info& info) {
         if (is_binary == false) {
             io::LineInputFormatML infmt(config.num_train_workers, info.get_task_id());
             infmt.set_input(Context::get_param("input"));
@@ -78,8 +80,8 @@ int main(int argc, char** argv) {
             
             husky::LOG_I << "read_count: " << read_count;
         } else {
-            husky::io::BinaryInputFormat infmt(Context::get_param("input"), "");
-            typename husky::io::BinaryInputFormat::RecordT record;  // BinaryInputFormatRecord
+            husky::io::BinaryInputFormatML infmt(Context::get_param("input"), 3, task1.get_id());
+            typename husky::io::BinaryInputFormatImpl::RecordT record;  // BinaryInputFormatRecord
             int read_count = 0;
             while (infmt.next(record)) {
                 husky::base::BinStream& bin = husky::io::BinaryInputFormat::recast(record);

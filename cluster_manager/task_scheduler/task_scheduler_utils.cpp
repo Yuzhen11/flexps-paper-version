@@ -28,44 +28,99 @@ void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task)
 }
 
 void global_guarantee_threads(const std::vector<std::shared_ptr<Task>>& tasks) {
-    int total_workers = Context::get_num_workers();
-    for(auto task:tasks) {
-        if (total_workers < task->get_num_workers()) {
-            throw base::HuskyException("[task_scheduler_utils] max num of threads overflow.");
-        }
-    }
-}
-
-void global_guarantee_threads(std::shared_ptr<Instance>& instance) {
+    // worker info
+    WorkerInfo worker_info = Context::get_worker_info();
     int total_workers = Context::get_num_workers();
     int total_process = Context::get_num_processes();
     bool is_guarantee = true;
-    if (instance->get_type() == Task::Type::ConfigurableWorkersTaskType) {
-        std::vector<int> worker_num = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num();
-        std::vector<std::string> worker_num_type = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num_type();
-        for(int i = 0; i < worker_num_type.size(); i++) {
-            std::string type = worker_num_type[i];
+    std::string error_msg;
+    for(auto task:tasks) {
+        if (task->get_type() == Task::Type::ConfigurableWorkersTaskType) {
+            std::vector<int> worker_num = static_cast<const ConfigurableWorkersTask*>(task.get())->get_worker_num();
+            std::vector<std::string> worker_num_type = static_cast<const ConfigurableWorkersTask*>(task.get())->get_worker_num_type();
+            for(int i = 0; i < worker_num_type.size(); i++) {
+                std::string type = worker_num_type[i];
 
-            if (type == "threads_per_worker") {
-                if (total_workers < worker_num[i] * total_process) {
+                /* std::vector<std::string> worker_num_type_;
+                 *
+                 * worker_num_type equal "threads_per_worker", run 5 threads per worker
+                 * worker_num_type equal "threads_per_cluster", run 5 threads per cluster
+                 * worker_num_type equal "local_threads", run 5 local threads
+                 * worker_num_type equal "threads_traverse_cluster", run 5 threads per worker by per worker
+                 * worker_num_type equal "threads_on_worker:2", run 5 threads on worker 2
+                 */
+                if (type == "threads_per_worker") {
+                    if (total_workers < worker_num[i] * total_process) {
+                        is_guarantee = false;
+                        error_msg = "task_id_" + std::to_string(task->get_id()) + " ConfigurableWorkersTask threads_per_worker exceed.";
+                        break;
+                    }
+                } else if (type == "threads_per_cluster") {
+                    if (total_workers < worker_num[i]) {
+                        is_guarantee = false;
+                        error_msg = "task_id_" + std::to_string(task->get_id()) + " ConfigurableWorkersTask threads_per_cluster exceed.";
+                        break;
+                    }
+                } else if (type == "local_threads") {   // local_threads means making sure all seleted threads are in the same machine
+                    // assume is_guarantee = false
+                    // if none machine has enough local threads, assumption is right
                     is_guarantee = false;
-                    break;
-                }
-            } else {
-                if (total_workers < worker_num[i]) {
-                    is_guarantee = false;
-                    break;
+                    std::vector<int> pids = worker_info.get_pids();
+                    for(auto pid : pids) {
+                        if (worker_info.get_num_local_workers(pid) >= worker_num[i]) {
+                            is_guarantee = true;
+                            break; 
+                        }
+                    }
+                    if(!is_guarantee) {
+                        error_msg = "task_id_" + std::to_string(task->get_id()) + " ConfigurableWorkersTask local_threads exceed.";
+                        break;
+                    }
+                } else if (type == "threads_traverse_cluster") {
+                    // get all pid
+                    std::vector<int> pids = worker_info.get_pids();
+                    for(auto pid : pids) {
+                        if (worker_info.get_num_local_workers(pid) < worker_num[i]) {
+                            is_guarantee = false;
+                            error_msg = "task_id_" + std::to_string(task->get_id()) + " ConfigurableWorkersTask threads_traverse_cluster/pid_" + std::to_string(pid) + " exceed.";
+                            break; 
+                        }
+                    }
+                    if(!is_guarantee) {
+                        break;
+                    }
+                } else if (type.find("threads_on_worker") != std::string::npos) {
+                    std::vector<std::string> split_result;
+                    boost::split(split_result, type, boost::is_any_of(":"));
+                    if (split_result.size() == 2) {
+                        int pos_worker = std::stoi(split_result[1]);
+                        if (worker_info.get_num_local_workers(pos_worker) < worker_num[i]) {
+                            is_guarantee = false;
+                            error_msg = "task_id_" + std::to_string(task->get_id()) + " ConfigurableWorkersTask threads_on_worker/" + split_result[1] + " exceed.";
+                            break; 
+                        }
+                    } else {
+                       throw base::HuskyException("[task_scheduler_utils] illegal threads_on_worker of worker_num about ConfigurableWorkersTask.");
+                    }
+                } else {
+                    throw base::HuskyException("[task_scheduler_utils] illegal threads_on_worker of worker_num_type about ConfigurableWorkersTask.");
                 }
             }
-        }
-    } else {
-        if (total_workers < instance->get_num_workers()){
-            is_guarantee = false;
+
+            if (!is_guarantee) {
+                break;
+            }
+        } else {
+            if (total_workers < task->get_num_workers()){
+                is_guarantee = false;
+                error_msg = "task_id_" + std::to_string(task->get_id()) + " exceed.";
+                break;
+            }
         }
     }
 
     if (!is_guarantee) {
-        throw base::HuskyException("[task_scheduler_utils] max num of threads overflow.");
+        throw base::HuskyException("[task_scheduler_utils] max num of threads overflow. Details: " + error_msg);
     }
 }
 

@@ -123,7 +123,7 @@ class HDFSBlockAssignerML : public HDFSBlockAssigner {
                     return {"", 0};
                 } 
             }
-        } else {    // load data globally
+        } else if (load_type == husky::constants::kLoadHdfsLocally) {    // load data globally
             auto& local_files_locality = all_files_locality[host];
 
             if (local_files_locality.size() == 0) {     // local data is empty
@@ -136,6 +136,8 @@ class HDFSBlockAssignerML : public HDFSBlockAssigner {
 
             // local host has data, so set host to seletced_host 
             selected_host = host;   
+        } else {
+            throw base::HuskyException("[hdfs_binary_assigner_ml] kLoadHdfsType error.");
         }
 
         // according selected_host to get the select file
@@ -144,14 +146,14 @@ class HDFSBlockAssignerML : public HDFSBlockAssigner {
         ret = {selected_file->filename, selected_file->offset};
 
         // cautious: need to remove all replicas in different host
-	for (auto its = all_files_locality.begin(); its != all_files_locality.end(); its++) {
-	    for (auto it = its->second.begin(); it != its->second.end(); it++) {
-		if (it->filename == ret.first && it->offset == ret.second) {
+    	for (auto its = all_files_locality.begin(); its != all_files_locality.end(); its++) {
+    	    for (auto it = its->second.begin(); it != its->second.end(); it++) {
+    		if (it->filename == ret.first && it->offset == ret.second) {
                     all_files_locality[its->first].erase(it);
                     break;
                 }
-	    }   
-	}
+    	    }   
+    	}
 
         return ret;
     }
@@ -163,7 +165,6 @@ class HDFSBlockAssignerML : public HDFSBlockAssigner {
      *     {task_id: {{url: {host:[{filename,offset,block_location}, {filename,offset,block_location}...]}},....}},...
      * }
      */
-    // std::map<int, std::map<std::string, std::unordered_set<BlkDesc>>> files_locality_multi_dict;
     std::map<size_t, std::map<std::string, std::map<std::string, std::unordered_set<BlkDesc>>>> files_locality_multi_dict;
     /*
      * finish_multi_dict describes each available thread has request the url, and response null
@@ -172,8 +173,6 @@ class HDFSBlockAssignerML : public HDFSBlockAssigner {
      *     {task_id:{{url: {{host: count},count_num},...}},...
      * }
      */
-    // std::map<int, std::map<std::string, int>> finish_multi_dict;
-    // std::map<int, std::map<std::string, std::map<std::string, int>>> finish_multi_dict;
     std::map<size_t, std::map<std::string, std::pair<std::map<std::string, size_t>, size_t>>> finish_multi_dict;
 };
 

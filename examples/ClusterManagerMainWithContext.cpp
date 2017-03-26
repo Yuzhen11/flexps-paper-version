@@ -7,6 +7,8 @@
 #include "husky/master/master.hpp"
 
 #include "io/hdfs_assigner_ml.hpp"
+// binary
+#include "io/hdfs_binary_assigner_ml.hpp"
 
 using namespace husky;
 
@@ -24,6 +26,9 @@ int main(int argc, char** argv) {
         // finish some handlers
         HDFSBlockAssignerML hdfs_block_assign;
 
+        // finish some handlers
+        HDFSFileAssignerML hdfs_binary_assigner;
+        
         master.setup();
         master.serve();
     });

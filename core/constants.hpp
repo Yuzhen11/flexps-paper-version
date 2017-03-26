@@ -22,7 +22,11 @@ const uint32_t kTaskType = 100;
 const uint32_t kThreadFinished = 101;
 const uint32_t kClusterManagerFinished = 102;
 
+// hdfs_block
 const uint32_t kIOHDFSSubsetLoad = 301;
+// hdfs_binary
+const uint32_t kIOHDFSBinarySubsetLoad = 302;
+
 
 /*
  * storage type
