@@ -29,6 +29,13 @@ class GenericMLWorker {
         throw husky::base::HuskyException("Pull Not implemented");
     }
 
+    virtual void PushChunks(const std::vector<husky::constants::Key>& keys, const std::vector<std::vector<Val>*>& vals) {
+        throw husky::base::HuskyException("Push Not implemented");
+    }
+    virtual void PullChunks(const std::vector<husky::constants::Key>& keys, std::vector<std::vector<Val>*>& vals) {
+        throw husky::base::HuskyException("Pull Not implemented");
+    }
+
     /*
      * Version 2 APIs, under experiment
      *
