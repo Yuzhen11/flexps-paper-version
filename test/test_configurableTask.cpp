@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     auto& engine = Engine::Get();
 
     auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>(10, 6);
-    task.set_worker_num({3, 2, 1, 1, 2});
+    task.set_worker_num({3, 3, 4, 1, 3});
     task.set_worker_num_type({"threads_per_worker", "threads_per_cluster", "local_threads", "threads_traverse_cluster", "threads_on_worker:0"});
     engine.AddTask(task, [](const Info& info) {
       if (info.get_current_epoch() % 5 == 0) {
