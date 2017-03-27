@@ -46,6 +46,7 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
         ts_ = kvworker_->Push(model_id_, keys, vals, true, true);
         kvworker_->Wait(model_id_, ts_);
     }
+    
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
@@ -53,6 +54,21 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
             kvworker_->Wait(model_id_, ts_);  // Wait for last Push, TODO: Will this cause anything wrong when changing epochs?
         ts_ = kvworker_->Pull(model_id_, keys, vals, true, true);
         kvworker_->Wait(model_id_, ts_);  // Wait for this Pull
+    }
+
+    virtual void PushChunks(const std::vector<husky::constants::Key>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(chunk_keys.size() == chunk_vals.size());
+        push_count_ += 1;
+        ts_ = kvworker_->PushChunks(model_id_, chunk_keys, chunk_vals, true, true);
+        kvworker_->Wait(model_id_, ts_);
+    }
+
+    virtual void PullChunks(const std::vector<husky::constants::Key>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(push_count_ == pull_count_);
+        push_count_ += 1;
+        assert(chunk_keys.size() == chunk_vals.size());
+        ts_ = kvworker_->PullChunks(model_id_, chunk_keys, chunk_vals, true, true);
+        kvworker_->Wait(model_id_, ts_);
     }
 
     // For v2
