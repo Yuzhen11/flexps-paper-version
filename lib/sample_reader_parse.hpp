@@ -18,7 +18,7 @@
 namespace husky {
 namespace {
 
-template <typename Sample>
+template <typename Sample, typename InputFormatT>
 class AsyncReadParseBuffer {
    public:
     struct BatchT {
@@ -65,8 +65,7 @@ class AsyncReadParseBuffer {
         batch_num_ = batch_num;
         num_features_ = num_features;
         buffer_.resize(batch_num);
-        infmt_.reset(new io::LineInputFormatML(num_threads, task_id));
-        infmt_->set_input(url);
+        infmt_.reset(new InputFormatT(url, num_threads, task_id));
         thread_ = std::thread(&AsyncReadParseBuffer::main, this);
         init_ = true;
     }
@@ -110,7 +109,7 @@ class AsyncReadParseBuffer {
 
    protected:
     virtual void main() {
-        typename io::LineInputFormat::RecordT record;
+        typename InputFormatT::RecordT record;
         eof_ = false;
 
         while (!eof_) {
@@ -120,7 +119,7 @@ class AsyncReadParseBuffer {
             BatchT tmp(batch_size_);
             for (int i = 0; i < batch_size_; ++i) {
                 if (infmt_->next(record)) {
-                    parse_line(record, tmp);
+                    parse_line(InputFormatT::recast(record), tmp);
                 } else {
                     eof_ = true;
                     break;
@@ -146,10 +145,13 @@ class AsyncReadParseBuffer {
         husky::LOG_I << "loading thread finished";  // for debug
     }
 
+    // for block
     virtual void parse_line(const boost::string_ref& chunk, BatchT& batch) = 0;
+    // for binary
+    virtual void parse_line(husky::base::BinStream& bin, BatchT& batch) = 0;
 
     // input
-    std::unique_ptr<io::LineInputFormatML> infmt_;
+    std::unique_ptr<InputFormatT> infmt_;
     std::atomic<bool> eof_{false};
     int num_features_ = 0;
 
@@ -169,14 +171,14 @@ class AsyncReadParseBuffer {
     bool init_ = false;
 };
 
-template <typename Sample>
+template <typename Sample, typename InputFormatT>
 class SimpleSampleReader{
    public:
     SimpleSampleReader() = delete;
-    SimpleSampleReader(AsyncReadParseBuffer<Sample>* tbf) : tbf_(tbf) {}
+    SimpleSampleReader(AsyncReadParseBuffer<Sample, InputFormatT>* tbf) : tbf_(tbf) {}
 
     virtual std::vector<husky::constants::Key> prepare_next_batch() {
-        typename AsyncReadParseBuffer<Sample>::BatchT batch;
+        typename AsyncReadParseBuffer<Sample, InputFormatT>::BatchT batch;
         if (!tbf_->get_batch(batch)) {
             batch_data_.clear();
             return {0};  // dummy key
@@ -193,16 +195,16 @@ class SimpleSampleReader{
     inline int get_batch_size() const { return tbf_->get_batch_size(); }
 
    protected:
-    AsyncReadParseBuffer<Sample>* tbf_;
+    AsyncReadParseBuffer<Sample, InputFormatT>* tbf_;
     std::vector<Sample> batch_data_;
 };
 
-template <typename Sample>
-class LIBSVMAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample> {
+template <typename Sample, typename InputFormatT>
+class LIBSVMAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample, InputFormatT> {
    public:
-    LIBSVMAsyncReadParseBuffer() : AsyncReadParseBuffer<Sample>() {}
+    LIBSVMAsyncReadParseBuffer() : AsyncReadParseBuffer<Sample, InputFormatT>() {}
     
-    void parse_line(const boost::string_ref& chunk, typename AsyncReadParseBuffer<Sample>::BatchT& batch) override {
+    void parse_line(const boost::string_ref& chunk, typename AsyncReadParseBuffer<Sample, InputFormatT>::BatchT& batch) override {
         if (chunk.empty()) return;
 
         Sample this_obj(this->num_features_);
@@ -235,14 +237,39 @@ class LIBSVMAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample> {
         }
         batch.data.push_back(std::move(this_obj));
     }
+
+    void parse_line(husky::base::BinStream& bin, typename AsyncReadParseBuffer<Sample, InputFormatT>::BatchT& batch) override{}
 };
 
-template <typename Sample>
-class TSVAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample> {
+template <typename Sample, typename InputFormatT>
+class LIBSVMAsyncReadBinaryParseBuffer : public AsyncReadParseBuffer<Sample, InputFormatT> {
    public:
-    TSVAsyncReadParseBuffer() : AsyncReadParseBuffer<Sample>() {}
+    LIBSVMAsyncReadBinaryParseBuffer() : AsyncReadParseBuffer<Sample, InputFormatT>() {}
 
-    void parse_line(const boost::string_ref& chunk, typename AsyncReadParseBuffer<Sample>::BatchT& batch) override {
+    void parse_line(const boost::string_ref& chunk, typename AsyncReadParseBuffer<Sample, InputFormatT>::BatchT& batch) override {}
+
+    void parse_line(husky::base::BinStream& bin, typename AsyncReadParseBuffer<Sample, InputFormatT>::BatchT& batch) override {
+        // parse
+        std::vector<std::pair<int, float>> v;
+        while (bin.size()) {
+            Sample this_obj(this->num_features_);
+            bin >> this_obj.y >> v;
+            for(auto p : v) {
+                batch.keys.insert(p.first - 1);
+                this_obj.x.set(p.first - 1, p.second);
+            }
+            batch.data.push_back(std::move(this_obj));
+        }
+        
+    }
+};
+
+template <typename Sample, typename InputFormatT>
+class TSVAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample, InputFormatT> {
+   public:
+    TSVAsyncReadParseBuffer() : AsyncReadParseBuffer<Sample, InputFormatT>() {}
+
+    void parse_line(const boost::string_ref& chunk, typename AsyncReadParseBuffer<Sample, InputFormatT>::BatchT& batch) override {
         if (chunk.empty()) return;
 
         Sample this_obj(this->num_features_);
@@ -266,6 +293,8 @@ class TSVAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample> {
         }
         batch.data.push_back(std::move(this_obj));
     }
+
+    void parse_line(husky::base::BinStream& bin, typename AsyncReadParseBuffer<Sample, InputFormatT>::BatchT& batch) override{}
 };
 
 }  // namespace anonymous

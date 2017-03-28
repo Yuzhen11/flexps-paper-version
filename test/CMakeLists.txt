@@ -84,6 +84,13 @@ target_link_libraries(TestSampleReader husky-ml)
 target_link_libraries(TestSampleReader ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestSampleReader PROPERTY CXX_STANDARD 14)
 
+# TestBinarySampleReader
+add_executable(TestBinarySampleReader test_binary_sampler_reader.cpp)
+target_link_libraries(TestBinarySampleReader husky)
+target_link_libraries(TestBinarySampleReader husky-ml)
+target_link_libraries(TestBinarySampleReader ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestBinarySampleReader PROPERTY CXX_STANDARD 14)
+
 # TestConfigurableTask
 add_executable(TestConfigurableTask test_configurableTask.cpp)
 target_link_libraries(TestConfigurableTask husky)
