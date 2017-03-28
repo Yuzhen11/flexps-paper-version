@@ -20,6 +20,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <sstream>
 
 #include "husky/base/serialization.hpp"
 #include "husky/core/constants.hpp"
@@ -62,9 +63,11 @@ class HDFSFileAssignerML : public HDFSFileAssigner {
 
    private:
     std::string answer(const std::string& host, const std::string& fileurl, int id, int num_threads, const std::string& load_type) {
-        if (file_infos_.find(id) == file_infos_.end()) {
+        if (file_infos_.find(id) == file_infos_.end()) {  // set finished_info, if user want to load again, different id is needed
+            finish_multi_dict[id][fileurl].second = 0;
             prepare(host, fileurl, id);
         }
+        // print_file_infos();
             
         std::unordered_map<std::string, std::unordered_map<std::string, HDFSFileInfo>>& all_info = file_infos_[id];
 
@@ -103,9 +106,8 @@ class HDFSFileAssignerML : public HDFSFileAssigner {
                 }
 
                 if (is_finish) {
-                    if (++finished_info[id] == num_threads) {
-                        // erase
-                        file_infos_.erase(id);
+                    finish_multi_dict[id][fileurl].second += 1;
+                    if(finish_multi_dict[id][fileurl].second == num_threads) {
                     }
                     return ""; // no file to assign
                 }
@@ -114,12 +116,11 @@ class HDFSFileAssignerML : public HDFSFileAssigner {
             HDFSFileInfo& info_local = all_info[host][fileurl];
             std::vector<std::string>& files = info_local.files_to_assign;
 
-            if (files.empty()) {
-                if (++finished_info[id] == num_threads) {
-                    // erase
-                    file_infos_.erase(id);
+            if (files.empty()) {     // local data is empty
+                (finish_multi_dict[id][fileurl].first)[host] += 1;
+                if ((finish_multi_dict[id][fileurl].first)[host] == num_threads) {
                 }
-                return ""; // no file to assign
+                return "";
             }
             // choose a file
             selected_file = files.back();
@@ -144,6 +145,7 @@ class HDFSFileAssignerML : public HDFSFileAssigner {
             }   
         }
 
+        // print_file_infos();
         return selected_info_base + selected_file;
     }
 
@@ -174,7 +176,7 @@ class HDFSFileAssignerML : public HDFSFileAssigner {
             try {
                 std::regex filter_regex(filter);
                 std::function<void(const char*)> recursive_hdfs_visit = nullptr;
-                recursive_hdfs_visit = [&fs, &filter, &files_info, &filter_regex, base_len,
+                recursive_hdfs_visit = [this, id, &fs, &filter, &files_info, &filter_regex, base_len,
                                         &recursive_hdfs_visit, base_info, &url](const char* base) {
                     int num_entries;
                     hdfsFileInfo* infos = hdfsListDirectory(fs, base, &num_entries);
@@ -187,6 +189,7 @@ class HDFSFileAssignerML : public HDFSFileAssigner {
                             for (int j = 0; j < blk_loc->numOfNodes; ++j) {
                                 std::string host = blk_loc->hosts[j];
                                 files_info[host][url].files_to_assign.push_back(filename);
+                                (finish_multi_dict[id][url].first)[host] = 0;
 
                                 // store files_info base
                                 files_info[host][url].base = std::string(base_info->mName);
@@ -226,10 +229,25 @@ class HDFSFileAssignerML : public HDFSFileAssigner {
         }
     }
 
+    void print_file_infos() {
+        std::stringstream ss;
+        for (auto& a : file_infos_) {
+            for (auto& b : a.second) {
+                for (auto& c : b.second) {
+                    for (auto& d : c.second.files_to_assign) {
+                        // id, host, file_url, file
+                        ss << a.first << " " << b.first << " " << c.first << " " << d << "\n";
+                    }
+                }
+            }
+        }
+        husky::LOG_I << ss.str();
+    }
+
     // id: host: file_url: [files]
     std::unordered_map<size_t, std::unordered_map<std::string, std::unordered_map<std::string, HDFSFileInfo>>> file_infos_;
     // id: finished_count
-    std::map<size_t, size_t> finished_info;
+    std::map<size_t, std::map<std::string, std::pair<std::map<std::string, size_t>, size_t>>> finish_multi_dict;
 };
 
 }  // namespace husky
