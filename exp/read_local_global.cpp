@@ -80,11 +80,11 @@ int main(int argc, char** argv) {
             
             husky::LOG_I << "read_count: " << read_count;
         } else {
-            husky::io::BinaryInputFormatML infmt(Context::get_param("input"), 3, task1.get_id());
-            typename husky::io::BinaryInputFormatImpl::RecordT record;  // BinaryInputFormatRecord
+            husky::io::BinaryInputFormatML infmt(Context::get_param("input"), config.num_train_workers, task1.get_id());
+            typename husky::io::BinaryInputFormatML::RecordT record;  // BinaryInputFormatRecord
             int read_count = 0;
             while (infmt.next(record)) {
-                husky::base::BinStream& bin = husky::io::BinaryInputFormat::recast(record);
+                husky::base::BinStream& bin = husky::io::BinaryInputFormatML::recast(record);
                 if (parse) {
                     float y;
                     std::vector<std::pair<int, float>> v;

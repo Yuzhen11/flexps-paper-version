@@ -10,6 +10,14 @@ namespace io {
 
 class LineInputFormatML : public LineInputFormat {
    public:
+    LineInputFormatML(const std::string url, int num_threads, int id) {
+        num_threads_ = num_threads;
+        id_ = id;
+        splitter_ = new HDFSFileSplitterML(num_threads_, id_);
+        // set_up url
+        set_input(url);
+    }
+
     LineInputFormatML(int num_threads, int id) {
         num_threads_ = num_threads;
         id_ = id;

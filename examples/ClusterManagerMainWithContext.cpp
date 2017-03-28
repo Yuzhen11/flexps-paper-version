@@ -6,8 +6,9 @@
 #include "husky/core/job_runner.hpp"
 #include "husky/master/master.hpp"
 
+// read hdfs_block
 #include "io/hdfs_assigner_ml.hpp"
-// binary
+// read hdfs_binary
 #include "io/hdfs_binary_assigner_ml.hpp"
 
 using namespace husky;

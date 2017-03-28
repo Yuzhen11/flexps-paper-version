@@ -6,6 +6,8 @@
 #include "lib/sample_reader_parse.hpp"
 #include "lib/task_utils.hpp"
 #include "lib/app_config.hpp"
+#include "io/input/line_inputformat_ml.hpp"
+#include "io/input/binary_inputformat_ml.hpp"
 
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
@@ -43,9 +45,9 @@ float log_loss(float label, float predict) {
     return -log(predict < 0.000001f ? 0.000001f : predict);
 }
 
-template <template <typename> typename ContainerT>
+template <typename ContainerT>
 int batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker,
-        ContainerT<LabeledPointHObj<float, float, true>>* container, float alpha, int num_params, float& loss) {
+        ContainerT* container, float alpha, int num_params, float& loss) {
     alpha /= container->get_batch_size();
     auto keys = container->prepare_next_batch();
     keys.push_back(num_params - 1);
@@ -85,9 +87,9 @@ int batch_sgd_update(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>
     return data_batch.size();
 }
 
-template <template <typename> typename ContainerT>
+template <typename ContainerT>
 float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker, 
-        ContainerT<LabeledPointHObj<float, float, true>>* container,
+        ContainerT* container,
         int num_params, int test_samples = -1) {
     std::vector<husky::constants::Key> all_keys;
     for (int i = 0; i < num_params; i++) all_keys.push_back(i);
@@ -148,42 +150,86 @@ int main(int argc, char** argv) {
 
     // create a AsyncReadBuffer
     int batch_size = 20, batch_num = 3;
-    LIBSVMAsyncReadParseBuffer<LabeledPointHObj<float, float, true>> buffer;
-    engine.AddTask(std::move(task1), [config, batch_size, batch_num, &buffer](const Info& info) {
-        buffer.init(Context::get_param("input"), info.get_task_id(), config.num_train_workers, batch_size, batch_num, config.num_features);
-        // create a reader
-        std::unique_ptr<SimpleSampleReader<LabeledPointHObj<float,float,true>>> reader(new SimpleSampleReader<LabeledPointHObj<float, float, true>>(&buffer));
 
-        if (reader->is_empty()) {
-            husky::LOG_I << "no data";  // for debug
-            return;  // return if there's no data
-        }
+    int is_binary = config.is_binary;
 
-        auto worker = ml::CreateMLWorker<float>(info);
+    // binary
+    LIBSVMAsyncReadBinaryParseBuffer<LabeledPointHObj<float, float, true>, io::BinaryInputFormatML> buffer_binary;
+    LIBSVMAsyncReadParseBuffer<LabeledPointHObj<float, float, true>, io::LineInputFormatML> buffer;
+    if (is_binary) {
+        engine.AddTask(std::move(task1), [config, batch_size, batch_num, &buffer_binary](const Info& info) {
+            buffer_binary.init(Context::get_param("input"), info.get_task_id(), config.num_train_workers, batch_size, batch_num, config.num_features);
+            // create a reader
+            
+            std::unique_ptr<SimpleSampleReader<LabeledPointHObj<float,float,true>, io::BinaryInputFormatML>> reader(new SimpleSampleReader<LabeledPointHObj<float, float, true>, io::BinaryInputFormatML>(&buffer_binary));
 
-        float train_loss = 0.0f;
-        int sample_count = 0;
-        int report_interval = 10000;
-        int sample_total = 0;
-        // main loop
-        for (int iter = 0; iter < config.num_iters || config.num_iters == -1; ++ iter) {
-            sample_count += batch_sgd_update(worker, reader.get(), config.alpha, config.num_params, train_loss);
-            if (reader->is_empty()) break;
-            if (sample_count >= report_interval) {
-                sample_total += sample_count;
-                husky::LOG_I << "train loss " << (train_loss / sample_count);
-                husky::LOG_I << "samples seen " << sample_total;
-                train_loss = 0.0f;
-                sample_count = 0;
+            if (reader->is_empty()) {
+                husky::LOG_I << "no data";  // for debug
+                return;  // return if there's no data
             }
-        }
 
-        sample_total += sample_count;
-        husky::LOG_I << "total training samples in phase " << info.get_current_epoch() << ": " << sample_total;
+            auto worker = ml::CreateMLWorker<float>(info);
 
-        // auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
-        // husky::LOG_I << "accuracy: " << accuracy;
-    });
+            float train_loss = 0.0f;
+            int sample_count = 0;
+            int report_interval = 10000;
+            int sample_total = 0;
+            // main loop
+            for (int iter = 0; iter < config.num_iters || config.num_iters == -1; ++ iter) {
+                sample_count += batch_sgd_update(worker, reader.get(), config.alpha, config.num_params, train_loss);
+                if (reader->is_empty()) break;
+                if (sample_count >= report_interval) {
+                    sample_total += sample_count;
+                    husky::LOG_I << "train loss " << (train_loss / sample_count);
+                    husky::LOG_I << "samples seen " << sample_total;
+                    train_loss = 0.0f;
+                    sample_count = 0;
+                }
+            }
+
+            sample_total += sample_count;
+            husky::LOG_I << "total training samples in phase<binary> " << info.get_current_epoch() << ": " << sample_total;
+
+            auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
+            husky::LOG_I << "accuracy: " << accuracy;
+        });
+    } else {
+        engine.AddTask(std::move(task1), [config, batch_size, batch_num, &buffer](const Info& info) {
+            buffer.init(Context::get_param("input"), info.get_task_id(), config.num_train_workers, batch_size, batch_num, config.num_features);
+            // create a reader
+            std::unique_ptr<SimpleSampleReader<LabeledPointHObj<float,float,true>, io::LineInputFormatML>> reader(new SimpleSampleReader<LabeledPointHObj<float, float, true>, io::LineInputFormatML>(&buffer));
+
+            if (reader->is_empty()) {
+                husky::LOG_I << "no data";  // for debug
+                return;  // return if there's no data
+            }
+
+            auto worker = ml::CreateMLWorker<float>(info);
+
+            float train_loss = 0.0f;
+            int sample_count = 0;
+            int report_interval = 10000;
+            int sample_total = 0;
+            // main loop
+            for (int iter = 0; iter < config.num_iters || config.num_iters == -1; ++ iter) {
+                sample_count += batch_sgd_update(worker, reader.get(), config.alpha, config.num_params, train_loss);
+                if (reader->is_empty()) break;
+                if (sample_count >= report_interval) {
+                    sample_total += sample_count;
+                    husky::LOG_I << "train loss " << (train_loss / sample_count);
+                    husky::LOG_I << "samples seen " << sample_total;
+                    train_loss = 0.0f;
+                    sample_count = 0;
+                }
+            }
+
+            sample_total += sample_count;
+            husky::LOG_I << "total training samples in phase<not_binary> " << info.get_current_epoch() << ": " << sample_total;
+
+            // auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
+            // husky::LOG_I << "accuracy: " << accuracy;
+        });
+    }
 
     // Submit Task
     auto start_time = std::chrono::steady_clock::now();

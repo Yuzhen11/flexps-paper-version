@@ -1,4 +1,4 @@
-
+#include "lib/app_config.hpp"
 #include "datastore/datastore.hpp"
 #include "io/input/line_inputformat_ml.hpp"
 #include "io/input/binary_inputformat_ml.hpp"
@@ -7,10 +7,7 @@
 using namespace husky;
 
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input",
-                                          "hdfs_namenode", "hdfs_namenode_port", "kLoadHdfsType"});
-    if (!rt)
-        return 1;
+    auto config = config::SetAppConfigWithContext();
 
     auto& engine = Engine::Get();
     // Create DataStore
@@ -59,7 +56,7 @@ int main(int argc, char** argv) {
     task1.set_worker_num({1});
     task1.set_worker_num_type({"threads_on_worker:14"});
     */
-    engine.AddTask(task1, [&data_store1, &task1, parse](const Info& info) {
+    engine.AddTask(task1, [&data_store1, &task1, parse, &config](const Info& info) {
         // load
         auto parse_func = [](husky::base::BinStream& bin) {
             if (bin.size() == 0)
@@ -69,14 +66,14 @@ int main(int argc, char** argv) {
 
             // husky::LOG_I << chunk.to_string();
         };
-        io::BinaryInputFormatML infmt(Context::get_param("input"), 3, task1.get_id());
+        io::BinaryInputFormatML infmt(Context::get_param("input"), config.num_train_workers, task1.get_id());
 
         // loading
-        typename io::BinaryInputFormatImpl::RecordT record;
+        typename io::BinaryInputFormatML::RecordT record;
 
         int read_count = 0;
         while (infmt.next(record)) {
-            husky::base::BinStream& bin = husky::io::BinaryInputFormat::recast(record);
+            husky::base::BinStream& bin = husky::io::BinaryInputFormatML::recast(record);
             if (parse) {
                 float y;
                 std::vector<std::pair<int, float>> v;

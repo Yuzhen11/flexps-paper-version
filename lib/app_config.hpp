@@ -29,6 +29,7 @@ struct AppConfig {
     int staleness = 1;
     std::string kLoadHdfsType;
     std::string ps_worker_type;
+    int is_binary = 1;
 };
 
 namespace {
@@ -58,7 +59,7 @@ void InitContext(int argc, char** argv, const std::vector<std::string>& addition
     {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
      "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
      "kType", "kConsistency", "num_train_workers", "num_load_workers", "trainer", 
-     "use_chunk", "use_direct_model_transfer", "staleness", "kLoadHdfsType", "ps_worker_type"};
+     "use_chunk", "use_direct_model_transfer", "staleness", "kLoadHdfsType", "ps_worker_type", "is_binary"};
 
     std::vector<std::string> init_args = default_init_args;
     // Add additional args
