@@ -29,7 +29,7 @@ struct AppConfig {
     int staleness = 1;
     std::string kLoadHdfsType;
     std::string ps_worker_type;
-    int is_binary = 1;
+    bool is_binary = false;
 };
 
 namespace {
@@ -88,6 +88,7 @@ AppConfig SetAppConfigWithContext() {
     config.use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
     config.staleness = std::stoi(Context::get_param("staleness"));
     config.kLoadHdfsType = Context::get_param("kLoadHdfsType");
+    config.is_binary = Context::get_param("is_binary") == "on" ? true : false;
 
     const std::vector<std::string> trainers_set({"lr", "svm"});
     assert(std::find(trainers_set.begin(), trainers_set.end(), config.trainer) != trainers_set.end());

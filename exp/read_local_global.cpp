@@ -14,7 +14,7 @@ using namespace husky;
 
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv, {"parse", "is_binary"});
+    config::InitContext(argc, argv, {"parse"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);

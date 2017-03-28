@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     auto task = TaskFactory::Get().CreateTask<HuskyTask>(2, 2); // 2 epoch, 2 workers
     LIBSVMAsyncReadBinaryParseBuffer<LabeledPointHObj<float, float, true>, io::BinaryInputFormatML> buffer;
     engine.AddTask(std::move(task), [&buffer, batch_size, batch_num, num_features](const Info& info) {
-        buffer.init(Context::get_param("input"), info.get_task_id(), 4, batch_size, batch_num, num_features);  // start buffer
+        buffer.init(Context::get_param("input"), info.get_task_id(), 2, batch_size, batch_num, num_features);  // start buffer
 
         // create a reader
         std::unique_ptr<SimpleSampleReader<LabeledPointHObj<float,float,true>, io::BinaryInputFormatML>> reader(new SimpleSampleReader<LabeledPointHObj<float, float, true>, io::BinaryInputFormatML>(&buffer));
@@ -37,6 +37,7 @@ int main(int argc, char** argv) {
             // get the batch of samples in vector
             auto data = reader->get_data();
             count += data.size();
+            husky::LOG_I << "task0 read " << count << " records in total.";
         }
         husky::LOG_I << "task0 read " << count << " records in total.";
     });

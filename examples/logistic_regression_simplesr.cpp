@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
     // create a AsyncReadBuffer
     int batch_size = 20, batch_num = 3;
 
-    int is_binary = config.is_binary;
+    bool is_binary = config.is_binary;
 
     // binary
     LIBSVMAsyncReadBinaryParseBuffer<LabeledPointHObj<float, float, true>, io::BinaryInputFormatML> buffer_binary;
@@ -190,8 +190,8 @@ int main(int argc, char** argv) {
             sample_total += sample_count;
             husky::LOG_I << "total training samples in phase<binary> " << info.get_current_epoch() << ": " << sample_total;
 
-            auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
-            husky::LOG_I << "accuracy: " << accuracy;
+            // auto accuracy = get_test_error_v2(worker, reader.get(), config.num_params);
+            // husky::LOG_I << "accuracy: " << accuracy;
         });
     } else {
         engine.AddTask(std::move(task1), [config, batch_size, batch_num, &buffer](const Info& info) {
