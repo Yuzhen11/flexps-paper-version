@@ -42,6 +42,10 @@ public:
         return *data_[local_id];
     }
 
+    std::vector<DataType>& get_local_data(int local_id) {
+        return *data_[local_id];
+    }
+
     /*
      * Pull the local storage
      *

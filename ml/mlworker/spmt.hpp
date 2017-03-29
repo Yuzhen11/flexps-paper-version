@@ -149,6 +149,16 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
         shared_state_.Get()->p_model_->Pull(keys, vals, info_.get_local_id());
         shared_state_.Get()->p_controller_->AfterPull(info_.get_cluster_id());
     }
+    virtual void PushChunks(const std::vector<husky::constants::Key>& keys, const std::vector<std::vector<Val>*>& vals) override {
+        shared_state_.Get()->p_controller_->BeforePush(info_.get_cluster_id());
+        shared_state_.Get()->p_model_->PushChunks(keys, vals);
+        shared_state_.Get()->p_controller_->AfterPush(info_.get_cluster_id());
+    }
+    virtual void PullChunks(const std::vector<husky::constants::Key>& keys, std::vector<std::vector<Val>*>& vals) override {
+        shared_state_.Get()->p_controller_->BeforePull(info_.get_cluster_id());
+        shared_state_.Get()->p_model_->PullChunks(keys, vals, info_.get_local_id());
+        shared_state_.Get()->p_controller_->AfterPull(info_.get_cluster_id());
+    }
 
     // For v2
     // TODO: Now, the v2 APIs for spmt still need copy,
