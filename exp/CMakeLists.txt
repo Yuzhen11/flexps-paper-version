@@ -14,3 +14,9 @@ target_link_libraries(LRSVRG husky-ml)
 target_link_libraries(LRSVRG ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(LRSVRG)
 
+# ReadTrain
+add_executable(ReadTrain read_train.cpp)
+target_link_libraries(ReadTrain husky)
+target_link_libraries(ReadTrain husky-ml)
+target_link_libraries(ReadTrain ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(ReadTrain)
