@@ -105,6 +105,7 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel<Val> {
    public:
     using Model<Val>::model_id_;
     using ChunkBasedModel<Val>::params_;
+    using ChunkBasedModel<Val>::is_cached_;
     using ChunkBasedMTModel<Val>::mtx_;
 
     ChunkBasedMTLockModel(int model_id, int num_params):
@@ -166,6 +167,88 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel<Val> {
             vals->at(i) = params_[chunk_id][loc.second];
         }
         mtx_[current_chunk_id].unlock();
+    }
+
+    void PushChunks(const std::vector<husky::constants::Key>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        if (chunk_keys.empty()) return;
+        assert(chunk_keys.size() == chunk_vals.size());
+
+        for (int i=0; i<chunk_keys.size(); i++) {
+            assert(i < mtx_.size());
+            int chunk_id = chunk_keys[i];
+            assert(params_[chunk_id].size() == chunk_vals[i]->size());
+
+            mtx_[chunk_id].lock();
+            for (int j = 0; j < chunk_vals[i]->size(); j++) {
+                params_[chunk_id][j] += (*(chunk_vals[i]))[j];
+            }
+            mtx_[chunk_id].unlock();
+        }
+    }
+
+    void PullChunks(const std::vector<husky::constants::Key>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals, int local_id) override {
+        if (chunk_keys.empty()) return;
+        assert(chunk_keys.size() == chunk_vals.size());
+
+        {
+            std::vector<size_t> chunks_to_fetch;
+            std::vector<size_t> chunks_to_check;
+
+            // 1. Collect the uncached chunks
+            size_t current_chunk_id;
+            for (size_t i = 0; i < chunk_keys.size(); ++i) {
+                auto chunk_id = chunk_keys[i];
+                if (is_cached_[chunk_id] == false && (i == 0 || chunk_id != current_chunk_id)) {
+                    // try to get the write lock for the chunk
+                    // if success prepare to pull it from kvstore
+                    if (mtx_[chunk_id].try_lock()) {
+                        if (is_cached_[chunk_id] == false) {
+                            chunks_to_fetch.push_back(chunk_id);
+                        } else {
+                            mtx_[chunk_id].unlock();
+                        }
+                    } else {  // locked by other threads and is being fetched
+                        chunks_to_check.push_back(chunk_id);
+                    }
+                }
+                current_chunk_id = chunk_id;
+            }
+
+            // 2. Pull chunks_to_fetch from kvstore
+            if (chunks_to_fetch.size() > 0) {
+                auto ts = this->fetch_chunk(chunks_to_fetch, local_id);
+                ChunkBasedModel<Val>::wait(ts, local_id);
+                // 3. Unlock the mutices
+                for (auto chunk_id : chunks_to_fetch) {
+                    is_cached_[chunk_id] = true;
+                    mtx_[chunk_id].unlock();
+                }
+            }
+
+            // 4. Wait until chunks_to_check are in cache now
+            if (!chunks_to_check.empty()) {
+                chunks_to_check.erase(std::remove_if(chunks_to_check.begin(), chunks_to_check.end(),
+                            [this](size_t chunk_id) { return is_cached_[chunk_id]; }),
+                        chunks_to_check.end());
+                if (!chunks_to_check.empty()) {
+                    for (auto chunk_id : chunks_to_check) {
+                        mtx_[chunk_id].lock();
+                        assert(is_cached_[chunk_id]);  // for debug
+                        mtx_[chunk_id].unlock();
+                    }
+                }
+            }
+        }
+
+        for (int i=0; i<chunk_keys.size(); i++) {
+            assert(i < mtx_.size());
+            auto chunk_id = chunk_keys[i];
+            mtx_[chunk_id].lock();
+            for (int j = 0; j < chunk_vals[i]->size(); j++) {
+                (*(chunk_vals[i]))[j] = params_[chunk_id][j];
+            }
+            mtx_[chunk_id].unlock();
+        }
     }
 };
 

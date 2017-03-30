@@ -18,6 +18,12 @@ class Model {
         num_params_(num_params) {}
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) = 0;
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id) = 0;
+    virtual void PushChunks(const std::vector<husky::constants::Key>& keys, const std::vector<std::vector<Val>*>& vals) {
+        throw husky::base::HuskyException("PullChunks Not implemented");
+    }
+    virtual void PullChunks(const std::vector<husky::constants::Key>& keys, std::vector<std::vector<Val>*>& vals, int local_id) {
+        throw husky::base::HuskyException("PullChunks Not implemented");
+    }
 
     // TODO: The API is strange
     virtual void Load(int local_id, const std::string& hint) = 0;
