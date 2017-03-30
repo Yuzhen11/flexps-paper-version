@@ -151,15 +151,24 @@ class ChunkBasedModelWithClocks : public ChunkBasedModel<Val> {
         ++clock_;
     }
 
-    virtual void Prepare(const std::vector<husky::constants::Key>& keys, int local_id) override {
-        // The keys should be in ascending order
+    virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        // 1. Update local model
+        ChunkBasedModel<Val>::PushChunks(chunk_keys, chunk_vals);
+
+        // 2. Inc clock
+        ++clock_;
+    }
+
+    virtual void PrepareChunks(const std::vector<size_t>& chunk_keys, int local_id) override {
+        if (chunk_keys.empty()) return;
         std::vector<size_t> chunks_to_fetch;
         int stalest = clock_ - staleness_;
-        for (size_t i = 0; i < keys.size(); ++i) {
-            auto loc = range_manager_->GetLocation(model_id_, keys[i]);
-            if ((is_cached_[loc.first] == false || chunk_clocks_[loc.first] < stalest) && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
-                chunks_to_fetch.push_back(loc.first);
-                is_cached_[loc.first] = true;
+        for (auto chunk_key : chunk_keys) {
+            assert(chunk_key < is_cached_.size());
+            // Additional condition to fetch: staleness
+            if (is_cached_[chunk_key] == false || chunk_clocks_[chunk_key] < stalest) {
+                chunks_to_fetch.push_back(chunk_key);
+                is_cached_[chunk_key] = true;
             }
         }
         if (chunks_to_fetch.empty()) return;

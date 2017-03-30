@@ -86,21 +86,56 @@ class ChunkBasedModel : public Model<Val> {
             (*vals)[i] = params_[loc.first][loc.second];
         }
     }
+    virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        for (size_t i = 0; i < chunk_keys.size(); ++ i) {
+            size_t chunk_id = chunk_keys[i];
+            assert(params_[chunk_id].size() == chunk_vals[i]->size());
+            for (size_t j = 0; j < chunk_vals[i]->size(); ++ j) {
+                params_[chunk_id][j] += (*(chunk_vals[i]))[j];
+            }
+        }
+    }
+    void PullChunks(const std::vector<size_t>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals, int local_id) override {
+        if (chunk_keys.empty()) return;
+        assert(chunk_keys.size() == chunk_vals.size());
+        PrepareChunks(chunk_keys, local_id);
+        for (size_t i = 0; i < chunk_keys.size(); i++) {
+            size_t chunk_id = chunk_keys[i];
+            chunk_vals[i]->resize(params_[chunk_id].size());
+            for (size_t j = 0; j < chunk_vals[i]->size(); j++) {
+                (*(chunk_vals[i]))[j] = params_[chunk_id][j];
+            }
+        }
+    }
 
     /*
      * Prepare function to prepare the chunks for the provided keys
      *
      * For single thread, no need to lock the chunks I am preparing
+     *
+     * 1. Get the chunk_ids
+     * 2. Call the PrepareChunks (virtual)
      */
     virtual void Prepare(const std::vector<husky::constants::Key>& keys, int local_id) {
+        std::vector<size_t> chunk_ids;
         auto& range_manager = kvstore::RangeManager::Get();
-        // The keys should be in ascending order
-        std::vector<size_t> chunks_to_fetch;
         for (size_t i = 0; i < keys.size(); ++i) {
             auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            if (is_cached_[loc.first] == false && (chunks_to_fetch.empty() || loc.first != chunks_to_fetch.back())) {
-                chunks_to_fetch.push_back(loc.first);
-                is_cached_[loc.first] = true;
+            if (chunk_ids.empty() || loc.first != chunk_ids.back()) {
+                chunk_ids.push_back(loc.first);
+            }
+        }
+        PrepareChunks(chunk_ids, local_id);
+    }
+
+    virtual void PrepareChunks(const std::vector<size_t>& chunk_keys, int local_id) {
+        if (chunk_keys.empty()) return;
+        std::vector<size_t> chunks_to_fetch;
+        for (auto chunk_key : chunk_keys) {
+            assert(chunk_key < is_cached_.size());
+            if (is_cached_[chunk_key] == false) {
+                chunks_to_fetch.push_back(chunk_key);
+                is_cached_[chunk_key] = true;
             }
         }
         if (chunks_to_fetch.empty())

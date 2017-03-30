@@ -56,15 +56,14 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
         kvworker_->Wait(model_id_, ts_);  // Wait for this Pull
     }
 
-    virtual void PushChunks(const std::vector<husky::constants::Key>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
-        assert(push_count_ + 1 == pull_count_);
-        push_count_ += 1;
+    virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(++push_count_ == pull_count_);
         assert(chunk_keys.size() == chunk_vals.size());
         ts_ = kvworker_->PushChunks(model_id_, chunk_keys, chunk_vals, true, true);
         kvworker_->Wait(model_id_, ts_);
     }
 
-    virtual void PullChunks(const std::vector<husky::constants::Key>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals) override {
+    virtual void PullChunks(const std::vector<size_t>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals) override {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         assert(chunk_keys.size() == chunk_vals.size());
@@ -110,6 +109,11 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
     std::vector<Val> delta_;
 };
 
+/*
+ * SSPWorker
+ * ThreadCache: unordered_map, one timestamp
+ * ProcessCache: No
+ */
 template<typename Val>
 class SSPWorker : public mlworker::GenericMLWorker<Val> {
    public:
@@ -204,7 +208,6 @@ class SSPWorker : public mlworker::GenericMLWorker<Val> {
 
    private:
     int model_id_;
-    // TODO: Repaleced with user-defined staleness
     int staleness_ = -1;
     int cache_ts_;
     kvstore::KVWorker* kvworker_ = nullptr;
@@ -223,6 +226,11 @@ class SSPWorker : public mlworker::GenericMLWorker<Val> {
     std::vector<Val> delta_;
 };
 
+/*
+ * SSPWorkerChunk
+ * ThreadCache: Chunk-based
+ * ProcessCache: No
+ */
 template<typename Val>
 class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
    public:
@@ -259,6 +267,19 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
         if(ts_ != -1) kvworker_->Wait(model_id_, ts_);
 
         model_.Pull(keys, vals, local_id_);
+    }
+    virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(++push_count_ == pull_count_);
+        assert(chunk_keys.size() == chunk_vals.size());
+        ts_ = kvworker_->PushChunks(model_id_, chunk_keys, chunk_vals, true, true);
+        model_.PushChunks(chunk_keys, chunk_vals);
+    }
+    virtual void PullChunks(const std::vector<size_t>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(push_count_ == pull_count_);
+        pull_count_ += 1;
+        if(ts_ != -1) kvworker_->Wait(model_id_, ts_);
+        assert(chunk_keys.size() == chunk_vals.size());
+        model_.PullChunks(chunk_keys, chunk_vals, local_id_);
     }
 
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
@@ -301,6 +322,11 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
     std::vector<Val> delta_;
 };
 
+/*
+ * PSSharedWorker
+ * ThreadCache: unordered_map, one timestamp
+ * ProcessCache: Chunk-based
+ */
 template<typename Val>
 class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
     struct PSState {
@@ -376,7 +402,23 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
         delta_.resize(keys.size());
     }
 
-    virtual void Prepare(const std::vector<husky::constants::Key>& keys) {
+    virtual Val Get_v2(husky::constants::Key idx) override { return cached_kv_[keys_->at(idx)]; }
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
+        delta_[idx] += val;
+        cached_kv_[keys_->at(idx)] += val;
+    }
+    virtual void Update_v2(const std::vector<Val>& vals) override {
+        for (int i = 0; i < vals.size(); ++i) {
+            cached_kv_[keys_->at(i)] += vals[i];
+            delta_[i] += vals[i];
+        }
+    }
+    virtual void Clock_v2() override {
+        Push(*keys_, delta_);
+    }
+
+   private: 
+    void Prepare(const std::vector<husky::constants::Key>& keys) {
         std::vector<husky::constants::Key> uncached_keys;
         // 1. Check the staleness of local model
         if (pull_count_ - cache_ts_ > staleness_ || cached_kv_.empty()) {  // Thread-cache is too old or empty
@@ -403,22 +445,6 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
         }
     }
 
-    virtual Val Get_v2(husky::constants::Key idx) override { return cached_kv_[keys_->at(idx)]; }
-    virtual void Update_v2(husky::constants::Key idx, Val val) override {
-        delta_[idx] += val;
-        cached_kv_[keys_->at(idx)] += val;
-    }
-    virtual void Update_v2(const std::vector<Val>& vals) override {
-        for (int i = 0; i < vals.size(); ++i) {
-            cached_kv_[keys_->at(i)] += vals[i];
-            delta_[i] += vals[i];
-        }
-    }
-    virtual void Clock_v2() override {
-        Push(*keys_, delta_);
-    }
-
-   private: 
     int model_id_;
     const husky::Info& info_;
     int local_id_;
@@ -440,6 +466,11 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
     std::vector<Val> delta_;
 };
 
+/*
+ * PSSharedChunkWorker
+ * ThreadCache: Chunk-based
+ * ProcessCache: Chunk-based
+ */
 template<typename Val>
 class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
     struct PSState {
@@ -514,39 +545,45 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
         }
     }
 
+    virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(pull_count_ == push_count_ + 1);
+        ++push_count_;
+        // 1. Push updates to PS
+        ts_ = kvworker_->PushChunks(model_id_, chunk_keys, chunk_vals);
+
+        // 2. Update local model: Aggregate
+        for (size_t i = 0; i < chunk_keys.size(); ++ i) {
+            size_t chunk_id = chunk_keys[i];
+            assert(params_[chunk_id].size() == chunk_vals[i]->size());
+            for (size_t j = 0; j < chunk_vals[i]->size(); ++ j) {
+                params_[chunk_id][j] += (*(chunk_vals[i]))[j];
+            }
+        }
+    }
+
+    virtual void PullChunks(const std::vector<size_t>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(pull_count_ == push_count_);
+        ++pull_count_;
+        // TODO: is it necessary to wait?
+        if (ts_ != -1) kvworker_->Wait(model_id_, ts_);  // Wait for last Push
+        
+        PrepareChunks(chunk_keys);
+
+        for (size_t i = 0; i < chunk_keys.size(); i++) {
+            size_t chunk_id = chunk_keys[i];
+            chunk_vals[i]->resize(params_[chunk_id].size());
+            for (size_t j = 0; j < chunk_vals[i]->size(); j++) {
+                (*(chunk_vals[i]))[j] = params_[chunk_id][j];
+            }
+        }
+    }
+
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         ++pull_count_;
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
         Prepare(keys);
         delta_.clear();
         delta_.resize(keys.size());
-    }
-
-    virtual void Prepare(const std::vector<husky::constants::Key>& keys) {
-        auto& range_manager = kvstore::RangeManager::Get();
-        std::vector<size_t> uncached_chunks;
-        int min_clock = std::max(0, pull_count_ - staleness_);
-
-        // 1. Check the staleness of local model
-        size_t current_chunk_id;
-        for (size_t i = 0; i < keys.size(); ++i) {
-            auto chunk_id = range_manager.GetLocation(model_id_, keys[i]).first;
-            if ((i == 0 || chunk_id != current_chunk_id) && chunk_clocks_[chunk_id] < min_clock) {
-                // 2. Collect all missing chunks
-                uncached_chunks.push_back(chunk_id);
-            }
-            current_chunk_id = chunk_id;
-        }
-
-        // 3. Pull missing chunks from process cache
-        if (!uncached_chunks.empty()) {
-            std::vector<std::vector<Val>*> chunk_ptrs;
-            chunk_ptrs.reserve(uncached_chunks.size());
-            for (auto chunk_id : uncached_chunks) {
-                chunk_ptrs.push_back(&params_[chunk_id]);
-            }
-            shared_state_.Get()->p_model_->PullChunksWithMinClock(uncached_chunks, chunk_ptrs, chunk_clocks_, local_id_, min_clock);
-        }
     }
 
     virtual Val Get_v2(husky::constants::Key idx) override {
@@ -576,6 +613,38 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
     }
 
    private: 
+    void Prepare(const std::vector<husky::constants::Key>& keys) {
+        std::vector<size_t> chunk_ids;
+        auto& range_manager = kvstore::RangeManager::Get();
+        for (size_t i = 0; i < keys.size(); ++i) {
+            auto loc = range_manager.GetLocation(model_id_, keys[i]);
+            if (chunk_ids.empty() || loc.first != chunk_ids.back()) {
+                chunk_ids.push_back(loc.first);
+            }
+        }
+        PrepareChunks(chunk_ids);
+    }
+    void PrepareChunks(const std::vector<size_t>& chunk_keys) {
+        std::vector<size_t> uncached_chunks;
+        int min_clock = std::max(0, pull_count_ - staleness_);
+
+        for (auto chunk_key : chunk_keys) {
+            if (chunk_clocks_[chunk_key] < min_clock) {
+                uncached_chunks.push_back(chunk_key);
+            }
+        }
+
+        // 3. Pull missing chunks from process cache
+        if (!uncached_chunks.empty()) {
+            std::vector<std::vector<Val>*> chunk_ptrs;
+            chunk_ptrs.reserve(uncached_chunks.size());
+            for (auto chunk_id : uncached_chunks) {
+                chunk_ptrs.push_back(&params_[chunk_id]);
+            }
+            shared_state_.Get()->p_model_->PullChunksWithMinClock(uncached_chunks, chunk_ptrs, chunk_clocks_, local_id_, min_clock);
+        }
+    }
+
     int model_id_;
     const husky::Info& info_;
     int local_id_;
