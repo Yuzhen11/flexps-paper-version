@@ -120,8 +120,8 @@ int main(int argc, char** argv) {
     // Set config
     config::InitContext(argc, argv, {"num_load_workers"});
     auto config = config::SetAppConfigWithContext();
-    if (Context::get_worker_info().get_process_id() == 0)
-        config:: ShowConfig(config);
+    // if (Context::get_worker_info().get_process_id() == 0)
+    //     config:: ShowConfig(config);
     auto hint = config::ExtractHint(config);
 
     auto& engine = Engine::Get();
@@ -142,23 +142,44 @@ int main(int argc, char** argv) {
 
     // Train task
     std::vector<MLTask> tasks;
-    std::vector<config::AppConfig> configs;
+    std::vector<config::AppConfig> task_configs;
     std::vector<int> kvs;
-    for (int i = 0; i < 10; ++ i) {
+    {
+        // task 1
         auto train_task = TaskFactory::Get().CreateTask<MLTask>();
-        train_task.set_dimensions(config.num_params);
-        train_task.set_total_epoch(config.train_epoch);  // set epoch number
-        train_task.set_num_workers(config.num_train_workers);
-        int kv1 = create_kvstore_and_set_hint(hint, train_task, config.num_params);  // Create KVStore and Set hint
-        assert(kv1 != -1);
-        kvs.push_back(kv1);
+        config::AppConfig train_config = config;
+        train_config.kType = "PS";
+        train_config.kConsistency = "SSP";
+        train_config.staleness = 1;
+        train_config.ps_worker_type = "PSWorker";
+        train_config.num_train_workers = 100;
+        train_config.train_epoch = 1;
+        train_config.num_iters = 100;
+        train_task.set_dimensions(train_config.num_params);
+        train_task.set_total_epoch(train_config.train_epoch);
+        train_task.set_num_workers(train_config.num_train_workers);
+        auto hint = config::ExtractHint(train_config);
+        int kv = create_kvstore_and_set_hint(hint, train_task, train_config.num_params);
+        kvs.push_back(kv);
         tasks.push_back(std::move(train_task));
-
-        // Using different learning rate
-        config.alpha = 0.1 + i*0.1;
-        if (Context::get_process_id() == 0)
-            husky::LOG_I << RED("Setting alpha to "+std::to_string(config.alpha));
-        configs.push_back(config);
+        task_configs.push_back(train_config);
+    }
+    {
+        // task 2
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
+        config::AppConfig train_config = config;
+        train_config.kType = "Hogwild";
+        train_config.num_train_workers = 4;
+        train_config.train_epoch = 1;
+        train_config.num_iters = 100;
+        train_task.set_dimensions(train_config.num_params);
+        train_task.set_total_epoch(train_config.train_epoch);
+        train_task.set_num_workers(train_config.num_train_workers);
+        auto hint = config::ExtractHint(train_config);
+        int kv = create_kvstore_and_set_hint(hint, train_task, train_config.num_params);
+        kvs.push_back(kv);
+        tasks.push_back(std::move(train_task));
+        task_configs.push_back(train_config);
     }
 
     // Submit load_task;
@@ -172,9 +193,13 @@ int main(int argc, char** argv) {
 
     // Submit train_task
     for (int i = 0; i < tasks.size(); ++ i) {
-        engine.AddTask(tasks[i], [&data_store, config = configs[i]](const Info& info) {
+        engine.AddTask(tasks[i], [&data_store, config = task_configs[i]](const Info& info) {
             lambda::train(data_store, config, info);
         });
+        if (Context::get_process_id() == 0) {
+            husky::LOG_I << RED("task_config " + std::to_string(i));
+            config::ShowConfig(task_configs[i]);
+        }
     }
     start_time = std::chrono::steady_clock::now();
     engine.Submit();

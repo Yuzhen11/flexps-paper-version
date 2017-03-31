@@ -36,7 +36,7 @@ namespace {
 
 void ShowConfig(const AppConfig& config) {
     std::stringstream ss;
-    ss << "\nShowing config: ";
+    ss << "Showing config: ";
     ss << "\ntrain_epoch: " << config.train_epoch;
     ss << "\nalpha: " << config.alpha;
     ss << "\nnum_iters: " << config.num_iters;
