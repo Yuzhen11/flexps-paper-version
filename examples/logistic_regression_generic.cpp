@@ -40,7 +40,7 @@ using husky::lib::ml::LabeledPointHObj;
  */
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv);
+    config::InitContext(argc, argv, {"num_load_workers"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);
@@ -55,17 +55,21 @@ int main(int argc, char** argv) {
         Context::get_worker_info().get_num_local_workers());
 
     // Load task
-    auto load_task = TaskFactory::Get().CreateTask<HuskyTask>(1, config.num_load_workers);  // 1 epoch
+    int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
+    auto load_task = TaskFactory::Get().CreateTask<HuskyTask>(1, num_load_workers);  // 1 epoch
     auto load_task_lambda = [&data_store, config](const Info& info) {
         auto local_id = info.get_local_id();
         load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, config.num_features, local_id);
     };
 
     // Train task
+    // auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
     auto train_task = TaskFactory::Get().CreateTask<MLTask>();
     train_task.set_dimensions(config.num_params);
     train_task.set_total_epoch(config.train_epoch);  // set epoch number
     train_task.set_num_workers(config.num_train_workers);
+    // train_task.set_worker_num({config.num_train_workers});
+    // train_task.set_worker_num_type({"threads_on_worker:0"});
     // Create KVStore and Set hint
     int kv1 = create_kvstore_and_set_hint(hint, train_task, config.num_params);
     assert(kv1 != -1);

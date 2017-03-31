@@ -20,3 +20,10 @@ target_link_libraries(ReadTrain husky)
 target_link_libraries(ReadTrain husky-ml)
 target_link_libraries(ReadTrain ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(ReadTrain)
+
+# MultiTasksExp
+add_executable(MultiTasksExp multi_tasks_exp.cpp)
+target_link_libraries(MultiTasksExp husky)
+target_link_libraries(MultiTasksExp husky-ml)
+target_link_libraries(MultiTasksExp ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(MultiTasksExp)

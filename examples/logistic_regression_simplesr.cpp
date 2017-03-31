@@ -123,7 +123,7 @@ float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<floa
 
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv);
+    config::InitContext(argc, argv, {"is_binary", "kLoadHdfsType"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);
@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
                                   Context::get_zmq_context());
 
     auto task1 = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
-    if (config.num_train_workers == 1 && config.kType == husky::constants::kSingle && config.kLoadHdfsType == "load_hdfs_locally") {
+    if (config.num_train_workers == 1 && config.kType == husky::constants::kSingle && Context::get_param("kLoadHdfsType") == "load_hdfs_locally") {
         task1.set_worker_num({1});
         task1.set_worker_num_type({"threads_traverse_cluster"});
     } else {
@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
     // create a AsyncReadBuffer
     int batch_size = 20, batch_num = 3;
 
-    bool is_binary = config.is_binary;
+    bool is_binary = Context::get_param("is_binary") == "on" ? true:false;
 
     // binary
     LIBSVMAsyncReadBinaryParseBuffer<LabeledPointHObj<float, float, true>, io::BinaryInputFormatML> buffer_binary;

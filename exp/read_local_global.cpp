@@ -14,7 +14,7 @@ using namespace husky;
 
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv, {"parse"});
+    config::InitContext(argc, argv, {"parse", "kLoadHdfsType", "is_binary"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);
@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
                                   Context::get_zmq_context());
 
     auto task1 = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
-    if (config.num_train_workers == 1 && config.kType == husky::constants::kSingle && config.kLoadHdfsType == "load_hdfs_locally") {
+    if (config.num_train_workers == 1 && config.kType == husky::constants::kSingle && Context::get_param("kLoadHdfsType") == "load_hdfs_locally") {
         task1.set_worker_num({1});
         task1.set_worker_num_type({"threads_traverse_cluster"});
     } else {
