@@ -36,11 +36,12 @@ using husky::lib::ml::LabeledPointHObj;
  * num_iters=100
  * num_features=123
  * train_epoch=1
- *
+ * learning_rate_coefficient=0.9
+ * learning_rate_update=exponential
  */
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv, {"num_load_workers"});
+    config::InitContext(argc, argv, {"num_load_workers", "learning_rate_coefficient", "learning_rate_update"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);

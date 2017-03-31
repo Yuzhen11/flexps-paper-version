@@ -29,10 +29,13 @@ auto train = [](datastore::DataStore<LabeledPointHObj<float, float, true>>& data
     int batch_size = 100;
     datastore::BatchDataSampler<LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, batch_size);
     batch_data_sampler.random_start_point();
+    auto alpha = config.alpha;
     for (int iter = 0; iter < config.num_iters; ++iter) {
         if (config.trainer == "lr") {
             // sgd_update(worker, data_sampler, config.alpha);
-            lr::batch_sgd_update_lr(worker, batch_data_sampler, config.alpha);
+            lr::batch_sgd_update_lr(worker, batch_data_sampler, alpha);
+            if (config.learning_rate_update == "linear") alpha -= config.learning_rate_coefficient;  // linear decay
+            else if (config.learning_rate_update == "exponential") alpha *= config.learning_rate_coefficient;  // exponential decay
         } else if (config.trainer == "svm") {
             svm::batch_sgd_update_svm_dense(worker, batch_data_sampler, config.alpha, config.num_params);
         }

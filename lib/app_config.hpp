@@ -30,6 +30,8 @@ struct AppConfig {
     bool use_direct_model_transfer = false;
     int staleness = 1;
     std::string ps_worker_type;
+    float learning_rate_coefficient = 0.0f;
+    std::string learning_rate_update;
 };
 
 namespace {
@@ -84,6 +86,10 @@ AppConfig SetAppConfigWithContext() {
     config.ps_worker_type = Context::get_param("ps_worker_type");
     config.use_direct_model_transfer = Context::get_param("use_direct_model_transfer")  == "on" ? true : false;
     config.staleness = std::stoi(Context::get_param("staleness"));
+    if (Context::get_param("learning_rate_coefficient") != "") {
+        config.learning_rate_coefficient = std::stof(Context::get_param("learning_rate_coefficient"));
+    }
+    config.learning_rate_update = Context::get_param("learning_rate_update");
 
     const std::vector<std::string> trainers_set({"lr", "svm"});
     assert(std::find(trainers_set.begin(), trainers_set.end(), config.trainer) != trainers_set.end());

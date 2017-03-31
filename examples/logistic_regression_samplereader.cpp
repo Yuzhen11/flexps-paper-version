@@ -121,8 +121,10 @@ float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<floa
 
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv, {"kLoadHdfsType"});
+    config::InitContext(argc, argv, {"kLoadHdfsType", "learning_rate_update", "learning_rate_coefficient"});
     auto config = config::SetAppConfigWithContext();
+    config.learning_rate_update = Context::get_param("learning_rate_update");
+    config.learning_rate_coefficient = std::stol(Context::get_param("learning_rate_coefficient"));
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);
     auto hint = config::ExtractHint(config);
@@ -166,9 +168,13 @@ int main(int argc, char** argv) {
         int report_interval = 10000;
         int sample_total = 0;
         // main loop
-        for (int iter = 0; iter < config.num_iters || config.num_iters == -1; ++ iter) {
-            sample_count += batch_sgd_update(worker, reader.get(), config.alpha, config.num_params, train_loss);
+        auto alpha = config.alpha;
+        for (int iter = 0; iter < config.num_iters || config.num_iters == -1; ++iter) {
+            sample_count += batch_sgd_update(worker, reader.get(), alpha, config.num_params, train_loss);
             if (reader->is_empty()) break;
+            if (config.learning_rate_update == "exponential") alpha *= config.learning_rate_coefficient;
+            else if (config.learning_rate_update == "linear") alpha -= config.learning_rate_coefficient;
+            alpha = std::max(alpha, 0.0f);
             if (sample_count >= report_interval) {
                 sample_total += sample_count;
                 husky::LOG_I << "train loss " << (train_loss / sample_count);
