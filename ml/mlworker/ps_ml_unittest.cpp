@@ -12,10 +12,10 @@ namespace {
 
 /*
  * Test different features:
- * PSSharedChunkWorker: process_cache, chunk-based
- * PSSharedWorker:      process_cache
- * SSPWorkerChunk:      chunk-based
- * SSPWorker
+ * PSChunkChunkWorker: process_cache, chunk-based
+ * PSMapChunkWorker:   process_cache, unordered map
+ * PSChunkNoneWorker:  chunk-based
+ * PSMapNoneWorker:    unordered map
  */
 class TestPS: public testing::Test {
    public:
@@ -76,16 +76,16 @@ TEST_F(TestPS, Construct) {
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0}, true);
-    // Create PSSharedChunkWorker
-    ml::mlworker::PSSharedChunkWorker<float> worker1(info, *zmq_context);
+    // Create PSChunkChunkWorker
+    ml::mlworker::PSChunkChunkWorker<float> worker1(info, *zmq_context);
     /*
-    // Create PSSharedWorker
-    ml::mlworker::PSSharedWorker<float> worker2(info, *zmq_context);
+    // Create PSMapChunkWorker
+    ml::mlworker::PSMapChunkWorker<float> worker2(info, *zmq_context);
     */
-    // Create SSPWorkerChunk
-    ml::mlworker::SSPWorkerChunk<float> worker3(info);
-    // Create SSPWorker
-    ml::mlworker::SSPWorker<float> worker4(info);
+    // Create PSChunkNoneWorker
+    ml::mlworker::PSChunkNoneWorker<float> worker3(info);
+    // Create PSMapNoneWorker
+    ml::mlworker::PSMapNoneWorker<float> worker4(info);
 }
 
 void testPushPull(ml::mlworker::GenericMLWorker<float>* worker) {
@@ -136,25 +136,25 @@ void test_multiple_threads(TestPS* obj, int type) {
     boost::thread t1([&instance, &obj, &iters, &type](){
         husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {0, 0}, true);
         if (type == 3) {
-            ml::mlworker::PSSharedChunkWorker<float> worker(info, *obj->zmq_context);
+            ml::mlworker::PSChunkChunkWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 2) {
-            ml::mlworker::PSSharedWorker<float> worker(info, *obj->zmq_context);
+            ml::mlworker::PSMapChunkWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 1) {
-            ml::mlworker::SSPWorkerChunk<float> worker(info);
+            ml::mlworker::PSChunkNoneWorker<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 0) {
-            ml::mlworker::SSPWorker<float> worker(info);
+            ml::mlworker::PSMapNoneWorker<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 testPushPull(&worker);
                 testV2(&worker);
@@ -164,28 +164,28 @@ void test_multiple_threads(TestPS* obj, int type) {
     boost::thread t2([&instance, &obj, &iters, &type](){
         husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {1, 1}, false);
         if (type == 3) {
-            ml::mlworker::PSSharedChunkWorker<float> worker(info, *obj->zmq_context);
+            ml::mlworker::PSChunkChunkWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 2) {
-            ml::mlworker::PSSharedWorker<float> worker(info, *obj->zmq_context);
+            ml::mlworker::PSMapChunkWorker<float> worker(info, *obj->zmq_context);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 1) {
-            ml::mlworker::SSPWorkerChunk<float> worker(info);
+            ml::mlworker::PSChunkNoneWorker<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);
                 testV2(&worker);
             }
         } else if (type == 0) {
-            ml::mlworker::SSPWorker<float> worker(info);
+            ml::mlworker::PSMapNoneWorker<float> worker(info);
             for (int i = 0; i < iters; ++i) {
                 if (i % 3 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 testPushPull(&worker);
@@ -197,19 +197,19 @@ void test_multiple_threads(TestPS* obj, int type) {
     t2.join();
 }
 
-TEST_F(TestPS, PSSharedChunkWorker) {
+TEST_F(TestPS, PSChunkChunkWorker) {
     test_multiple_threads(static_cast<TestPS*>(this), 3);
 }
 
-TEST_F(TestPS, PSSharedWorker) {
+TEST_F(TestPS, PSMapChunkWorker) {
     test_multiple_threads(static_cast<TestPS*>(this), 2);
 }
 
-TEST_F(TestPS, SSPWorkerChunk) {
+TEST_F(TestPS, PSChunkNoneWorker) {
     test_multiple_threads(static_cast<TestPS*>(this), 1);
 }
 
-TEST_F(TestPS, SSPWorker) {
+TEST_F(TestPS, PSMapNoneWorker) {
     test_multiple_threads(static_cast<TestPS*>(this), 0);
 }
 

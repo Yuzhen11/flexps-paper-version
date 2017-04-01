@@ -110,20 +110,20 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
 };
 
 /*
- * SSPWorker
+ * PSMapNoneWorker
  * ThreadCache: unordered_map, one timestamp
  * ProcessCache: No
  */
 template<typename Val>
-class SSPWorker : public mlworker::GenericMLWorker<Val> {
+class PSMapNoneWorker : public mlworker::GenericMLWorker<Val> {
    public:
-    SSPWorker() = delete;
-    SSPWorker(const SSPWorker&) = delete;
-    SSPWorker& operator=(const SSPWorker&) = delete;
-    SSPWorker(SSPWorker&&) = delete;
-    SSPWorker& operator=(SSPWorker&&) = delete;
+    PSMapNoneWorker() = delete;
+    PSMapNoneWorker(const PSMapNoneWorker&) = delete;
+    PSMapNoneWorker& operator=(const PSMapNoneWorker&) = delete;
+    PSMapNoneWorker(PSMapNoneWorker&&) = delete;
+    PSMapNoneWorker& operator=(PSMapNoneWorker&&) = delete;
 
-    SSPWorker(const husky::Info& info)
+    PSMapNoneWorker(const husky::Info& info)
         : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
         // set staleness
         staleness_ = stoi(info.get_task()->get_hint().at(husky::constants::kStaleness));
@@ -227,20 +227,20 @@ class SSPWorker : public mlworker::GenericMLWorker<Val> {
 };
 
 /*
- * SSPWorkerChunk
+ * PSChunkNoneWorker
  * ThreadCache: Chunk-based
  * ProcessCache: No
  */
 template<typename Val>
-class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
+class PSChunkNoneWorker : public mlworker::GenericMLWorker<Val> {
    public:
-    SSPWorkerChunk() = delete;
-    SSPWorkerChunk(const SSPWorkerChunk&) = delete;
-    SSPWorkerChunk operator=(const SSPWorkerChunk&) = delete;
-    SSPWorkerChunk(SSPWorkerChunk&&) = delete;
-    SSPWorkerChunk operator=(SSPWorkerChunk&&) = delete;
+    PSChunkNoneWorker() = delete;
+    PSChunkNoneWorker(const PSChunkNoneWorker&) = delete;
+    PSChunkNoneWorker operator=(const PSChunkNoneWorker&) = delete;
+    PSChunkNoneWorker(PSChunkNoneWorker&&) = delete;
+    PSChunkNoneWorker operator=(PSChunkNoneWorker&&) = delete;
 
-    SSPWorkerChunk(const husky::Info& info) :
+    PSChunkNoneWorker(const husky::Info& info) :
         model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()),
         model_(model_id_, static_cast<husky::MLTask*>(info.get_task())->get_dimensions()),
         local_id_(info.get_local_id()) {
@@ -305,7 +305,6 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
     }
     virtual void Clock_v2() override { Push(*keys_, delta_); }
 
-
    private:
     int model_id_;
     int staleness_ = 1;
@@ -323,24 +322,127 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
 };
 
 /*
- * PSSharedWorker
- * ThreadCache: unordered_map, one timestamp
- * ProcessCache: Chunk-based
+ * PSNoneChunkWorker
+ * ThreadCache: none
+ * ProcessCache: chunk-based
  */
 template<typename Val>
-class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
+class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
     struct PSState {
         model::ChunkBasedPSModel<Val>* p_model_;
     };
 
    public:
-    PSSharedWorker() = delete;
-    PSSharedWorker(const PSSharedWorker&) = delete;
-    PSSharedWorker& operator=(const PSSharedWorker&) = delete;
-    PSSharedWorker(PSSharedWorker&&) = delete;
-    PSSharedWorker& operator=(PSSharedWorker&&) = delete;
+    PSNoneChunkWorker() = delete;
+    PSNoneChunkWorker(const PSNoneChunkWorker&) = delete;
+    PSNoneChunkWorker(PSNoneChunkWorker&&) = delete;
+    PSNoneChunkWorker& operator=(const PSNoneChunkWorker&) = delete;
+    PSNoneChunkWorker& operator=(PSNoneChunkWorker&&) = delete;
 
-    PSSharedWorker(const husky::Info& info, zmq::context_t& context)
+    PSNoneChunkWorker(const husky::Info& info, zmq::context_t& context) :
+        shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
+        info_(info),
+        model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        if (info.is_leader()) {
+            PSState* state = new PSState;
+            state->p_model_ = new model::ChunkBasedPSModel<Val>(model_id_, num_params);
+            // 1. Init
+            shared_state_.Init(state);
+        }
+        // 2. Sync
+        shared_state_.SyncState();
+        staleness_ = stoi(info.get_task()->get_hint().at(husky::constants::kStaleness));
+        // set local id and kvworker
+        local_id_ = info.get_local_id();
+        kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+    }
+
+    ~PSNoneChunkWorker() {
+        shared_state_.Barrier();
+        if (info_.get_local_tids().at(0) == info_.get_global_id()) {
+            delete shared_state_.Get()->p_model_;
+            delete shared_state_.Get();
+        }
+    }
+
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
+        assert(++push_count_ == pull_count_);
+        // Push updates to PS
+        kvworker_->Push(model_id_, keys, vals);
+    }
+
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
+        assert(pull_count_ == push_count_);
+        ++pull_count_;
+        
+        int stale = std::max(pull_count_ - staleness_, 0);
+        shared_state_.Get()->p_model_->PullWithMinClock(keys, vals, local_id_, stale);
+    }
+
+    // v2: no read-your-writes guarantee
+    virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
+        ++pull_count_;
+        keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
+        int stale = std::max(pull_count_ - staleness_, 0);
+        shared_state_.Get()->p_model_->Prepare(keys, local_id_, stale);
+        delta_.clear();
+        delta_.resize(keys.size());
+    }
+
+    virtual Val Get_v2(husky::constants::Key idx) override {
+        return shared_state_.Get()->p_model_->At((*keys_)[idx]);
+    }
+
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
+        delta_[idx] += val;
+    }
+
+    virtual void Update_v2(const std::vector<Val>& vals) override {
+        for (int i = 0; i < vals.size(); ++i) {
+            delta_[i] += vals[i];
+        }
+    }
+    virtual void Clock_v2() override { Push(*keys_, delta_); }
+
+   private: 
+    int model_id_;
+    const husky::Info& info_;
+    int local_id_;
+    kvstore::KVWorker* kvworker_ = nullptr;
+    // Shared Model
+    SharedState<PSState> shared_state_;
+
+    // Progress
+    int pull_count_ = 0;  // clock
+    int push_count_ = 0;
+    int staleness_ = 1;  // default is synchronouse
+
+    // for v2
+    std::vector<husky::constants::Key>* keys_;
+    std::vector<Val> delta_;
+};
+
+/*
+ * PSMapChunkWorker
+ * ThreadCache: unordered_map, one timestamp
+ * ProcessCache: Chunk-based
+ */
+template<typename Val>
+class PSMapChunkWorker : public mlworker::GenericMLWorker<Val> {
+    struct PSState {
+        model::ChunkBasedPSModel<Val>* p_model_;
+    };
+
+   public:
+    PSMapChunkWorker() = delete;
+    PSMapChunkWorker(const PSMapChunkWorker&) = delete;
+    PSMapChunkWorker& operator=(const PSMapChunkWorker&) = delete;
+    PSMapChunkWorker(PSMapChunkWorker&&) = delete;
+    PSMapChunkWorker& operator=(PSMapChunkWorker&&) = delete;
+
+    PSMapChunkWorker(const husky::Info& info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
           model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
@@ -360,7 +462,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
         kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
 
-    ~PSSharedWorker() {
+    ~PSMapChunkWorker() {
         shared_state_.Barrier();
         if (info_.get_local_tids().at(0) == info_.get_global_id()) {
             delete shared_state_.Get()->p_model_;
@@ -467,24 +569,24 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
 };
 
 /*
- * PSSharedChunkWorker
+ * PSChunkChunkWorker
  * ThreadCache: Chunk-based
  * ProcessCache: Chunk-based
  */
 template<typename Val>
-class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
+class PSChunkChunkWorker : public mlworker::GenericMLWorker<Val> {
     struct PSState {
         model::ChunkBasedPSModel<Val>* p_model_;
     };
 
    public:
-    PSSharedChunkWorker() = delete;
-    PSSharedChunkWorker(const PSSharedChunkWorker&) = delete;
-    PSSharedChunkWorker& operator=(const PSSharedChunkWorker&) = delete;
-    PSSharedChunkWorker(PSSharedChunkWorker&&) = delete;
-    PSSharedChunkWorker& operator=(PSSharedChunkWorker&&) = delete;
+    PSChunkChunkWorker() = delete;
+    PSChunkChunkWorker(const PSChunkChunkWorker&) = delete;
+    PSChunkChunkWorker& operator=(const PSChunkChunkWorker&) = delete;
+    PSChunkChunkWorker(PSChunkChunkWorker&&) = delete;
+    PSChunkChunkWorker& operator=(PSChunkChunkWorker&&) = delete;
 
-    PSSharedChunkWorker(const husky::Info& info, zmq::context_t& context)
+    PSChunkChunkWorker(const husky::Info& info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
           model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()),
@@ -507,7 +609,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
         kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
     }
 
-    ~PSSharedChunkWorker() {
+    ~PSChunkChunkWorker() {
         shared_state_.Barrier();
         if (info_.get_local_tids().at(0) == info_.get_global_id()) {
             delete shared_state_.Get()->p_model_;

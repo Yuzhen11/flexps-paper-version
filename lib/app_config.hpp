@@ -110,7 +110,7 @@ std::map<std::string, std::string> ExtractHint(const AppConfig& config) {
     };
     
     if (config.kType == husky::constants::kPS && config.kConsistency == husky::constants::kSSP) {
-        const std::vector<std::string> ps_worker_types{"PSWorker", "SSPWorker", "SSPWorkerChunk", "PSSharedWorker", "PSSharedChunkWorker"};
+        const std::vector<std::string> ps_worker_types{"PSWorker", "PSMapNoneWorker", "PSChunkNoneWorker", "PSNoneChunkWorker", "PSMapChunkWorker", "PSChunkChunkWorker"};
         assert(std::find(ps_worker_types.begin(), ps_worker_types.end(), config.ps_worker_type) != ps_worker_types.end());
         hint.insert({husky::constants::kWorkerType, config.ps_worker_type});
     }

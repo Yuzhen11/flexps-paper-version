@@ -77,10 +77,11 @@ constexpr const char* const kASP = "ASP";
 // worker type
 constexpr const char* const kWorkerType = "worker_type";
 constexpr const char* const kPSWorker = "PSWorker";
-constexpr const char* const kSSPWorker = "SSPWorker";
-constexpr const char* const kSSPWorkerChunk = "SSPWorkerChunk";
-constexpr const char* const kPSSharedWorker = "PSSharedWorker";
-constexpr const char* const kPSSharedWorkerChunk = "PSSharedChunkWorker";
+constexpr const char* const kPSMapNoneWorker = "PSMapNoneWorker";
+constexpr const char* const kPSChunkNoneWorker= "PSChunkNoneWorker";
+constexpr const char* const kPSMapChunkWorker = "PSMapChunkWorker";
+constexpr const char* const kPSChunkChunkWorker = "PSChunkChunkWorker";
+constexpr const char* const kPSNoneChunkWorker = "PSNoneChunkWorker";
 
 constexpr const char* const kNumWorkers = "num_workers";
 constexpr const char* const kStaleness = "staleness";

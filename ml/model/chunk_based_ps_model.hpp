@@ -95,6 +95,12 @@ class ChunkBasedPSModel {
         }
     }
 
+    Val At(husky::constants::Key key) {
+        auto& range_manager = kvstore::RangeManager::Get();
+        const auto& loc = range_manager.GetLocation(model_id_, key);
+        return params_[loc.first][loc.second];
+    }
+
    protected:
     void fetch_chunk(const std::vector<size_t>& chunks, int local_id) {
         int clock;
