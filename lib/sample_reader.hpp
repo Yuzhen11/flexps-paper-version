@@ -230,11 +230,11 @@ class LIBSVMSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<
                 this->index_set_.insert(idx);
                 i = 1;
             } else if (i == 1) {
-                val = std::atol(tok);
+                val = std::atof(tok);
                 this_obj.x.set(idx, val);
                 i = 0;
             } else {  // the first is the label
-                this_obj.y = std::atol(tok);
+                this_obj.y = std::atof(tok);
                 i = 0;
             }
             // Next key/value pair
@@ -267,9 +267,9 @@ class TSVSampleReader : public SampleReader<husky::lib::ml::LabeledPointHObj<Fea
         while (tok != NULL) {
             if (i < this->num_features_) {
                 this->index_set_.insert(i);  // TODO: not necessary to store keys for dense form
-                this_obj.x.set(i++, std::stol(tok));
+                this_obj.x.set(i++, std::stof(tok));
             } else {
-                this_obj.y = std::stol(tok);
+                this_obj.y = std::stof(tok);
             }
             // Next key/value pair
             tok = strtok_r(NULL, " \t", &chunk_pos);

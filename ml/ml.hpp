@@ -26,19 +26,22 @@ CreateMLWorker(const husky::Info& info) {
                 if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSWorker) {
                     husky::LOG_I << "using PSWorker";
                     mlworker.reset(new ml::mlworker::PSWorker<Val>(info));
-                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorker) {
-                    husky::LOG_I << "using SSPWorker";
-                    mlworker.reset(new ml::mlworker::SSPWorker<Val>(info));
-                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSSharedWorkerChunk) {
-                    husky::LOG_I << "using PSSharedChunkWorker";
-                    mlworker.reset(new ml::mlworker::PSSharedChunkWorker<Val>(info, *husky::Context::get_zmq_context()));
-                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kSSPWorkerChunk) {
-                    husky::LOG_I << "using SSPWorkerChunk";
-                    mlworker.reset(new ml::mlworker::SSPWorkerChunk<Val>(info));
-                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSSharedWorker) {
-                    husky::LOG_I << "using PSSharedWorker";
-                    mlworker.reset(new ml::mlworker::PSSharedWorker<Val>(info, *husky::Context::get_zmq_context()));
-                } 
+                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSMapNoneWorker) {
+                    husky::LOG_I << "using PSMapNoneWorker";
+                    mlworker.reset(new ml::mlworker::PSMapNoneWorker<Val>(info));
+                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSChunkChunkWorker) {
+                    husky::LOG_I << "using PSChunkChunkWorker";
+                    mlworker.reset(new ml::mlworker::PSChunkChunkWorker<Val>(info, *husky::Context::get_zmq_context()));
+                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSChunkNoneWorker) {
+                    husky::LOG_I << "using PSChunkNoneWorker";
+                    mlworker.reset(new ml::mlworker::PSChunkNoneWorker<Val>(info));
+                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSMapChunkWorker) {
+                    husky::LOG_I << "using PSMapChunkWorker";
+                    mlworker.reset(new ml::mlworker::PSMapChunkWorker<Val>(info, *husky::Context::get_zmq_context()));
+                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSNoneChunkWorker) {
+                    husky::LOG_I << "using PSNoneChunkWorker";
+                    mlworker.reset(new ml::mlworker::PSNoneChunkWorker<Val>(info, *husky::Context::get_zmq_context()));
+                }
             } else {
                 mlworker.reset(new ml::mlworker::PSWorker<Val>(info));
             }

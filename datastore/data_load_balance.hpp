@@ -37,6 +37,12 @@ class DataLoadBalance {
     bool empty() {
         return is_empty_;
     }
+
+    void reset() {
+        local_id_ = thread_pos_ - thread_num_;
+        chunk_id_ = 0;
+    }
+
     bool has_next() {
         if (is_empty_)
             return false;
