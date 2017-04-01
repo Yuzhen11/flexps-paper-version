@@ -162,7 +162,7 @@ class ChunkBasedMTLockModel : public ChunkBasedMTModel<Val> {
                 mtx_[chunk_id].lock();
                 current_chunk_id = chunk_id;
             }
-            vals->at(i) = params_[chunk_id][loc.second];
+            (*vals)[i] = params_[chunk_id][loc.second];
         }
         mtx_[current_chunk_id].unlock();
     }

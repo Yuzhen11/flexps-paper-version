@@ -138,7 +138,7 @@ class SSPWorker : public mlworker::GenericMLWorker<Val> {
         ts_ = kvworker_->Push(model_id_, keys, vals);
         // update local cache but not cache timestamp
         for (int i = 0; i < keys.size(); i++) {
-            cached_kv_.at(keys[i]) += vals[i];
+            cached_kv_[keys[i]] += vals[i];
         }
     }
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
@@ -174,7 +174,7 @@ class SSPWorker : public mlworker::GenericMLWorker<Val> {
                 cache_ts_ = pull_count_;
             }
             for (int i = 0; i < uncached_keys.size(); i++) {
-                cached_kv_[uncached_keys[i]] = vals->at(i);
+                cached_kv_[uncached_keys[i]] = (*vals)[i];
             }
         }
 
@@ -291,15 +291,15 @@ class SSPWorkerChunk : public mlworker::GenericMLWorker<Val> {
     }
 
     virtual Val Get_v2(husky::constants::Key idx) override {
-        return model_.At(keys_->at(idx));
+        return model_.At((*keys_)[idx]);
     }
     virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
-        model_.Inc(keys_->at(idx), val);
+        model_.Inc((*keys_)[idx], val);
     }
     virtual void Update_v2(const std::vector<Val>& vals) override {
         for (int i = 0; i < vals.size(); ++i) {
-            model_.Inc(keys_->at(i), vals[i]);
+            model_.Inc((*keys_)[i], vals[i]);
             delta_[i] += vals[i];
         }
     }
@@ -376,7 +376,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
 
         // 2. Update local model: Aggregate
         for (int i = 0; i < keys.size(); i++) {
-            cached_kv_.at(keys[i]) += vals[i];
+            cached_kv_[keys[i]] += vals[i];
         }
     }
 
@@ -390,7 +390,7 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
 
         vals->resize(keys.size());
         for (int i = 0; i < keys.size(); i++) {
-            vals->at(i) = cached_kv_[keys[i]];
+            (*vals)[i] = cached_kv_[keys[i]];
         }
     }
 
@@ -402,14 +402,14 @@ class PSSharedWorker : public mlworker::GenericMLWorker<Val> {
         delta_.resize(keys.size());
     }
 
-    virtual Val Get_v2(husky::constants::Key idx) override { return cached_kv_[keys_->at(idx)]; }
+    virtual Val Get_v2(husky::constants::Key idx) override { return cached_kv_[(*keys_)[idx]]; }
     virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
-        cached_kv_[keys_->at(idx)] += val;
+        cached_kv_[(*keys_)[idx]] += val;
     }
     virtual void Update_v2(const std::vector<Val>& vals) override {
         for (int i = 0; i < vals.size(); ++i) {
-            cached_kv_[keys_->at(i)] += vals[i];
+            cached_kv_[(*keys_)[i]] += vals[i];
             delta_[i] += vals[i];
         }
     }
@@ -541,7 +541,7 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
         auto& range_manager = kvstore::RangeManager::Get();
         for (int i = 0; i < keys.size(); i++) {
             auto loc = range_manager.GetLocation(model_id_, keys[i]);
-            vals->at(i) = params_[loc.first][loc.second];
+            (*vals)[i] = params_[loc.first][loc.second];
         }
     }
 
@@ -588,21 +588,21 @@ class PSSharedChunkWorker : public mlworker::GenericMLWorker<Val> {
 
     virtual Val Get_v2(husky::constants::Key idx) override {
         auto& range_manager = kvstore::RangeManager::Get();
-        auto loc = range_manager.GetLocation(model_id_, keys_->at(idx));
+        auto loc = range_manager.GetLocation(model_id_, (*keys_)[idx]);
         return params_[loc.first][loc.second];
     }
 
     virtual void Update_v2(husky::constants::Key idx, Val val) override {
         delta_[idx] += val;
         auto& range_manager = kvstore::RangeManager::Get();
-        auto loc = range_manager.GetLocation(model_id_, keys_->at(idx));
+        auto loc = range_manager.GetLocation(model_id_, (*keys_)[idx]);
         params_[loc.first][loc.second] += val;
     }
 
     virtual void Update_v2(const std::vector<Val>& vals) override {
         auto& range_manager = kvstore::RangeManager::Get();
         for (int i = 0; i < vals.size(); ++i) {
-            auto loc = range_manager.GetLocation(model_id_, keys_->at(i));
+            auto loc = range_manager.GetLocation(model_id_, (*keys_)[i]);
             params_[loc.first][loc.second] += vals[i];
             delta_[i] += vals[i];
         }

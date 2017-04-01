@@ -40,7 +40,7 @@ class ChunkBasedPSModel {
                 mtx_[chunk_id].lock();  // lock the new chunk
                 current_chunk_id = chunk_id;
             }
-            vals->at(i) = params_[chunk_id][loc.second];
+            (*vals)[i] = params_[chunk_id][loc.second];
         }
         if (keys.size() > 0) {
             mtx_[current_chunk_id].unlock();  // unlock the last chunk

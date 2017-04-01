@@ -44,10 +44,10 @@ class ChunkFileEditor {
             // allocate memory to chunk
             int size = chunk_size_;
             if (id == num_chunks_ - 1) size = last_chunk_size_;
-            chunks_ptr_->at(id).resize(size);
+            (*chunks_ptr_)[id].resize(size);
 
             fseek(file_, iter->second, SEEK_SET);
-            fread(chunks_ptr_->at(id).data(), sizeof(Val), size, file_);
+            fread((*chunks_ptr_)[id].data(), sizeof(Val), size, file_);
         }
     }
 
@@ -61,11 +61,11 @@ class ChunkFileEditor {
 
             if (iter != chunk_map_.end()) {  // if the chunk is previously written
                 fseek(file_, iter->second, SEEK_SET);
-                fwrite(chunks_ptr_->at(id).data(), sizeof(Val), size, file_);
+                fwrite((*chunks_ptr_)[id].data(), sizeof(Val), size, file_);
             } else {  // first time to write the chunk
                 chunk_map_[id] = bytes_written_;
                 fseek(file_, 0, SEEK_END);
-                fwrite(chunks_ptr_->at(id).data(), sizeof(Val), size, file_);
+                fwrite((*chunks_ptr_)[id].data(), sizeof(Val), size, file_);
                 bytes_written_ += size * sizeof(Val);
             }
         }

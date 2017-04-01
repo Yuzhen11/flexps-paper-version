@@ -37,6 +37,7 @@ class ChunkBasedModel : public Model<Val> {
         } else if (hint == husky::constants::kKVStoreIntegral) {
             // Load all from KVStore 
             LoadAllChunksFromKV(local_id, model_id_, &params_);
+            std::fill(is_cached_.begin(), is_cached_.end(), 1);
         } else if (hint == husky::constants::kTransferIntegral) {
             // Load from kTransferChunks
             LoadAllChunksFromStore(local_id, model_id_, &params_);

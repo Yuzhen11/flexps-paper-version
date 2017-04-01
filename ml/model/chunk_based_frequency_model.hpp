@@ -76,10 +76,10 @@ class ChunkBasedFrequencyModel : public ChunkBasedModel<Val> {
         for (size_t i = 0; i < keys.size(); ++i) {
             auto iter = frequent_pool_.find(keys[i]);
             if (iter != frequent_pool_.end()) {
-                vals->at(i) = iter->second;
+                (*vals)[i] = iter->second;
             } else {
                 auto loc = range_manager.GetLocation(model_id_, keys[i]);
-                vals->at(i) = params_[loc.first][loc.second];
+                (*vals)[i] = params_[loc.first][loc.second];
             }
         }
     }
@@ -239,9 +239,9 @@ class ChunkBasedMTLockFrequencyModel : public ChunkBasedMTFrequencyModel<Val> {
             // Find the key in frequent pool
             auto iter = frequent_pool_.find(keys[i]);
             if (iter != frequent_pool_.end()) {
-                vals->at(i) = iter->second;
+                (*vals)[i] = iter->second;
             } else {
-                vals->at(i) = params_[loc.first][loc.second];
+                (*vals)[i] = params_[loc.first][loc.second];
             }
         }
         mtx_[current_chunk_id].unlock();
