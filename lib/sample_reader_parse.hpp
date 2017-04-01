@@ -254,11 +254,11 @@ class LIBSVMAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample, InputForm
                 batch.keys.insert(idx);
                 i = 1;
             } else if (i == 1) {
-                val = std::atol(tok);
+                val = std::atof(tok);
                 this_obj.x.set(idx, val);
                 i = 0;
             } else {
-                this_obj.y = std::atol(tok);
+                this_obj.y = std::atof(tok);
                 i = 0;
             }
             // Next key/value pair
@@ -324,9 +324,9 @@ class TSVAsyncReadParseBuffer : public AsyncReadParseBuffer<Sample, InputFormatT
         while (tok != NULL) {
             if (i < this->num_features_) {
                 batch.keys.insert(i);  // TODO: not necessary to store keys for dense form
-                this_obj.x.set(i++, std::stol(tok));
+                this_obj.x.set(i++, std::stof(tok));
             } else {
-                this_obj.y = std::stol(tok);
+                this_obj.y = std::stof(tok);
             }
             // Next key/value pair
             tok = strtok_r(NULL, " \t", &pos);

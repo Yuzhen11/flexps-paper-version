@@ -2,6 +2,7 @@
 
 #include "boost/tokenizer.hpp"
 
+#include "datastore/datastore.hpp"
 #include "husky/io/input/inputformat_store.hpp"
 #include "husky/lib/ml/feature_label.hpp"
 
@@ -40,17 +41,16 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
                         idx = std::atoi(tok) - 1;
                         i = 1;
                     } else if (i == 1) {
-                        val = std::atol(tok);
+                        val = std::atof(tok);
                         this_obj.x.set(idx, val);
                         i = 0;
                     } else {
-                        this_obj.y = std::atol(tok);
+                        this_obj.y = std::atof(tok);
                         i = 0;
                     }
                     // Next key/value pair
                     tok = strtok_r(NULL, " \t:", &pos);
                 }
-
                 data.Push(local_id, std::move(this_obj));
             });
             break;
