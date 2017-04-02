@@ -1,10 +1,13 @@
 #pragma once
 
 #include <vector>
+#include <list>
+#include <sstream>
 
 #include "boost/iterator/indirect_iterator.hpp"
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/locks.hpp"
+#include "boost/thread/condition_variable.hpp"
 #include "core/constants.hpp"
 #include "kvstore/kvstore.hpp"
 #include "ml/model/chunk_based_model.hpp"
@@ -18,7 +21,7 @@ class ChunkBasedPSModel {
     ChunkBasedPSModel(int model_id, int num_params):
         model_id_(model_id), num_params_(num_params),
         num_chunks_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
-        params_(num_chunks_), chunk_clocks_(num_chunks_, -1), mtx_(num_chunks_) {}
+        params_(num_chunks_), fetch_mgr_(num_chunks_), chunk_clocks_(num_chunks_, -1), mtx_(num_chunks_) {}
 
     virtual int PullWithMinClock(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id, int min_clock) {
         // Prepare the keys
@@ -60,7 +63,8 @@ class ChunkBasedPSModel {
 
         // Pull from kvstore
         if (!chunks_to_fetch.empty()) {
-            fetch_chunk(chunks_to_fetch, local_id);
+            // fetch_chunk(chunks_to_fetch, local_id);
+            fetch_mgr_fetch_chunk(chunks_to_fetch, local_id, min_clock);
         }
 
         for (int i = 0; i < chunks.size(); ++i) {
@@ -102,7 +106,96 @@ class ChunkBasedPSModel {
     }
 
    protected:
-    void fetch_chunk(const std::vector<size_t>& chunks, int local_id) {
+    /*
+     * Use fetch_mgr to fetch chunk
+     * Avoid repetitive fetch
+     */
+    void fetch_mgr_fetch_chunk(std::vector<size_t>& chunks_to_fetch, int local_id, int min_clock) {
+        // Repeatedly fetch and wait
+        while (!chunks_to_fetch.empty()) {
+            // 1. Identify chunks_to_fetch_real and chunks_to_wait 
+            std::vector<size_t> chunks_to_fetch_real;
+            std::vector<size_t> chunks_to_wait;
+            {
+                boost::mutex::scoped_lock lock(fetch_mgr_mtx_);
+                fetch_mgr_cv_.wait(lock, [this, min_clock, &chunks_to_fetch, &chunks_to_wait, &chunks_to_fetch_real]() {
+                    chunks_to_fetch_real.clear();
+                    chunks_to_wait.clear();
+                    for (auto id : chunks_to_fetch) {
+                        if (chunk_clocks_[id] < min_clock) {  // may need to lock chunk_clocks_[id]
+                            // the cache is not new enough, either fetch or wait
+                            auto& clock_list = fetch_mgr_[id];
+                            if (!clock_list.empty() && min_clock == clock_list.front().first) {
+                                if (clock_list.front().second == 1) {  // someone is working on it
+                                    chunks_to_wait.push_back(id);
+                                } else {  // I can work on it
+                                    chunks_to_fetch_real.push_back(id);
+                                }
+                            } else if (!clock_list.empty() && min_clock > clock_list.front().first) {
+                                // insert into the list
+                                auto it = clock_list.begin();
+                                while (it != clock_list.end()) {
+                                    if (it->first == min_clock) {
+                                        break;
+                                    }
+                                    if (it->first > min_clock) {
+                                        clock_list.insert(it, {min_clock, 0});
+                                        break;
+                                    }
+                                    ++ it;
+                                }
+                                if (min_clock > clock_list.back().first)
+                                    clock_list.push_back({min_clock, 0});
+                                // wait for it
+                                chunks_to_wait.push_back(id);
+                            } else {
+                                // insert into the list
+                                clock_list.push_front({min_clock, 1});
+                                // fetch it
+                                chunks_to_fetch_real.push_back(id);
+                            }
+                        }
+                    }
+                    if (chunks_to_fetch_real.empty() && chunks_to_wait.empty()) {  // all are clear
+                        return true;
+                    } else if (!chunks_to_fetch_real.empty()) {  // something to fetch
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
+            }
+
+            if (chunks_to_fetch_real.empty() && chunks_to_wait.empty())
+                break;
+            // 2. Fetch chunks and wait
+            int fetch_min_clock = fetch_chunk(chunks_to_fetch_real, local_id);
+            while (fetch_min_clock < min_clock) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                husky::LOG_I << RED("Refetching");
+                fetch_min_clock = fetch_chunk(chunks_to_fetch_real, local_id);
+            }
+            // 3. Update fetch_mgr_
+            {
+                boost::mutex::scoped_lock lock(fetch_mgr_mtx_);
+                // Erase from fetch_mgr
+                for (auto id : chunks_to_fetch_real) {
+                    auto& clock_list = fetch_mgr_[id];
+                    auto it = clock_list.begin();
+                    while (it != clock_list.end()) {
+                        if (it->first > fetch_min_clock)
+                            break;
+                        it = clock_list.erase(it);
+                    }
+                }
+                // Notify all
+                fetch_mgr_cv_.notify_all();
+            }
+            // 4. Set chunks_to_fetch in next round
+            chunks_to_fetch = chunks_to_wait;
+        }
+    }
+    int fetch_chunk(const std::vector<size_t>& chunks, int local_id) {
         int clock;
         // 1. get kvworker
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
@@ -124,6 +217,41 @@ class ChunkBasedPSModel {
                 params_[chunk_id] = std::move(tmp_chunks[i]);
             }
         }
+        return clock;
+    }
+
+    void print_debug_info(const std::vector<size_t>& chunks_to_fetch, 
+            const std::vector<size_t>& chunks_to_fetch_real, 
+            const std::vector<size_t>& chunks_to_wait,
+            int min_clock) {
+        {
+            boost::mutex::scoped_lock lock(fetch_mgr_mtx_);
+            std::stringstream ss;
+            ss << "chunks_to_fetch: ";
+            for (auto id : chunks_to_fetch)
+                ss << id << " ";
+            ss << "\nchunks_to_fetch_real: ";
+            for (auto id : chunks_to_fetch_real)
+                ss << id << " ";
+            ss << "\nchunks_to_wait: ";
+            for (auto id : chunks_to_wait)
+                ss << id << " ";
+            ss << "\nmin_clock: " << min_clock;
+            ss << "\nclock_list: ";
+            for (auto& clock_list : fetch_mgr_) {
+                for (auto it = clock_list.begin(); it != clock_list.end(); ++ it) {
+                    ss << it->first << " ";
+                }
+                ss << "\n";
+            }
+            ss << "chunks_clocks: ";
+            for (int i = 0; i < chunk_clocks_.size(); ++ i) {
+                mtx_[i].lock();
+                ss << chunk_clocks_[i] << " ";
+                mtx_[i].unlock();
+            }
+            husky::LOG_I << ss.str();
+        }
     }
 
     int model_id_;
@@ -132,6 +260,11 @@ class ChunkBasedPSModel {
     std::vector<std::vector<Val>> params_;
     std::vector<int> chunk_clocks_;
     std::vector<boost::mutex> mtx_;
+
+    // for fetch_mgr
+    boost::mutex fetch_mgr_mtx_;
+    boost::condition_variable fetch_mgr_cv_;
+    std::vector<std::list<std::pair<int, int>>> fetch_mgr_;
 };
 
 template<typename Val>
