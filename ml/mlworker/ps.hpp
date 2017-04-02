@@ -377,15 +377,28 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
         assert(pull_count_ == push_count_);
         ++pull_count_;
         
-        int stale = std::max(pull_count_ - staleness_, 0);
+        int stale = std::max(pull_count_ - staleness_ - 1, 0);
         shared_state_.Get()->p_model_->PullWithMinClock(keys, vals, local_id_, stale);
+    }
+
+    virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(++push_count_ == pull_count_);
+        kvworker_->PushChunks(model_id_, chunk_keys, chunk_vals);
+    }
+
+    virtual void PullChunks(const std::vector<size_t>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals) override {
+        assert(pull_count_ == push_count_);
+        ++pull_count_;
+        
+        int stale = std::max(pull_count_ - staleness_ - 1, 0);
+        shared_state_.Get()->p_model_->PullChunksWithMinClock(chunk_keys, chunk_vals, local_id_, stale, nullptr);
     }
 
     // v2: no read-your-writes guarantee
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         ++pull_count_;
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
-        int stale = std::max(pull_count_ - staleness_, 0);
+        int stale = std::max(pull_count_ - staleness_ - 1, 0);
         shared_state_.Get()->p_model_->Prepare(keys, local_id_, stale);
         delta_.clear();
         delta_.resize(keys.size());
@@ -536,7 +549,7 @@ class PSMapChunkWorker : public mlworker::GenericMLWorker<Val> {
         // 3. Pull missing keys from process cache
         if (!uncached_keys.empty()) {
             std::vector<Val> tmp_vals;
-            int stale = std::max(pull_count_ - staleness_, 0);
+            int stale = std::max(pull_count_ - staleness_ -1, 0);
             auto cache_ts = shared_state_.Get()->p_model_->PullWithMinClock(uncached_keys, &tmp_vals, local_id_, stale);
             if (keys.size() == uncached_keys.size()) {
                 cache_ts_ = cache_ts;
@@ -743,7 +756,7 @@ class PSChunkChunkWorker : public mlworker::GenericMLWorker<Val> {
             for (auto chunk_id : uncached_chunks) {
                 chunk_ptrs.push_back(&params_[chunk_id]);
             }
-            shared_state_.Get()->p_model_->PullChunksWithMinClock(uncached_chunks, chunk_ptrs, chunk_clocks_, local_id_, min_clock);
+            shared_state_.Get()->p_model_->PullChunksWithMinClock(uncached_chunks, chunk_ptrs, local_id_, min_clock, &chunk_clocks_);
         }
     }
 

@@ -23,7 +23,7 @@ class ChunkBasedPSModel {
         num_chunks_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
         params_(num_chunks_), fetch_mgr_(num_chunks_), chunk_clocks_(num_chunks_, -1), mtx_(num_chunks_) {}
 
-    virtual int PullWithMinClock(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id, int min_clock) {
+    int PullWithMinClock(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, int local_id, int min_clock) {
         // Prepare the keys
         Prepare(keys, local_id, min_clock);
 
@@ -52,7 +52,7 @@ class ChunkBasedPSModel {
         return clock;
     }
 
-    virtual void PullChunksWithMinClock(std::vector<size_t>& chunks, std::vector<std::vector<Val>*>& chunk_ptrs, std::vector<int>& chunk_clocks, int local_id, int min_clock) {
+    void PullChunksWithMinClock(const std::vector<size_t>& chunks, std::vector<std::vector<Val>*>& chunk_ptrs, int local_id, int min_clock, std::vector<int>* chunk_clocks = nullptr) {
         // Collect chunks that are too stale
         std::vector<size_t> chunks_to_fetch;
         for (auto chunk_id : chunks) {
@@ -70,7 +70,8 @@ class ChunkBasedPSModel {
         for (int i = 0; i < chunks.size(); ++i) {
             mtx_[chunks[i]].lock();
             *chunk_ptrs[i] = params_[chunks[i]];
-            chunk_clocks[chunks[i]] = chunk_clocks_[chunks[i]];
+            if (chunk_clocks != nullptr)
+                (*chunk_clocks)[chunks[i]] = chunk_clocks_[chunks[i]];
             mtx_[chunks[i]].unlock();
         }
     }
@@ -102,7 +103,10 @@ class ChunkBasedPSModel {
     Val At(husky::constants::Key key) {
         auto& range_manager = kvstore::RangeManager::Get();
         const auto& loc = range_manager.GetLocation(model_id_, key);
-        return params_[loc.first][loc.second];
+        {
+            boost::lock_guard<boost::mutex> chunk_lock(mtx_[loc.first]);
+            return params_[loc.first][loc.second];
+        }
     }
 
    protected:
