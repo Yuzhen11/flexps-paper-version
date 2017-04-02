@@ -129,6 +129,7 @@ class ChunkBasedPSModel {
                                 if (clock_list.front().second == 1) {  // someone is working on it
                                     chunks_to_wait.push_back(id);
                                 } else {  // I can work on it
+                                    clock_list.front().second = 1;
                                     chunks_to_fetch_real.push_back(id);
                                 }
                             } else if (!clock_list.empty() && min_clock > clock_list.front().first) {
@@ -161,6 +162,7 @@ class ChunkBasedPSModel {
                     } else if (!chunks_to_fetch_real.empty()) {  // something to fetch
                         return true;
                     } else {
+                        chunks_to_fetch.swap(chunks_to_wait);
                         return false;
                     }
                 });
@@ -170,10 +172,9 @@ class ChunkBasedPSModel {
                 break;
             // 2. Fetch chunks and wait
             int fetch_min_clock = fetch_chunk(chunks_to_fetch_real, local_id);
-            while (fetch_min_clock < min_clock) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                husky::LOG_I << RED("Refetching");
-                fetch_min_clock = fetch_chunk(chunks_to_fetch_real, local_id);
+            if (fetch_min_clock < min_clock) {
+                husky::LOG_I << "fetch_min_clock vs min_clock: " << fetch_min_clock << " " << min_clock;
+                assert(false);
             }
             // 3. Update fetch_mgr_
             {
@@ -192,7 +193,7 @@ class ChunkBasedPSModel {
                 fetch_mgr_cv_.notify_all();
             }
             // 4. Set chunks_to_fetch in next round
-            chunks_to_fetch = chunks_to_wait;
+            chunks_to_fetch.swap(chunks_to_wait);
         }
     }
     int fetch_chunk(const std::vector<size_t>& chunks, int local_id) {

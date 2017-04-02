@@ -156,7 +156,7 @@ class SSPServer : public ServerBase {
                 if (std::get<3>(pull_pair).size()) {  // if bin is empty, don't reply
                     int pull_cmd = std::get<0>(pull_pair);
                     KVPairs<Val> res = retrieve<Val, StorageT>(kv_id, server_id_, std::get<3>(pull_pair), store_, pull_cmd>with_min_clock_magic_?pull_cmd-with_min_clock_magic_:pull_cmd, is_vector_);
-                    if (cmd > with_min_clock_magic_)  // PullChunksWithMinClock
+                    if (pull_cmd > with_min_clock_magic_)  // PullChunksWithMinClock
                         Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), false, std::get<1>(pull_pair), res, customer, min_clock_);
                     else
                         Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), false, std::get<1>(pull_pair), res, customer);

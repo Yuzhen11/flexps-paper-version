@@ -728,7 +728,7 @@ class PSChunkChunkWorker : public mlworker::GenericMLWorker<Val> {
     }
     void PrepareChunks(const std::vector<size_t>& chunk_keys) {
         std::vector<size_t> uncached_chunks;
-        int min_clock = std::max(0, pull_count_ - staleness_);
+        int min_clock = std::max(0, pull_count_ - staleness_ - 1);
 
         for (auto chunk_key : chunk_keys) {
             if (chunk_clocks_[chunk_key] < min_clock) {
