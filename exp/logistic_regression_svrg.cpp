@@ -46,7 +46,7 @@ void test_error(std::vector<float>& rets_w,
         for (auto field : x) {
             // calculate predict y
             pred_y += rets_w[field.fea] * field.val;
-            // if (flag) { debug_kvstore_w += "__" + std::to_string(rets_w[field.fea]); }
+            if (flag) { debug_kvstore_w += "__" + std::to_string(rets_w[field.fea]); }
         }
         pred_y = 1. / (1. + exp(-1 * pred_y));
 
@@ -55,7 +55,7 @@ void test_error(std::vector<float>& rets_w,
         flag = 0;
     }
 
-    //husky::LOG_I << "current w: " + debug_kvstore_w;
+    // husky::LOG_I << "current w: " + debug_kvstore_w;
     husky::LOG_I << ":accuracy is " << std::to_string(c_count / count) 
         << " count is :" << std::to_string(count) << " c_count is:" << std::to_string(c_count);
 }
@@ -76,7 +76,6 @@ void SGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
     // pull from kvstore_w
     std::vector<float> rets_w;
     kvworker->Wait(kv_w, kvworker->Pull(kv_w, keys, &rets_w));
-    // debug_kvstore<float>(rets_w, "SGD w");
     // keep old parameters
     std::vector<float> old_rets_w = rets_w;
     // pull from kvstore_u
@@ -85,12 +84,21 @@ void SGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
     kvworker->Wait(kv_u, kvworker->Pull(kv_u, keys, &rets_u, true, true, false));
 
     std::vector<float> rets_w_delta(num_params);
+
+    // optimization about avoiding dense calculating of w_delta
+    // update_counter describes rets_w_delta updating,
+    // update_counter_w describes rets_w updating
+    std::vector<int> update_counter(num_params, 0);
+    std::vector<int> update_counter_w(num_params, 0);
+    // record iter
+    int iter = 0;
     for(int i = num_iters; i > 0&&data_iterator.has_next(); i--) {
         // get next data 
         auto& data = data_iterator.next();
 
-        std::vector<float> delta(num_params);
-        std::vector<float> old_delta(num_params);
+        // delta and old_delta is sparse
+        std::vector<std::pair<int, float>> delta;
+        std::vector<std::pair<int, float>> old_delta;
 
         auto& x = data.x;
         float y = data.y;
@@ -99,13 +107,16 @@ void SGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
         float old_pred_y = 0.0;
         // new gradient
         for (auto field : x) {
-            pred_y += rets_w[field.fea] * field.val;
+            // it's a bit tricky, some unprocessed rets_u will be added,
+            // some rets_u isn't used by previous data record may be used by this record
+            pred_y += (rets_w[field.fea] - alpha * (iter - update_counter_w[field.fea]) * rets_u[field.fea]) * field.val;
+            update_counter_w[field.fea] = iter;
         }
         pred_y = 1. / (1. + exp(-1 * pred_y));
         // each data will calculate a delta, once a delta has been calculated, rets_w will be updated
         // so there is no need to accumulate
         for (auto field : x) {
-            delta[field.fea] =  field.val * (pred_y - y);
+            delta.emplace_back(std::pair<int, float>(field.fea, field.val * (pred_y - y)));
         }
 
         // old gradient
@@ -114,23 +125,33 @@ void SGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
         }
         old_pred_y = 1. / (1. + exp(-1 * old_pred_y));
         for (auto field : x) {
-            old_delta[field.fea] =  field.val * (old_pred_y - y);
+            old_delta.emplace_back(std::pair<int, float>(field.fea, field.val * (old_pred_y - y)));
         }
-        // debug_kvstore<float>(old_delta, "SGD old_delta");
 
-        // update rets_w for next calculate, but not push to kvstore, 
-        for (int i = 0; i < rets_u.size(); i++) {
+        iter++;
+        // optimization: we needn't browsing rets_u which is dense data,
+        // in this for-loop, we just need to process some rets_u values whose delta value is not null
+        for (int i = 0; i < delta.size(); i++) {
+            int idx = delta[i].first;
             // record rets_w_delta
-            float w_delta = (-1) * alpha * (delta[i] - old_delta[i] + rets_u[i]);
-            // float w_delta = (-1) * alpha * (delta[i]);
-            // husky::LOG_I << "w_delta: " + std::to_string(w_delta);
-            rets_w_delta[i] += w_delta;
+            float w_delta = (-1) * alpha * (delta[i].second - old_delta[i].second + (iter - update_counter[idx]) * rets_u[idx]);
+            rets_w_delta[idx] += w_delta;
             // update rets_w
-            rets_w[i] += w_delta;
+            rets_w[idx] += w_delta;
+            // record 
+            update_counter[idx] = iter; 
+            update_counter_w[idx] = iter;
         }
 
         if (info.get_cluster_id() == 0 && i % 100 == 0) {
             test_error(rets_w, data_store);
+        }
+    }
+    
+    // to process some rets_u values which have nerver been processed in above loop
+    for (int i = 0; i < update_counter.size(); i++) {
+        if (update_counter[i] < iter) {
+            rets_w_delta[i] += (-1) * alpha * (iter - update_counter[i]) * rets_u[i];
         }
     }
 
@@ -241,12 +262,13 @@ void FGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
 
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv);
+    config::InitContext(argc, argv, {"num_load_workers", "data_size"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);
     // auto hint = config::ExtractHint(config);
 
+    int data_size = std::stoi(Context::get_param("data_size"));
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
@@ -326,7 +348,7 @@ int main(int argc, char** argv) {
     int kv_w = kvstore::KVStore::Get().CreateKVStore<float>(hint_w);
     int kv_u = kvstore::KVStore::Get().CreateKVStore<float>(hint_u);
 
-    engine.AddTask(std::move(train_task), [&kv_w, &kv_u, &data_store, num_iters, &alpha, num_params, &svrg_type](const Info & info) {
+    engine.AddTask(std::move(train_task), [&kv_w, &kv_u, &data_store, num_iters, &alpha, num_params, &svrg_type, data_size](const Info & info) {
         // create a DataStoreWrapper
         datastore::DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
 
@@ -338,7 +360,7 @@ int main(int argc, char** argv) {
         if (current_epoch % worker_num.size() == 0) {
             husky::LOG_I << RED("FGD. current_epoch: " + std::to_string(current_epoch));
                 // do FGD
-            FGD_update(data_store, kv_w, kv_u, alpha, num_params, info, data_store_wrapper.get_data_size());
+            FGD_update(data_store, kv_w, kv_u, alpha, num_params, info, data_size); 
         } else {   // do SGD
             if (data_store_wrapper.get_data_size() == 0) {
                 husky::LOG_I << "SGD no data......";
