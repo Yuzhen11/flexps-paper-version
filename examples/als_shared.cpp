@@ -384,10 +384,34 @@ int main(int argc, char** argv) {
             kvworker->Wait(kv1, ts);
 
             // 8. Barrier
+            if (kDoTest) {  // aggregate global rmse
+                int dst = info.get_tid(0);
+                husky::base::BinStream bin;
+                bin << local_rmse << num_local_edges;
+                mailbox->send(dst, 0, iter+1, bin);
+            }
             mailbox->send_complete(0, iter+1, 
                     info.get_worker_info().get_local_tids(), info.get_worker_info().get_pids());
-            while (mailbox->poll(0, iter+1)) {
-                mailbox->recv(0, iter+1);
+            if (kDoTest) {
+                float total_rmse = 0;
+                int total_num_edges = 0;
+                while (mailbox->poll(0, iter+1)) {
+                    auto bin = mailbox->recv(0, iter+1);
+                    if (info.get_cluster_id() == 0) {
+                        float rmse_part;
+                        int num_edges_part;
+                        bin >> rmse_part >> num_edges_part;
+                        total_rmse += rmse_part;
+                        total_num_edges += num_edges_part;
+                    }
+                }
+                if (info.get_cluster_id() == 0) {
+                    husky::LOG_I << BLUE("global avg rmse: "+std::to_string(total_rmse/total_num_edges));
+                }
+            } else {
+                while (mailbox->poll(0, iter+1)) {
+                    mailbox->recv(0, iter+1);
+                }
             }
 
 #ifdef USE_PROFILER
