@@ -90,8 +90,8 @@ class ModelWithCM : public ChunkBasedMTLockModel<Val> {
     using ChunkBasedMTLockModel<Val>::mtx_;
     using ChunkBasedModel<Val>::is_cached_;
     using Model<Val>::model_id_;
-    ModelWithCM(int model_id, int num_params, int cache_threshold = 0) :
-        ChunkBasedMTLockModel<Val>(model_id, num_params), cache_threshold_(cache_threshold),
+    ModelWithCM(int model_id, int num_params, int cache_threshold, float dump_factor) :
+        ChunkBasedMTLockModel<Val>(model_id, num_params), cache_threshold_(cache_threshold), dump_factor_(dump_factor),
         status_(num_chunks_, 0), prepare_count_(num_chunks_, 0),
         cfe_(&params_, kvstore::RangeManager::Get().GetChunkSize(model_id), kvstore::RangeManager::Get().GetLastChunkSize(model_id), num_chunks_) {}
 
@@ -127,8 +127,8 @@ class ModelWithCM : public ChunkBasedMTLockModel<Val> {
         std::vector<size_t> chunks_to_fetch;
         std::vector<size_t> chunks_to_prepare;
         std::vector<boost::mutex*> mtx_ptrs;
-        chunks_to_prepare.reserve(num_chunks_);
-        mtx_ptrs.reserve(num_chunks_);
+        // chunks_to_prepare.reserve(num_chunks_);
+        // mtx_ptrs.reserve(num_chunks_);
 
         size_t current_chunk_id;
         auto& range_manager = kvstore::RangeManager::Get();
@@ -171,8 +171,11 @@ class ModelWithCM : public ChunkBasedMTLockModel<Val> {
         std::vector<size_t> chunks_to_replace;
         int overflow = num_cached_ + chunks_to_fetch.size() - cache_threshold_;
         if (overflow > 0) {
-            replace_lock(overflow, chunks_to_replace);
-            num_cached_ = cache_threshold_;
+            int num_dumps = int(dump_factor_*cache_threshold_);
+            husky::LOG_I << "Dumping " << num_dumps << " chunks";
+            replace_lock(num_dumps, chunks_to_replace);
+            num_cached_ = num_cached_ + chunks_to_fetch.size() - chunks_to_replace.size();
+            assert(num_cached_ <= cache_threshold_);
         } else {
             num_cached_ += chunks_to_fetch.size();
         }
@@ -260,6 +263,7 @@ class ModelWithCM : public ChunkBasedMTLockModel<Val> {
     std::vector<int> prepare_count_;
     int num_cached_ = 0;
     int cache_threshold_;
+    float dump_factor_;
 };
 
 template<typename Val>
@@ -270,8 +274,8 @@ class ModelWithCMLRU : public ModelWithCM<Val> {
     using ModelWithCM<Val>::num_cached_;
     using ModelWithCM<Val>::prepare_count_;
     using ChunkBasedMTModel<Val>::mtx_;
-    ModelWithCMLRU(int model_id, int num_params, int cache_threshold):
-        ModelWithCM<Val>(model_id, num_params, cache_threshold),
+    ModelWithCMLRU(int model_id, int num_params, int cache_threshold, float dump_factor = 0.01):
+        ModelWithCM<Val>(model_id, num_params, cache_threshold, dump_factor),
         access_count_(0),
         recency_(num_chunks_, 0) {}
 
@@ -330,8 +334,8 @@ class ModelWithCMLFU : public ModelWithCM<Val> {
     using ModelWithCM<Val>::prepare_count_;
     using ChunkBasedMTModel<Val>::mtx_;
 
-    ModelWithCMLFU(int model_id, int num_params, int cache_threshold):
-        ModelWithCM<Val>(model_id, num_params, cache_threshold),
+    ModelWithCMLFU(int model_id, int num_params, int cache_threshold, float dump_factor = 0.01):
+        ModelWithCM<Val>(model_id, num_params, cache_threshold, dump_factor),
         frequency_(kvstore::RangeManager::Get().GetChunkNum(model_id), 0) {}
 
    protected:
@@ -386,8 +390,8 @@ class ModelWithCMRandom : public ModelWithCM<Val> {
     using ModelWithCM<Val>::prepare_count_;
     using ChunkBasedMTModel<Val>::mtx_;
 
-    ModelWithCMRandom(int model_id, int num_params, int cache_threshold):
-        ModelWithCM<Val>(model_id, num_params, cache_threshold) {}
+    ModelWithCMRandom(int model_id, int num_params, int cache_threshold, float dump_factor = 0.01):
+        ModelWithCM<Val>(model_id, num_params, cache_threshold, dump_factor) {}
 
    protected:
     void replace_lock(int num_to_replace, std::vector<size_t>& chunks_to_replace) override {

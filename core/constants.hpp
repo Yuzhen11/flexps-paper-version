@@ -109,6 +109,19 @@ constexpr const char* const kLoadHdfsType = "load_hdfs_type";
 constexpr const char* const kLoadHdfsLocally = "load_hdfs_locally";
 constexpr const char* const kLoadHdfsGlobally = "load_hdfs_globally";
 
+/*
+ * For different Cache Strategy
+ */
+constexpr const char* const kCacheStrategy = "cache_strategy";
+constexpr const char* const kLRU = "LRU";
+constexpr const char* const kLFU = "LFU";
+constexpr const char* const kRandom= "Random";
+constexpr const char* const kCacheThreshold = "cache_threshold";
+constexpr const char* const kDumpFactor = "dump_factor";
+
+
+constexpr const char* const kEmpty = "";
+
 }  // namespace anonymous
 }  // namespace constants
 }  // namespace husky

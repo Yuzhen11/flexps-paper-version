@@ -17,6 +17,7 @@
 #include "ml/model/integral_model.hpp"
 #include "ml/model/chunk_based_mt_model.hpp"
 #include "ml/shared/shared_state.hpp"
+#include "ml/model/model_with_cm.hpp"
 
 #include "kvstore/kvstore.hpp"
 
@@ -24,7 +25,6 @@
 
 namespace ml {
 namespace mlworker {
-
 
 template<typename Val>
 class SPMTWorker : public mlworker::GenericMLWorker<Val> {
@@ -98,7 +98,28 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
                 if (is_hogwild_) {
                     state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTModel<Val>(model_id, num_params);
                 } else {
-                    state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTLockModel<Val>(model_id, num_params);
+                    if (hint.find(husky::constants::kCacheStrategy) == hint.end()
+                            || hint.at(husky::constants::kCacheStrategy) == husky::constants::kEmpty) {
+                        state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTLockModel<Val>(model_id, num_params);
+                        husky::LOG_I << "Using ChunkBasedMTLockModel";
+                    } else {
+                        int cache_threshold = std::stoi(hint.at(husky::constants::kCacheThreshold));
+                        float dump_factor = std::stof(hint.at(husky::constants::kDumpFactor));
+                        husky::LOG_I << "cache_threshold: " << cache_threshold << " dump_factor: " << dump_factor;
+                        if (hint.at(husky::constants::kCacheStrategy) == husky::constants::kLRU) {
+                            state->p_model_ = (model::Model<Val>*) new model::ModelWithCMLRU<Val>(model_id, num_params, cache_threshold, dump_factor);
+                            husky::LOG_I << "Using ModelWithCMLRU";
+                        } else if (hint.at(husky::constants::kCacheStrategy) == husky::constants::kLFU) {
+                            state->p_model_ = (model::Model<Val>*) new model::ModelWithCMLFU<Val>(model_id, num_params, cache_threshold, dump_factor);
+                            husky::LOG_I << "Using ModelWithCMLFU";
+                        } else if (hint.at(husky::constants::kCacheStrategy) == husky::constants::kRandom) {
+                            state->p_model_ = (model::Model<Val>*) new model::ModelWithCMRandom<Val>(model_id, num_params, cache_threshold, dump_factor);
+                            husky::LOG_I << "Using ModelWithCMRandom";
+                        } else {
+                            husky::LOG_I << "kCacheStrategy setting error";
+                            throw;
+                        }
+                    }
                 }
             } else {
                 // Use Integral model

@@ -37,14 +37,17 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
                 && (hint.at(husky::constants::kConsistency) == husky::constants::kSSP 
                     || hint.at(husky::constants::kConsistency) == husky::constants::kBSP)) {
             kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+            send_all_ = true;
+        } else {
+            send_all_ = false;
         }
     }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
-        ts_ = kvworker_->Push(model_id_, keys, vals, true, true);
-        kvworker_->Wait(model_id_, ts_);
+        ts_ = kvworker_->Push(model_id_, keys, vals, send_all_, true);
+        // kvworker_->Wait(model_id_, ts_);
     }
     
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
@@ -52,7 +55,7 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
         pull_count_ += 1;
         if (ts_ != -1)
             kvworker_->Wait(model_id_, ts_);  // Wait for last Push, TODO: Will this cause anything wrong when changing epochs?
-        ts_ = kvworker_->Pull(model_id_, keys, vals, true, true);
+        ts_ = kvworker_->Pull(model_id_, keys, vals, send_all_, true);
         kvworker_->Wait(model_id_, ts_);  // Wait for this Pull
     }
 
@@ -101,6 +104,7 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
     int push_count_ = 0;
     int pull_count_ = 0;
     int ts_ = -1;
+    bool send_all_ = true;
 
     // For v2
     // Pointer to keys
