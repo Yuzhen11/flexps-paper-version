@@ -34,8 +34,9 @@ void GreedyTaskScheduler::finish_thread(int instance_id, int global_thread_id) {
                 return task->get_id() == instance_id;
             });
             auto& task = *p;
-            task->inc_epoch();
             int idx = distance(tasks_.begin(), p);
+            husky::LOG_I << CLAY("Task " + std::to_string(idx) + " epoch " + std::to_string(task->get_current_epoch()) + " finished ");
+            task->inc_epoch();
             if (task->get_current_epoch() == task->get_total_epoch()) {
                 task_status_.at(idx) = 2;  // mark it as finished
             } else {
@@ -70,6 +71,7 @@ std::vector<std::shared_ptr<Instance>> GreedyTaskScheduler::extract_instances() 
                 // update history
                 HistoryManager::get().update_history(instance->get_id(), pid_tids);
                 
+                husky::LOG_I << YELLOW("Task: "+std::to_string(instance->get_id())+" added");
                 instances.push_back(std::move(instance));
                 task_status_.at(i) = 1;
             }

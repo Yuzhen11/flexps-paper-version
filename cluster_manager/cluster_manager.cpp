@@ -79,8 +79,8 @@ void ClusterManager::serve() {
             int instance_id, global_thread_id;
             bin >> instance_id >> global_thread_id;
             task_scheduler_->finish_thread(instance_id, global_thread_id);
-            husky::LOG_I << CLAY("[ClusterManager]: task id: " + std::to_string(instance_id) + " thread id: " +
-                                 std::to_string(global_thread_id) + " done");
+            // husky::LOG_I << CLAY("[ClusterManager]: task id: " + std::to_string(instance_id) + " thread id: " +
+            //                      std::to_string(global_thread_id) + " done");
 
             // 2. Check whether enough new threads has been bufferred
             if (scheduler_trigger_->has_enough_new_threads()) {

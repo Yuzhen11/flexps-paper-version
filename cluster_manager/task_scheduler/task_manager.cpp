@@ -34,6 +34,7 @@ void TaskManager::finish_thread(int task_id, int pid, int global_thread_id) {
     if (threads.empty()) {
         task_id_pid_tids_[task_id].erase(pid);
         if (task_id_pid_tids_[task_id].size() == 0) {
+            husky::LOG_I << CLAY("Task " + std::to_string(task_id) + " epoch " + std::to_string(tasks_[task_id]->get_current_epoch()) + " finished ");
             tasks_[task_id]->inc_epoch();
             if (tasks_[task_id]->get_current_epoch() == tasks_[task_id]->get_total_epoch()) {
                 task_status_.at(task_id) = 2;  // mark it as finished

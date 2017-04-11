@@ -29,6 +29,7 @@ void SequentialTaskScheduler::finish_thread(int instance_id, int global_thread_i
             task_id_pid_tids_.erase(instance_id);
 
             auto& task = tasks_queue_.front();
+            husky::LOG_I << CLAY("Task " + std::to_string(task->get_id()) + " epoch " + std::to_string(task->get_current_epoch()) + " finished ");
             task->inc_epoch();  // Trying to work on next epoch
             if (task->get_current_epoch() ==
                 task->get_total_epoch()) {  // If all the epochs are done, then task is done
@@ -70,6 +71,7 @@ std::shared_ptr<Instance> SequentialTaskScheduler::task_to_instance(const Task& 
         }
         // update history
         HistoryManager::get().update_history(instance->get_id(), pid_tids);
+        husky::LOG_I << YELLOW("Task: "+std::to_string(instance->get_id())+" added");
     } else {
         throw base::HuskyException("[Sequential Task Scheduler] Cannot assign next instance");
     }

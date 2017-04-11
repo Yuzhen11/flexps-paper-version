@@ -30,6 +30,8 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
         husky::DLOG_I << "angry";
         auto begin = task_manager_.angry_list_begin();
         auto end = task_manager_.angry_list_end();
+        std::vector<int> success_tasks;
+        std::vector<int> fail_tasks;
         while (begin != end) {
             int id = *begin;
             std::shared_ptr<Instance> instance(new Instance);
@@ -53,16 +55,24 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
                 }
                 task_manager_.record_and_track(id, pid_tids);
                 // erase this task from angry list
-                task_manager_.suc_sched(id);
+                // task_manager_.suc_sched(id);
+                success_tasks.push_back(id);
                 instances.push_back(std::move(instance));
+                husky::LOG_I << YELLOW("Angry task: "+std::to_string(id)+" added");
             } else {
-                task_manager_.fail_sched(id);
+                // task_manager_.fail_sched(id);
                 for (auto& pid : proc_ids) {
                     // lock those preferred by this angry task
                     process_lock.insert(pid); 
                 }
             }
             begin++;
+        }
+        for (auto task_id : success_tasks) {
+            task_manager_.suc_sched(task_id);
+        }
+        for (auto task_id : fail_tasks) {
+            task_manager_.fail_sched(task_id);
         }
     }
 
@@ -92,6 +102,7 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
             task_manager_.record_and_track(id, pid_tids);
             task_manager_.suc_sched(id);
             instances.push_back(std::move(instance));
+            husky::LOG_I << YELLOW("Non-angry task: "+std::to_string(id)+" added");
         } else {
             task_manager_.fail_sched(id);
         }
