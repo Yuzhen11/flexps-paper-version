@@ -62,7 +62,9 @@ class BSPServer : public ServerBase {
         bin >> push;
         bin >> src;
         if (cmd == 4) {  // InitForConsistencyControl
+            int next_num_workers;
             if (init_count_ == 0) {  // reset the buffer when the first init message comes
+                bin >> next_num_workers;  // get next num workers
                 push_iter_ = 0;
                 pull_iter_ = 0;
                 push_count_.clear();
@@ -72,6 +74,9 @@ class BSPServer : public ServerBase {
                 blocked_pulls_.clear();
                 blocked_pushes_.clear();
                 reply_phase_ = init_reply_phase_;
+                if (next_num_workers != -1) {
+                    num_workers_ = next_num_workers;
+                }
             }
             init_count_ += 1;
             if (init_count_ == num_workers_) {

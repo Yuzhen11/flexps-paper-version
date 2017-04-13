@@ -36,7 +36,7 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
         if (hint.find(husky::constants::kConsistency) != hint.end()
                 && (hint.at(husky::constants::kConsistency) == husky::constants::kSSP 
                     || hint.at(husky::constants::kConsistency) == husky::constants::kBSP)) {
-            kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+            kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
             send_all_ = true;
         } else {
             send_all_ = false;
@@ -134,7 +134,7 @@ class PSMapNoneWorker : public mlworker::GenericMLWorker<Val> {
         // set kvworker
         int local_id = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
-        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
     }
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
         assert(push_count_ + 1 == pull_count_);
@@ -252,7 +252,7 @@ class PSChunkNoneWorker : public mlworker::GenericMLWorker<Val> {
             model_.SetStaleness(stoi(info.get_task()->get_hint().at(husky::constants::kStaleness)));
             // Set kvworker
             kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
-            kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+            kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
     }
 
     virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
@@ -360,7 +360,7 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
         // set local id and kvworker
         local_id_ = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
-        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
     }
 
     ~PSNoneChunkWorker() {
@@ -476,7 +476,7 @@ class PSMapChunkWorker : public mlworker::GenericMLWorker<Val> {
         // set local id and kvworker
         local_id_ = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
-        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
     }
 
     ~PSMapChunkWorker() {
@@ -623,7 +623,7 @@ class PSChunkChunkWorker : public mlworker::GenericMLWorker<Val> {
         // Set local id and kvworker
         local_id_ = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
-        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_));
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
     }
 
     ~PSChunkChunkWorker() {

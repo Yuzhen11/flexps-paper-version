@@ -71,7 +71,7 @@ class KVWorker {
      * When using PS ssp, InitForConsistencyControl must be called in each worker threads
      * in the beginning of every epoch.
      */
-    int InitForConsistencyControl(int kv_id) {
+    int InitForConsistencyControl(int kv_id, int num_workers = -1) {
         int num_servers = RangeManager::Get().GetNumServers();
         int ts = customer_->NewRequest(kv_id, num_servers);
         int src = info_.global_id;
@@ -79,7 +79,7 @@ class KVWorker {
         bool push = true;
         for (int i = 0; i < num_servers; ++ i) {
             husky::BinStream bin;
-            bin << kv_id << ts << cmd << push << src;
+            bin << kv_id << ts << cmd << push << src << num_workers;
             customer_->send(info_.get_tid(i), bin);
         }
         return ts;

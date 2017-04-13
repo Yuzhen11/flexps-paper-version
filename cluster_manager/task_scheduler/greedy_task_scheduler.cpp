@@ -35,7 +35,7 @@ void GreedyTaskScheduler::finish_thread(int instance_id, int global_thread_id) {
             });
             auto& task = *p;
             int idx = distance(tasks_.begin(), p);
-            husky::LOG_I << CLAY("Task " + std::to_string(idx) + " epoch " + std::to_string(task->get_current_epoch()) + " finished ");
+            husky::LOG_I << CLAY("Task " + std::to_string(task->get_id()) + " epoch " + std::to_string(task->get_current_epoch()) + " finished ");
             task->inc_epoch();
             if (task->get_current_epoch() == task->get_total_epoch()) {
                 task_status_.at(idx) = 2;  // mark it as finished

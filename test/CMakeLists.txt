@@ -125,3 +125,10 @@ target_link_libraries(TestModelTransfer husky)
 target_link_libraries(TestModelTransfer husky-ml)
 target_link_libraries(TestModelTransfer ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(TestModelTransfer)
+
+# TestInitConsistencyControl
+add_executable(TestInitConsistencyControl test_init_consistency_control.cpp)
+target_link_libraries(TestInitConsistencyControl husky)
+target_link_libraries(TestInitConsistencyControl husky-ml)
+target_link_libraries(TestInitConsistencyControl ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(TestInitConsistencyControl)
