@@ -114,6 +114,105 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
 };
 
 /*
+ * PSBspWorker
+ * Provide simple process-level cache for PSWorker in BSP mode
+ * Only vector-version shared state is provided
+ */
+template<typename Val>
+class PSBspWorker : public mlworker::GenericMLWorker<Val> {
+    struct PSState {
+        PSState(int model_id, int num_params, int num_workers):
+        model_(model_id, num_params, num_workers) {}
+        model::PSBspModel<Val> model_;
+    };
+   public:
+    PSBspWorker() = delete;
+    PSBspWorker(const PSBspWorker&) = delete;
+    PSBspWorker& operator=(const PSBspWorker&) = delete;
+    PSBspWorker(PSBspWorker&&) = delete;
+    PSBspWorker& operator=(PSBspWorker&&) = delete;
+
+    PSBspWorker(const husky::Info& info, zmq::context_t& context)
+        : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
+        info_(info),
+        model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+
+        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        if (info.is_leader()) {
+            PSState* state = new PSState(model_id_, num_params, info.get_num_local_workers());
+            // 1. Init
+            shared_state_.Init(state);
+        }
+        // 2. Sync
+        shared_state_.SyncState();
+        // set kvworker
+        local_id_ = info.get_local_id();
+        kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
+        kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
+    }
+    ~PSBspWorker() {
+        shared_state_.Barrier();
+        if (info_.get_local_tids().at(0) == info_.get_global_id()) {
+            delete shared_state_.Get();
+        }
+    }
+
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) override {
+        assert(push_count_ + 1 == pull_count_);
+        push_count_ += 1;
+        shared_state_.Get()->model_.Push(keys, vals, local_id_, info_.is_leader());
+    }
+    
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
+        assert(push_count_ == pull_count_);
+        pull_count_ += 1;
+        shared_state_.Get()->model_.Pull(keys, vals, local_id_); 
+    }
+
+    // For v2
+    virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
+        keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
+        Pull(keys, &vals_);
+        delta_.clear();
+        delta_.resize(keys.size());
+    }
+    virtual Val Get_v2(husky::constants::Key idx) override { return vals_[idx]; }
+    virtual void Update_v2(husky::constants::Key idx, Val val) override {
+        delta_[idx] += val;
+        vals_[idx] += val;
+    }
+    virtual void Update_v2(const std::vector<Val>& vals) override {
+        assert(vals.size() == vals_.size());
+        for (size_t i = 0; i < vals.size(); ++i) {
+            vals_[i] += vals[i];
+            delta_[i] += vals[i];
+        }
+    }
+    virtual void Clock_v2() override { Push(*keys_, delta_); }
+
+   private:
+    int model_id_;
+    kvstore::KVWorker* kvworker_ = nullptr;
+    int local_id_;
+    // Shared Model
+    SharedState<PSState> shared_state_;
+    const husky::Info& info_;
+
+    // Just to restrict the usage of the Push/Pull APIs,
+    // The correct usage should be Pull, Push, Pull, Push...
+    int push_count_ = 0;
+    int pull_count_ = 0;
+    int ts_ = -1;
+    bool send_all_ = true;
+
+    // For v2
+    // Pointer to keys
+    std::vector<husky::constants::Key>* keys_;
+    std::vector<Val> vals_;
+    std::vector<Val> delta_;
+};
+
+/*
  * PSMapNoneWorker
  * ThreadCache: unordered_map, one timestamp
  * ProcessCache: No

@@ -41,6 +41,9 @@ CreateMLWorker(const husky::Info& info) {
                 } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSNoneChunkWorker) {
                     husky::LOG_I << "using PSNoneChunkWorker";
                     mlworker.reset(new ml::mlworker::PSNoneChunkWorker<Val>(info, *husky::Context::get_zmq_context()));
+                } else if (hint.at(husky::constants::kWorkerType) == husky::constants::kPSBspWorker) {
+                    husky::LOG_I << "using PSBspWorker";
+                    mlworker.reset(new ml::mlworker::PSBspWorker<Val>(info, *husky::Context::get_zmq_context()));
                 }
             } else {
                 mlworker.reset(new ml::mlworker::PSWorker<Val>(info));

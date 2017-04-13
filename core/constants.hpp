@@ -82,6 +82,7 @@ constexpr const char* const kPSChunkNoneWorker= "PSChunkNoneWorker";
 constexpr const char* const kPSMapChunkWorker = "PSMapChunkWorker";
 constexpr const char* const kPSChunkChunkWorker = "PSChunkChunkWorker";
 constexpr const char* const kPSNoneChunkWorker = "PSNoneChunkWorker";
+constexpr const char* const kPSBspWorker = "PSBspWorker";
 
 constexpr const char* const kNumWorkers = "num_workers";
 constexpr const char* const kStaleness = "staleness";
