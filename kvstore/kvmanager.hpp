@@ -43,6 +43,7 @@ class KVServer : public KVServerBase {
         try {
             using namespace husky::constants;
             int type = -1;  // 0 for assign, 1 for add, 2 for bsp, 3 for ssp
+            bool update_assign_bsp = true;  // true for assign, false for add 
             if (hint.find(kType) == hint.end()) {  // if kType is not set, use kUpdateType
                 if (hint.find(kUpdateType) == hint.end()) {  // default is assign
                     type = 0;
@@ -55,7 +56,7 @@ class KVServer : public KVServerBase {
                         throw;
                     }
                 }
-            } else if (hint.find(kUpdateType) == hint.end()) {  // otherwise set type according to the kType
+            } else {  // otherwise set type according to the kType
                 if (hint.at(kType) == kSingle 
                         || hint.at(kType) == kHogwild
                         || hint.at(kType) == kSPMT) {
@@ -63,6 +64,12 @@ class KVServer : public KVServerBase {
                 } else if (hint.at(kType) == kPS) {
                     if (hint.at(kConsistency) == kBSP) {
                         type = 2;
+                        // updateType
+                        if (hint.find(kUpdateType) == hint.end() || hint.at(kUpdateType) == kAddUpdate) { // default updateType is add
+                            update_assign_bsp = false; 
+                        } else {
+                            update_assign_bsp = true;
+                        }
                     } else if (hint.at(kConsistency) == kSSP) {
                         type = 3;
                     } else if (hint.at(kConsistency) == kASP) {
@@ -71,8 +78,6 @@ class KVServer : public KVServerBase {
                 } else {
                     throw;
                 }
-            } else {
-                throw;
             }
 
             if (hint.find(kStorageType) == hint.end()
@@ -87,7 +92,7 @@ class KVServer : public KVServerBase {
                 } else if (type == 2) {
                     int num_workers = stoi(hint.at(kNumWorkers));
                     server_base_.reset(new BSPServer<Val, 
-                            std::unordered_map<Key, Val>>(server_id, num_workers, std::move(store), false));  // unordered_map, bsp
+                            std::unordered_map<Key, Val>>(server_id, num_workers, std::move(store), false, update_assign_bsp));  // unordered_map, bsp
                 } else if (type == 3) {
                     int num_workers = stoi(hint.at(kNumWorkers));
                     int staleness = stoi(hint.at(kStaleness));
@@ -109,7 +114,7 @@ class KVServer : public KVServerBase {
                 } else if (type == 2) {
                     int num_workers = stoi(hint.at(kNumWorkers));
                     server_base_.reset(new BSPServer<Val, 
-                            std::vector<Val>>(server_id, num_workers, std::move(store), true));  // vector, bsp
+                            std::vector<Val>>(server_id, num_workers, std::move(store), true, update_assign_bsp));  // vector, bsp
                 } else if (type == 3) {
                     int num_workers = stoi(hint.at(kNumWorkers));
                     int staleness = stoi(hint.at(kStaleness));
