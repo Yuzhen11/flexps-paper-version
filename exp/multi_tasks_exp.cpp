@@ -144,6 +144,8 @@ int main(int argc, char** argv) {
     std::vector<MLTask> tasks;
     std::vector<config::AppConfig> task_configs;
     std::vector<int> kvs;
+    std::vector<std::function<void()>> funcs;
+    /*
     {
         // task 1
         auto train_task = TaskFactory::Get().CreateTask<MLTask>();
@@ -152,7 +154,7 @@ int main(int argc, char** argv) {
         train_config.kConsistency = "SSP";
         train_config.staleness = 1;
         train_config.ps_worker_type = "PSWorker";
-        train_config.num_train_workers = 100;
+        train_config.num_train_workers = 10;
         train_config.train_epoch = 1;
         train_config.num_iters = 100;
         train_task.set_dimensions(train_config.num_params);
@@ -163,6 +165,9 @@ int main(int argc, char** argv) {
         kvs.push_back(kv);
         tasks.push_back(std::move(train_task));
         task_configs.push_back(train_config);
+        funcs.push_back([id = train_task.get_id()]() {
+            husky::LOG_I << "Task " << id << " is running";
+        });
     }
     {
         // task 2
@@ -180,6 +185,75 @@ int main(int argc, char** argv) {
         kvs.push_back(kv);
         tasks.push_back(std::move(train_task));
         task_configs.push_back(train_config);
+        funcs.push_back([id = train_task.get_id()]() {
+            husky::LOG_I << "Task " << id << " is running";
+        });
+    }
+    */
+    // add 5 ps jobs
+    for (int i = 0; i < 5; ++ i) {
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
+        config::AppConfig train_config = config;
+        train_config.kType = "PS";
+        train_config.kConsistency = "SSP";
+        train_config.staleness = 1;
+        train_config.ps_worker_type = "PSWorker";
+        train_config.num_train_workers = 10;
+        train_config.train_epoch = 1;
+        train_config.num_iters = 100;
+        train_task.set_dimensions(train_config.num_params);
+        train_task.set_total_epoch(train_config.train_epoch);
+        train_task.set_num_workers(train_config.num_train_workers);
+        auto hint = config::ExtractHint(train_config);
+        int kv = create_kvstore_and_set_hint(hint, train_task, train_config.num_params);
+        kvs.push_back(kv);
+        tasks.push_back(std::move(train_task));
+        task_configs.push_back(train_config);
+        funcs.push_back([id = train_task.get_id()]() {
+            husky::LOG_I << "Task " << id << " is running";
+        });
+    }
+    // add 5 spmt jobs
+    for (int i = 0; i < 5; ++ i) {
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
+        config::AppConfig train_config = config;
+        train_config.kType = "SPMT";
+        train_config.num_train_workers = 5;
+        train_config.train_epoch = 5;
+        train_config.num_iters = 100;
+        train_task.set_dimensions(train_config.num_params);
+        train_task.set_total_epoch(train_config.train_epoch);
+        train_task.set_num_workers(train_config.num_train_workers);
+        auto hint = config::ExtractHint(train_config);
+        int kv = create_kvstore_and_set_hint(hint, train_task, train_config.num_params);
+        kvs.push_back(kv);
+        tasks.push_back(std::move(train_task));
+        task_configs.push_back(train_config);
+        funcs.push_back([id = train_task.get_id()]() {
+            husky::LOG_I << "Task " << id << " is running";
+        });
+    }
+    for (int i = 0; i < 3; ++ i) {
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
+        config::AppConfig train_config = config;
+        train_config.kType = "PS";
+        train_config.kConsistency = "SSP";
+        train_config.staleness = 1;
+        train_config.ps_worker_type = "PSWorker";
+        train_config.num_train_workers = 80;
+        train_config.train_epoch = 1;
+        train_config.num_iters = 100;
+        train_task.set_dimensions(train_config.num_params);
+        train_task.set_total_epoch(train_config.train_epoch);
+        train_task.set_num_workers(train_config.num_train_workers);
+        auto hint = config::ExtractHint(train_config);
+        int kv = create_kvstore_and_set_hint(hint, train_task, train_config.num_params);
+        kvs.push_back(kv);
+        tasks.push_back(std::move(train_task));
+        task_configs.push_back(train_config);
+        funcs.push_back([id = train_task.get_id()]() {
+            husky::LOG_I << "Task " << id << " is running";
+        });
     }
 
     // Submit load_task;
@@ -193,8 +267,10 @@ int main(int argc, char** argv) {
 
     // Submit train_task
     for (int i = 0; i < tasks.size(); ++ i) {
-        engine.AddTask(tasks[i], [&data_store, config = task_configs[i]](const Info& info) {
+        engine.AddTask(tasks[i], [i, &funcs, &data_store, config = task_configs[i]](const Info& info) {
             lambda::train(data_store, config, info);
+            funcs[i]();
+            // std::this_thread::sleep_for(std::chrono::milliseconds(500));
         });
         if (Context::get_process_id() == 0) {
             husky::LOG_I << RED("task_config " + std::to_string(i));
@@ -209,6 +285,7 @@ int main(int argc, char** argv) {
         husky::LOG_I << YELLOW("train time: " + std::to_string(train_time) + " ms");
 
     // Submit test_task
+    /*
     auto test_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
     test_task.set_worker_num({2});  // number of test threads per process 
     test_task.set_worker_num_type({"threads_per_worker"});
@@ -221,6 +298,7 @@ int main(int argc, char** argv) {
     auto test_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     if (Context::get_process_id() == 0)
         husky::LOG_I << YELLOW("test time: " + std::to_string(test_time) + " ms");
+    */
 
     engine.Exit();
     kvstore::KVStore::Get().Stop();

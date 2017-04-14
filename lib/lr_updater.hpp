@@ -104,10 +104,11 @@ void batch_sgd_update_lr(const std::unique_ptr<ml::mlworker::GenericMLWorker<flo
 
 // The mini-batch SGD updator for v2
 void batch_sgd_update_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker,
-                         datastore::BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha) {
+                         datastore::BatchDataSampler<LabeledPointHObj<float, float, true>>& batch_data_sampler, float alpha, int num_params) {
     alpha /= batch_data_sampler.get_batch_size();
     std::vector<husky::constants::Key> keys =
         batch_data_sampler.prepare_next_batch();  // prepare all the indexes in the batch
+    keys.push_back(num_params-1);
     worker->Prepare_v2(keys);
     for (auto data : batch_data_sampler.get_data_ptrs()) {  // iterate over the data in the batch
         auto& x = data->x;
@@ -121,7 +122,11 @@ void batch_sgd_update_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<
                 i += 1;
             pred_y += worker->Get_v2(i) * field.val;
         }
+        pred_y += worker->Get_v2(keys.size()-1);  // intercept
+
         pred_y = 1. / (1. + exp(-1 * pred_y));
+
+        worker->Update_v2(keys.size()-1, alpha * (y - pred_y));  // intercept
         i = 0;
         for (auto field : x) {
             while (keys[i] < field.fea)
@@ -154,7 +159,6 @@ float get_test_error_lr(const std::unique_ptr<ml::mlworker::GenericMLWorker<floa
         for (auto field : x) {
             pred_y += test_params[field.fea] * field.val;
         }
-        // pred_y += test_params[num_params - 1];
         pred_y = 1. / (1. + exp(-pred_y));
         pred_y = (pred_y > 0.5) ? 1 : 0;
         if (int(pred_y) == int(y)) {
@@ -173,13 +177,14 @@ float get_test_error_lr(const std::unique_ptr<ml::mlworker::GenericMLWorker<floa
 float get_test_error_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<float>>& worker,
                         datastore::DataIterator<LabeledPointHObj<float, float, true>> data_iterator, int num_params,
                         int test_samples = -1) {
-    test_samples = 1000;
+    test_samples = 10000;
     std::vector<husky::constants::Key> all_keys;
     for (int i = 0; i < num_params; i++)
         all_keys.push_back(i);
     worker->Prepare_v2(all_keys);
     int count = 0;
     float c_count = 0;  // correct count
+    float error = 0;
     while (data_iterator.has_next()) {
         auto& data = data_iterator.next();
         count = count + 1;
@@ -191,8 +196,9 @@ float get_test_error_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<f
         for (auto field : x) {
             pred_y += worker->Get_v2(field.fea) * field.val;
         }
-        // pred_y += test_params[num_params - 1];
+        pred_y += worker->Get_v2(num_params - 1);
         pred_y = 1. / (1. + exp(-pred_y));
+        error += fabs(y - pred_y);
         pred_y = (pred_y > 0.5) ? 1 : 0;
         if (int(pred_y) == int(y)) {
             c_count += 1;
@@ -202,6 +208,7 @@ float get_test_error_lr_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<f
             break;
     }
     worker->Clock_v2();
+    husky::LOG_I << "Train error: " << error << " # test samples: " << count;
     return c_count / count;
 }
 
