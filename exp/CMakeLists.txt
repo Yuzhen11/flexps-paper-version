@@ -34,3 +34,24 @@ target_link_libraries(MultiTasksLRExp husky)
 target_link_libraries(MultiTasksLRExp husky-ml)
 target_link_libraries(MultiTasksLRExp ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(MultiTasksLRExp)
+
+# ParameterTuning
+add_executable(ParameterTuning parameter_tuning.cpp)
+target_link_libraries(ParameterTuning husky)
+target_link_libraries(ParameterTuning husky-ml)
+target_link_libraries(ParameterTuning ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(ParameterTuning)
+
+# ScalabilityTest
+add_executable(ScalabilityTest num_threads_tuning.cpp)
+target_link_libraries(ScalabilityTest husky)
+target_link_libraries(ScalabilityTest husky-ml)
+target_link_libraries(ScalabilityTest ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(ScalabilityTest )
+
+# ElasticPS
+add_executable(ElasticPS elastic_ps.cpp)
+target_link_libraries(ElasticPS husky)
+target_link_libraries(ElasticPS husky-ml)
+target_link_libraries(ElasticPS ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(ElasticPS)

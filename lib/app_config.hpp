@@ -32,6 +32,7 @@ struct AppConfig {
     std::string ps_worker_type;
     float learning_rate_coefficient = 0.0f;
     std::string learning_rate_update;
+    int batch_size = 20;
 };
 
 namespace {
@@ -51,6 +52,9 @@ void ShowConfig(const AppConfig& config) {
     ss << "\nuse_chunk: " << config.use_chunk;
     ss << "\nuse_direct_model_transfer: " << config.use_direct_model_transfer;
     ss << "\nstaleness: " << config.staleness;
+    ss << "\nlearning_rate_update: " << config.learning_rate_update;
+    ss << "\nlearning_rate_coefficient: " << config.learning_rate_coefficient;
+    ss << "\nbatch_size: " << config.batch_size;
     husky::LOG_I << RED(ss.str());
 }
 
@@ -58,8 +62,9 @@ void InitContext(int argc, char** argv, const std::vector<std::string>& addition
     std::vector<std::string> default_init_args = 
     {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
      "hdfs_namenode_port", "input", "num_features", "alpha", "num_iters", "train_epoch",
+     "learning_rate_update", "learning_rate_coefficient",
      "kType", "kConsistency", "num_train_workers", "trainer", 
-     "use_chunk", "use_direct_model_transfer", "staleness", "ps_worker_type"};
+     "use_chunk", "use_direct_model_transfer", "staleness", "ps_worker_type", "batch_size"};
 
     std::vector<std::string> init_args = default_init_args;
     // Add additional args
@@ -90,6 +95,7 @@ AppConfig SetAppConfigWithContext() {
         config.learning_rate_coefficient = std::stof(Context::get_param("learning_rate_coefficient"));
     }
     config.learning_rate_update = Context::get_param("learning_rate_update");
+    config.batch_size = std::stoi(Context::get_param("batch_size"));
 
     const std::vector<std::string> trainers_set({"lr", "svm"});
     assert(std::find(trainers_set.begin(), trainers_set.end(), config.trainer) != trainers_set.end());
