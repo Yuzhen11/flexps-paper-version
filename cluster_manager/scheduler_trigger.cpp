@@ -27,7 +27,8 @@ bool SchedulerTrigger::is_current_ts(int ts) {
 
 bool SchedulerTrigger::has_enough_new_threads() {
     if (counter_ == 0 && enable_timeout_scheduling) {
-        init_timer();
+        // TODO: disable this, cannot spawn threads unlimitedly (cause resource temporarily unavailable)
+        // init_timer();
     }
     counter_ += 1;
     if (counter_ == count_threshold_) {

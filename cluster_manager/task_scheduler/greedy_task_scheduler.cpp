@@ -56,7 +56,18 @@ std::vector<std::shared_ptr<Instance>> GreedyTaskScheduler::extract_instances() 
             instance_basic_setup(instance, *tasks_[i]);
 
             int required_num_threads = instance->get_num_workers();
-            std::vector<int> candidate_proc = get_preferred_proc(instance->get_id());
+
+            auto& hint = instance->get_task()->get_hint();
+            std::vector<int> candidate_proc;
+            if (instance->get_task()->get_type() == Task::Type::MLTaskType 
+                    && hint.at(husky::constants::kType) == husky::constants::kPS) {
+                // don't consider history when running pstask
+                for (int i = 0; i < num_processes_; ++ i) {
+                    candidate_proc.push_back(i);
+                }
+            } else {
+                candidate_proc = get_preferred_proc(instance->get_id());
+            }
 
             // select threads according to the instance
             std::vector<std::pair<int,int>> pid_tids = select_threads_from_subset(instance, available_workers_, num_processes_, required_num_threads, candidate_proc);

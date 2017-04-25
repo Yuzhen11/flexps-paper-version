@@ -147,4 +147,18 @@ std::vector<std::pair<int,int>> AvailableWorkers::get_workers_exact_process(int 
     return selected_workers;
 }
 
+void AvailableWorkers::print_available_workers() {
+    std::stringstream ss;
+    ss << "AvailableWorkers: \n";
+    for (auto& pid_tids : pid_tids_) {
+        ss << "pid: " << pid_tids.first << " : ";
+        for (auto tid : pid_tids.second) {
+            ss << tid << " ";
+        }
+        ss << "\n";
+    }
+    ss << "Total available threads: " << workers_.size() << "\n";
+    std::cout << ss.str();
+}
+
 } // namespace husky

@@ -20,6 +20,8 @@ void PriorityTaskScheduler::finish_thread(int instance_id, int global_thread_id)
     int proc_id = worker_info.get_process_id(global_thread_id);
     available_workers_.add_worker(proc_id, global_thread_id);
     task_manager_.finish_thread(instance_id, proc_id, global_thread_id);
+
+    // available_workers_.print_available_workers();
 }
 
 std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances() {
@@ -32,11 +34,29 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
         auto end = task_manager_.angry_list_end();
         std::vector<int> success_tasks;
         std::vector<int> fail_tasks;
+        // std::cout << "extract instances invoked" << std::endl;
         while (begin != end) {
             int id = *begin;
+            // std::cout << "processing id in angry list: "  << id << std::endl;
+            // available_workers_.print_available_workers();
+
             std::shared_ptr<Instance> instance(new Instance);
             instance_basic_setup(instance, *(task_manager_.get_task_by_id(id)));
-            std::vector<int> proc_ids = task_manager_.get_preferred_proc(id);
+
+
+            std::vector<int> proc_ids;
+
+            auto task = task_manager_.get_task_by_id(id);
+            auto& hint = task->get_hint();
+            if (task->get_type() == Task::Type::MLTaskType 
+                    && hint.at(husky::constants::kType) == husky::constants::kPS) {
+                // don't consider history when running pstask
+                for (int i = 0; i < num_processes_; ++ i) {
+                    proc_ids.push_back(i);
+                }
+            } else {
+                proc_ids = task_manager_.get_preferred_proc(id);
+            }
 
             std::vector<int> candidate_pids;
             for (auto& pid : proc_ids) {
@@ -44,6 +64,24 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
                     candidate_pids.push_back(pid);
                 }
             }
+            /*
+            std::cout << "prefered pids: ";
+            for (auto pid: proc_ids)
+                std::cout << pid;
+            std::cout << std::endl;
+
+            std::cout << "process_lock: ";
+            for (auto pid: process_lock)
+                std::cout << pid;
+            std::cout << std::endl;
+
+            std::cout << "candidate_pids: ";
+            for (auto pid: candidate_pids) 
+                std::cout << pid << " ";
+            std::cout << std::endl;
+            */
+
+
 
             std::vector<std::pair<int, int>> pid_tids = 
                 select_threads_from_subset(instance, available_workers_, num_processes_, instance->get_num_workers(), candidate_pids);

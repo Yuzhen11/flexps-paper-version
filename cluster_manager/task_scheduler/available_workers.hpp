@@ -67,6 +67,8 @@ class AvailableWorkers {
             max_num = std::max(max_num, static_cast<int>(kv.second.size()));
         return max_num;
     }
+        
+    void print_available_workers();
 
    private:
     std::unordered_set<std::pair<int, int>, PairHash> workers_;  // <tid, pid>

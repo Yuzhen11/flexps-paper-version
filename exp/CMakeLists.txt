@@ -27,3 +27,10 @@ target_link_libraries(MultiTasksExp husky)
 target_link_libraries(MultiTasksExp husky-ml)
 target_link_libraries(MultiTasksExp ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(MultiTasksExp)
+
+# MultiTasksLRExp
+add_executable(MultiTasksLRExp multi_tasks_lr_exp.cpp)
+target_link_libraries(MultiTasksLRExp husky)
+target_link_libraries(MultiTasksLRExp husky-ml)
+target_link_libraries(MultiTasksLRExp ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(MultiTasksLRExp)
