@@ -47,7 +47,7 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
         ts_ = kvworker_->Push(model_id_, keys, vals, send_all_, true);
-        // kvworker_->Wait(model_id_, ts_);
+        kvworker_->Wait(model_id_, ts_);
     }
     
     virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) override {
