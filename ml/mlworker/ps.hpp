@@ -433,6 +433,7 @@ template<typename Val>
 class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
     struct PSState {
         model::ChunkBasedPSModel<Val>* p_model_;
+        model::PushBuffer<Val>* p_push_buffer_;
     };
 
    public:
@@ -450,6 +451,7 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
         if (info.is_leader()) {
             PSState* state = new PSState;
             state->p_model_ = new model::ChunkBasedPSModel<Val>(model_id_, num_params);
+            state->p_push_buffer_ = new model::PushBuffer<Val>(model_id_, num_params);
             // 1. Init
             shared_state_.Init(state);
         }
@@ -466,6 +468,7 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
         shared_state_.Barrier();
         if (info_.get_local_tids().at(0) == info_.get_global_id()) {
             delete shared_state_.Get()->p_model_;
+            delete shared_state_.Get()->p_push_buffer_;
             delete shared_state_.Get();
         }
     }
@@ -486,12 +489,14 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
 
     virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
         assert(++push_count_ == pull_count_);
-        kvworker_->PushChunks(model_id_, chunk_keys, chunk_vals);
+        // kvworker_->PushChunks(model_id_, chunk_keys, chunk_vals);
+        shared_state_.Get()->p_push_buffer_->PushChunks(chunk_keys, chunk_vals);
     }
 
     virtual void PullChunks(const std::vector<size_t>& chunk_keys, std::vector<std::vector<Val>*>& chunk_vals) override {
         assert(pull_count_ == push_count_);
         ++pull_count_;
+        shared_state_.Get()->p_push_buffer_->Flush(local_id_);
         
         int stale = std::max(pull_count_ - staleness_ - 1, 0);
         shared_state_.Get()->p_model_->PullChunksWithMinClock(chunk_keys, chunk_vals, local_id_, stale, nullptr);

@@ -16,6 +16,59 @@ namespace ml {
 namespace model {
 
 template<typename Val>
+class PushBuffer {
+   public:
+    PushBuffer(int model_id, int num_params):
+        model_id_(model_id), num_params_(num_params),
+        num_chunks_(kvstore::RangeManager::Get().GetChunkNum(model_id)),
+        params_(num_chunks_), mtx_(num_chunks_) {
+    }
+    void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) {
+        for (size_t i = 0; i < chunk_keys.size(); ++ i) {
+            size_t chunk_id = chunk_keys[i];
+            boost::lock_guard<boost::mutex> chunk_lock(mtx_[chunk_id]);
+            if (params_[chunk_id].empty())
+                params_[chunk_id].resize(chunk_vals[i]->size());
+            for (size_t j = 0; j < chunk_vals[i]->size(); ++ j) {
+                params_[chunk_id][j] += (*(chunk_vals[i]))[j];
+            }
+        }
+    }
+    void Flush(int local_id) {
+        auto* kvworker = kvstore::KVStore::Get().get_kvworker(local_id);
+        int ts;
+        {
+            boost::lock_guard<boost::mutex> chunk_lock(big_mutex_);
+
+            std::vector<size_t> chunk_keys;
+            std::vector<std::vector<Val>> chunk_vals;
+            for (size_t i = 0; i < params_.size(); ++ i) {  // iterate over the params_
+                boost::lock_guard<boost::mutex> chunk_lock(mtx_[i]);
+                if (!params_[i].empty()) {
+                    chunk_keys.push_back(i);
+                    chunk_vals.push_back(std::move(params_[i]));
+                    assert(params_[i].empty());
+                }
+            }
+            std::vector<std::vector<Val>*> chunk_vals_ptr(chunk_vals.size());
+            for (int i = 0; i < chunk_vals_ptr.size(); ++ i) {
+                chunk_vals_ptr[i] = &chunk_vals[i];
+            }
+
+            ts = kvworker->PushChunks(model_id_, chunk_keys, chunk_vals_ptr);
+        }
+        // kvworker->Wait(model_id_, ts);
+    }
+   private:
+    int model_id_;
+    int num_params_;
+    int num_chunks_;
+    std::vector<std::vector<Val>> params_;
+    std::vector<boost::mutex> mtx_;
+    boost::mutex big_mutex_;
+};
+
+template<typename Val>
 class ChunkBasedPSModel {
    public:
     ChunkBasedPSModel(int model_id, int num_params):

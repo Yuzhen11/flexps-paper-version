@@ -3,6 +3,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
+#include <map>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
@@ -87,6 +88,29 @@ double LDAStats::ComputeWordLLH(int word_idx_start, int word_idx_end, std::vecto
         int num_zeros = 0;
         for (int i=0; i<K_; i++) {
             int count = word_topic_table[w * K_ + i];
+            if (count == 0) {
+                num_zeros++;
+                continue;
+            }
+            word_llh += GetLogGammaBetaOffset(count);
+        }   
+        // The other word-topic counts are 0.
+        if (num_zeros < K_) {
+            word_llh += num_zeros * zero_entry_llh;
+        }
+    }
+    assert(!isinf(word_llh));
+    return word_llh;
+}
+
+double LDAStats::ComputeWordLLH(int word_idx_start, int word_idx_end, std::vector<std::vector<int>>& word_topic_table, std::map<int, int>& find_start_idx) {
+    double word_llh = 0.;
+    static double zero_entry_llh = GetLogGammaBetaOffset(0);
+    for (int w = word_idx_start; w < word_idx_end; ++w) {
+        int idx = find_start_idx[w];
+        int num_zeros = 0;
+        for (int i=0; i<K_; i++) {
+            int count = word_topic_table[idx][i];
             if (count == 0) {
                 num_zeros++;
                 continue;
