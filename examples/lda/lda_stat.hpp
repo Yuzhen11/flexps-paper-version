@@ -3,6 +3,7 @@
 #include "examples/lda/lda_doc.hpp"
 #include <string>
 #include <vector>
+#include <map>
 
 namespace husky {
 
@@ -18,6 +19,8 @@ class LDAStats {
     // This computes the terms in numerator part of log P(w|z) in eq.[2].
     // Covers words within [word_idx_start, word_idx_end).
     double ComputeWordLLH(int word_idx_start, int word_idx_end, std::vector<int>& word_topic_table);
+
+    double ComputeWordLLH(int word_idx_start, int word_idx_end, std::vector<std::vector<int>>& word_topic_table, std::map<int, int>& find_start_idx);
 
     // Only 1 client should call this in a iteration.
     double ComputeWordLLHSummary();
