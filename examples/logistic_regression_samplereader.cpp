@@ -121,7 +121,7 @@ float get_test_error_v2(const std::unique_ptr<ml::mlworker::GenericMLWorker<floa
 
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv, {"kLoadHdfsType", "learning_rate_update", "learning_rate_coefficient"});
+    config::InitContext(argc, argv, {"kLoadHdfsType"});
     auto config = config::SetAppConfigWithContext();
     config.learning_rate_update = Context::get_param("learning_rate_update");
     config.learning_rate_coefficient = std::stol(Context::get_param("learning_rate_coefficient"));
