@@ -41,7 +41,7 @@ using husky::lib::ml::LabeledPointHObj;
  */
 int main(int argc, char** argv) {
     // Set config
-    config::InitContext(argc, argv, {"num_load_workers", "learning_rate_coefficient", "learning_rate_update"});
+    config::InitContext(argc, argv, {"num_load_workers"});
     auto config = config::SetAppConfigWithContext();
     if (Context::get_worker_info().get_process_id() == 0)
         config:: ShowConfig(config);
