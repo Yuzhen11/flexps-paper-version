@@ -18,8 +18,7 @@ default_dirs = [
 
 ignored_dirs = []
 
-husky_root = os.getenv('HUSKY_ROOT', '.')
-os.chdir(husky_root)
+os.chdir(".")
 clang_format = os.getenv('CLANG_FORMAT', 'clang-format')
 
 def list_files(path=None):
