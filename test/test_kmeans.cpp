@@ -23,26 +23,24 @@ Some configuration:
     batch_size=300
 */
 
-#include <vector>
-#include <limits>
 #include <unistd.h>
-#include <string>
-#include <numeric>
 #include <iostream>
+#include <limits>
+#include <numeric>
+#include <string>
+#include <vector>
 #include "datastore/datastore.hpp"
-#include "worker/engine.hpp"
 #include "kvstore/kvstore.hpp"
 #include "ml/ml.hpp"
+#include "worker/engine.hpp"
 
-#include "husky/lib/ml/feature_label.hpp"
 #include "datastore/data_sampler.hpp"
+#include "husky/lib/ml/feature_label.hpp"
 
 // for load_data()
 #include "boost/tokenizer.hpp"
-#include "io/input/line_inputformat_ml.hpp"
 #include "husky/io/input/inputformat_store.hpp"
-
-
+#include "io/input/line_inputformat_ml.hpp"
 
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
@@ -50,8 +48,8 @@ enum class DataFormat { kLIBSVMFormat, kTSVFormat };
 
 // load data evenly
 template <typename FeatureT, typename LabelT, bool is_sparse>
-void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, LabelT, is_sparse>>& data, DataFormat format,
-               int num_features, const Info& info){
+void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, LabelT, is_sparse>>& data,
+               DataFormat format, int num_features, const Info& info) {
     ASSERT_MSG(num_features > 0, "the number of features is non-positive.");
     using DataObj = LabeledPointHObj<FeatureT, LabelT, is_sparse>;
 
@@ -60,7 +58,8 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
 
     // set parser1
     auto parser1 = [&data, &local_id, &num_workers, &num_features](boost::string_ref chunk) {
-        if (chunk.empty()) return;
+        if (chunk.empty())
+            return;
 
         DataObj this_obj(num_features);
 
@@ -95,19 +94,18 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
     int data_count = 0;
     std::vector<husky::base::BinStream> send_buffer(num_workers);
     auto parser2 = [&send_buffer, &num_workers, &data_count](boost::string_ref& chunk) {
-        if (chunk.size() == 0) 
+        if (chunk.size() == 0)
             return;
         std::string line(chunk.data(), chunk.size());
         // evenly assign docs to all threads
         int dist = data_count % num_workers;
         send_buffer[dist] << line;
-        data_count++; // every data occupies a line
+        data_count++;  // every data occupies a line
     };
 
     // setup input format
     auto& infmt = husky::io::InputFormatStore::create_line_inputformat();
     infmt.set_input(url);
-
 
     // loading
     typename io::LineInputFormat::RecordT record;
@@ -125,10 +123,10 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
         int dist = info.get_tid(i);
         if (send_buffer[i].size() == 0)
             continue;
-        mailbox->send(dist, 2, 0, send_buffer[i]); // params: dst, channel, progress, bin
+        mailbox->send(dist, 2, 0, send_buffer[i]);  // params: dst, channel, progress, bin
     }
-    mailbox->send_complete(2, 0, 
-            info.get_worker_info().get_local_tids(), info.get_worker_info().get_pids()); // params: channel, progress, sender_tids, recv_tids
+    mailbox->send_complete(2, 0, info.get_worker_info().get_local_tids(),
+                           info.get_worker_info().get_pids());  // params: channel, progress, sender_tids, recv_tids
 
     while (mailbox->poll(2, 0)) {
         auto bin = mailbox->recv(2, 0);
@@ -141,13 +139,12 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
 }
 
 // return ID of cluster whose center is the nearest (uses euclidean distance)
-int get_id_nearest_center(auto& point, int K, auto& params, int num_features)
-{
+int get_id_nearest_center(auto& point, int K, auto& params, int num_features) {
     double square_dist, min_square_dist = std::numeric_limits<double>::max();
     int id_cluster_center = -1;
     auto& x = point.x;
 
-    for (int i = 0; i < K; i++) // calculate the dist between point and clusters[i]
+    for (int i = 0; i < K; i++)  // calculate the dist between point and clusters[i]
     {
         std::vector<double>::const_iterator first = params.begin() + i * num_features;
         std::vector<double>::const_iterator last = first + num_features;
@@ -158,8 +155,7 @@ int get_id_nearest_center(auto& point, int K, auto& params, int num_features)
 
         square_dist = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
 
-        if (square_dist < min_square_dist)
-        {
+        if (square_dist < min_square_dist) {
             min_square_dist = square_dist;
             id_cluster_center = i;
         }
@@ -170,12 +166,11 @@ int get_id_nearest_center(auto& point, int K, auto& params, int num_features)
 
 // return square distance between a point and its nearest center
 template <typename T>
-T get_dist_nearest_center(auto& point, int current_num_center, auto& params, int num_features)
-{
+T get_dist_nearest_center(auto& point, int current_num_center, auto& params, int num_features) {
     double square_dist, min_square_dist = std::numeric_limits<double>::max();
     auto& x = point.x;
 
-    for (int i = 0; i < current_num_center; i++) // calculate the dist between point and clusters[i]
+    for (int i = 0; i < current_num_center; i++)  // calculate the dist between point and clusters[i]
     {
         std::vector<double>::const_iterator first = params.begin() + i * num_features;
         std::vector<double>::const_iterator last = first + num_features;
@@ -193,12 +188,10 @@ T get_dist_nearest_center(auto& point, int current_num_center, auto& params, int
     return min_square_dist;
 }
 
-
-int main(int argc, char *argv[])
-{
-    bool rt = init_with_args(argc, argv,
-                             {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
-                              "hdfs_namenode_port", "input", "num_features", "num_iters", "train_epoch"});
+int main(int argc, char* argv[]) {
+    bool rt =
+        init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode",
+                                    "hdfs_namenode_port", "input", "num_features", "num_iters", "train_epoch"});
 
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     int num_iters = std::stoi(Context::get_param("num_iters"));
@@ -220,7 +213,8 @@ int main(int argc, char *argv[])
                                   Context::get_zmq_context());
 
     // Create the DataStore
-    datastore::DataStore<LabeledPointHObj<double, int, true>> data_store(Context::get_worker_info().get_num_local_workers());
+    datastore::DataStore<LabeledPointHObj<double, int, true>> data_store(
+        Context::get_worker_info().get_num_local_workers());
 
     // Create load_task
     auto load_task = TaskFactory::Get().CreateTask<HuskyTask>(1, num_load_workers);  // 1 epoch, 4 workers
@@ -230,17 +224,15 @@ int main(int argc, char *argv[])
     });
 
     // submit load_task
-    auto start_time = std::chrono::steady_clock::now(); 
+    auto start_time = std::chrono::steady_clock::now();
     engine.Submit();
     auto end_time = std::chrono::steady_clock::now();
     auto load_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     if (Context::get_worker_info().get_process_id() == 0)
         husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
-
     // set hint for kvstore and MLTask
-    std::map<std::string, std::string> hint = 
-    {
+    std::map<std::string, std::string> hint = {
         {husky::constants::kType, husky::constants::kPS},
         {husky::constants::kConsistency, husky::constants::kASP},
         {husky::constants::kNumWorkers, "1"},
@@ -251,21 +243,22 @@ int main(int argc, char *argv[])
     auto init_task = TaskFactory::Get().CreateTask<MLTask>(1, 1, Task::Type::MLTaskType);
     init_task.set_hint(hint);
     init_task.set_kvstore(kv);
-    init_task.set_dimensions(K * num_features + K); // use params[K * num_features] - params[K * num_features + K] to store v[K]
+    init_task.set_dimensions(K * num_features +
+                             K);  // use params[K * num_features] - params[K * num_features + K] to store v[K]
 
     engine.AddTask(std::move(init_task), [&data_store, &K, &num_features](const Info& info) {
 
         // initialize a worker
         auto worker = ml::CreateMLWorker<double>(info);
         std::vector<husky::constants::Key> all_keys;
-        for (int i = 0; i < K * num_features + K; i++) // set keys
+        for (int i = 0; i < K * num_features + K; i++)  // set keys
             all_keys.push_back(i);
 
         // read from datastore
         auto& local_data = data_store.Pull(info.get_local_id());
         husky::LOG_I << YELLOW("local_data.size: " + std::to_string(local_data.size()));
         std::vector<double> params;
-    
+
         // use only one worker to initialize the params
         auto start_time = std::chrono::steady_clock::now();
         worker->Pull(all_keys, &params);
@@ -280,7 +273,8 @@ int main(int argc, char *argv[])
             {
                 srand (time(NULL));
                 index_point = rand() % local_data.size();
-                if (find(prohibited_indexes.begin(), prohibited_indexes.end(), index_point) == prohibited_indexes.end()) // not found, this index_point can be used
+                if (find(prohibited_indexes.begin(), prohibited_indexes.end(), index_point) == prohibited_indexes.end())
+        // not found, this index_point can be used
                 {
                     prohibited_indexes.push_back(index_point);
                     auto& x = local_data[index_point].x;
@@ -293,7 +287,6 @@ int main(int argc, char *argv[])
             params[K * num_features + i] += 1;
         }*/
 
-
         // K-means++
         std::vector<double> dist(local_data.size());
 
@@ -305,24 +298,23 @@ int main(int argc, char *argv[])
         params[K * num_features] += 1;
 
         double sum;
-        for (int i = 1; i < K; i++)
-        {
+        for (int i = 1; i < K; i++) {
             sum = 0;
-            for (int j = 0; j < local_data.size(); j++){
+            for (int j = 0; j < local_data.size(); j++) {
                 dist[j] = get_dist_nearest_center<double>(local_data[j], i, params, num_features);
                 sum += dist[j];
             }
 
             sum = sum * rand() / (RAND_MAX - 1.);
 
-            for (int j = 0; j < local_data.size(); j++){
+            for (int j = 0; j < local_data.size(); j++) {
                 sum -= dist[j];
                 if (sum > 0)
                     continue;
 
                 auto& x = local_data[j].x;
                 for (auto field : x)
-                    params[i  * num_features + field.fea] = field.val;
+                    params[i * num_features + field.fea] = field.val;
 
                 break;
             }
@@ -337,20 +329,20 @@ int main(int argc, char *argv[])
     });
     engine.Submit();
 
-
     // training task
     auto training_task = TaskFactory::Get().CreateTask<MLTask>(1, num_train_workers, Task::Type::MLTaskType);
     training_task.set_hint(hint);
     training_task.set_kvstore(kv);
     training_task.set_dimensions(K * num_features + K);
 
-    engine.AddTask(std::move(training_task), [&data_store, &num_iters, &test_iters, &K, &batch_size, &num_features, &test_size, &learning_rate_coefficient](const Info& info) {
+    engine.AddTask(std::move(training_task), [&data_store, &num_iters, &test_iters, &K, &batch_size, &num_features,
+                                              &test_size, &learning_rate_coefficient](const Info& info) {
 
         // initialize a worker
         auto worker = ml::CreateMLWorker<double>(info);
 
         std::vector<husky::constants::Key> all_keys;
-        for (int i = 0; i < K * num_features + K; i++) // set keys
+        for (int i = 0; i < K * num_features + K; i++)  // set keys
             all_keys.push_back(i);
 
         // read from datastore
@@ -359,15 +351,14 @@ int main(int argc, char *argv[])
         std::vector<double> params;
 
         // training task
-        for (int iter = 0; iter < num_iters; iter++)
-        {
+        for (int iter = 0; iter < num_iters; iter++) {
             worker->Pull(all_keys, &params);
             std::vector<double> step_sum(params);
 
             // training A mini-batch
             int id_nearest_center;
             double alpha;
-            int itr = rand() % local_data.size(); // random start point
+            int itr = rand() % local_data.size();  // random start point
 
             for (int i = 0; i < batch_size; ++i) {  // read a mini batch
                 auto& data = local_data[itr++];
@@ -378,7 +369,7 @@ int main(int argc, char *argv[])
                 std::vector<double>::const_iterator first = step_sum.begin() + id_nearest_center * num_features;
                 std::vector<double>::const_iterator last = step_sum.begin() + (id_nearest_center + 1) * num_features;
                 std::vector<double> c(first, last);
-            
+
                 for (auto field : x)
                     c[field.fea] -= field.val;
 
@@ -390,8 +381,7 @@ int main(int argc, char *argv[])
             }
 
             // test model, using a9 dataset which contains only two clusters
-            if (iter % test_iters == 0 && info.get_cluster_id() == 0)
-            {
+            if (iter % test_iters == 0 && info.get_cluster_id() == 0) {
                 datastore::DataSampler<LabeledPointHObj<double, int, true>> data_sampler(data_store);
                 data_sampler.random_start_point();
                 int c_count = 0;  // correct count
@@ -416,13 +406,16 @@ int main(int argc, char *argv[])
                         count2++;
                 }
                 double accu = double(c_count) / test_size;
-                husky::LOG_I << "Worker " + std::to_string(info.get_cluster_id()) + ", iter " + std::to_string(iter) << ":accuracy is " << GREEN(std::to_string(accu > 0.5 ? accu : 1 - accu))
+                husky::LOG_I << "Worker " + std::to_string(info.get_cluster_id()) + ", iter " + std::to_string(iter)
+                             << ":accuracy is " << GREEN(std::to_string(accu > 0.5 ? accu : 1 - accu))
                              << " count is :" << std::to_string(test_size) << " c_count is:" << std::to_string(c_count);
 
-                husky::LOG_I << RED("Worker " + std::to_string(info.get_cluster_id()) + ": count1: " + std::to_string(count1));
-                husky::LOG_I << RED("Worker " + std::to_string(info.get_cluster_id()) + ": count2: " + std::to_string(count2));
+                husky::LOG_I << RED("Worker " + std::to_string(info.get_cluster_id()) + ": count1: " +
+                                    std::to_string(count1));
+                husky::LOG_I << RED("Worker " + std::to_string(info.get_cluster_id()) + ": count2: " +
+                                    std::to_string(count2));
             }
-            
+
             // update params
             for (int i = 0; i < step_sum.size(); i++)
                 step_sum[i] -= params[i];
