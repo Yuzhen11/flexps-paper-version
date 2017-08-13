@@ -17,7 +17,7 @@
 using namespace husky;
 
 /*
- *  #### Test ALS
+ *  #### Test MF_SGD
  *  # input=hdfs:///yuzhen/als_toy.txt
  *  # num_users=3
  *  # num_items=3
@@ -44,7 +44,7 @@ struct Node {
     int user;
     int item;
     float value;
-};  // Node is one entry of matrix user represents rowID item represents colID
+};  // Node is one entry of matrix: user represents rowID, item represents colID
 
 int main(int argc, char** argv) {
     bool rt = init_with_args(
