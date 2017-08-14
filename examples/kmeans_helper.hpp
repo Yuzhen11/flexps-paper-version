@@ -26,7 +26,6 @@ using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
 enum class DataFormat { kLIBSVMFormat, kTSVFormat };
 
-
 // load data evenly
 template <typename FeatureT, typename LabelT, bool is_sparse>
 void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, LabelT, is_sparse>>& data, DataFormat format,
@@ -119,6 +118,24 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
     }
 }
 
+
+// calculate the square distance between two points
+double dist(auto& point1, auto& point2, int num_features)
+{
+    std::vector<double> diff(num_features);
+    auto& x1 = point1.x;
+    auto& x2 = point2.x;
+
+    for (auto field : x1)
+        diff[field.fea] = field.val;
+
+    for (auto field : x2)
+        diff[field.fea] -= field.val;
+
+    return std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+}
+
+
 // return ID of cluster whose center is the nearest (uses euclidean distance)
 static int _dummy_foobar;
 template <typename T>
@@ -155,21 +172,21 @@ void test_error(const std::vector<double>& params, datastore::DataStore<LabeledP
     datastore::DataSampler<LabeledPointHObj<double, int, true>> data_sampler(data_store);
     double sum = 0; // sum of square error
     int pred_y;
-    std::vector<int> count(3);
+    //std::vector<int> count(3);
 
     for (int i = 0; i < data_size; i++) {
         // get next data
         sum += get_nearest_center<double>(data_sampler.next(), K, params, num_features, pred_y);
-        count[pred_y]++;
+        //count[pred_y]++;
     }
 
     husky::LOG_I << "Worker " + std::to_string(cluster_id) + ", iter " + std::to_string(iter) << ":RMSE is " << GREEN(std::to_string(sqrt(sum/data_size)));
-    for (int i = 0; i < K; i++)
-        husky::LOG_I << RED("Worker " + std::to_string(cluster_id) + ", count" + std::to_string(i) + ": " + std::to_string(count[i]));
+    //for (int i = 0; i < K; i++)  // for tuning learning rate
+    //    husky::LOG_I << RED("Worker " + std::to_string(cluster_id) + ", count" + std::to_string(i) + ": " + std::to_string(count[i]));
 }
 
 
-void init_centers(const Info& info, int num_features, int K, datastore::DataStore<LabeledPointHObj<double, int, true>>& data_store, std::string random_init){
+void init_centers(const Info& info, int num_features, int K, datastore::DataStore<LabeledPointHObj<double, int, true>>& data_store, std::string init_mode){
 
     // initialize a worker
     auto worker = ml::CreateMLWorker<double>(info);
@@ -187,7 +204,7 @@ void init_centers(const Info& info, int num_features, int K, datastore::DataStor
     worker->Pull(all_keys, &params);
 
     int index;
-    if (random_init == "on") // K-means: choose K distinct values for the centers of the clusters randomly
+    if (init_mode == "random") // K-means: choose K distinct values for the centers of the clusters randomly
     {
         std::vector<int> prohibited_indexes;
         for (int i = 0; i < K; i++)
@@ -196,7 +213,7 @@ void init_centers(const Info& info, int num_features, int K, datastore::DataStor
             {
                 srand (time(NULL));
                 index = rand() % local_data.size();
-                if (find(prohibited_indexes.begin(), prohibited_indexes.end(), index) == prohibited_indexes.end()) // not found, this index_point can be used
+                if (find(prohibited_indexes.begin(), prohibited_indexes.end(), index) == prohibited_indexes.end()) // not found, this index can be used
                 {
                     prohibited_indexes.push_back(index);
                     auto& x = local_data[index].x;
@@ -209,7 +226,7 @@ void init_centers(const Info& info, int num_features, int K, datastore::DataStor
             params[K * num_features + i] += 1;
         }
     }
-    else // K-means++
+    else if (init_mode == "kmeans++")// K-means++
     {
         auto X = local_data;
         std::vector<double> dist(X.size());
@@ -244,6 +261,109 @@ void init_centers(const Info& info, int num_features, int K, datastore::DataStor
                     params[i  * num_features + field.fea] = field.val;
 
                 X.erase(X.begin() + j);
+                break;
+            }
+            params[K * num_features + i] += 1;
+        }
+    }
+    else if (init_mode == "kmeans||"){ // K-means||, reference: http://theory.stanford.edu/~sergei/papers/vldb12-kmpar.pdf
+
+        std::vector<LabeledPointHObj<double, int, true>> C;
+        auto X = local_data;
+        index = rand() % X.size();
+        C.push_back(X[index]);
+        X.erase(X.begin() + index);
+        double square_dist, min_dist;
+        /*double sum_square_dist = 0;  // original K-Means|| algorithms
+        for(int i = 0; i < X.size(); i++)
+            sum_square_dist += dist(C[0], X[i], num_features);
+        int sample_time = log(sum_square_dist), l = 2;*/
+        int sample_time = 5, l = 2; // empiric value, sampe_time: time of sampling   l: oversample coefficient
+
+        for (int i = 0; i < sample_time; i++)
+        {
+            // compute d^2 for each x_i
+            std::vector<double> psi(X.size());
+
+            for (int j = 0; j < X.size(); j++)
+            {
+                min_dist = std::numeric_limits<double>::max();
+                for (int k = 0; k < C.size(); k++){
+                    square_dist = dist(X[j], C[k], num_features);
+                    if (square_dist < min_dist)
+                        min_dist = square_dist;
+                }
+
+                psi[j] = min_dist;
+            }
+
+            double phi = 0;
+            for(int i = 0; i < psi.size(); i++)
+                phi += psi[i];
+
+            // do the drawings
+            for(int i = 0; i < psi.size(); i++)
+            {
+                double p_x = l * psi[i] / phi;
+
+                if(p_x >= rand() / (RAND_MAX - 1.)) 
+                {
+                    C.push_back(X[i]);
+                    X.erase(X.begin() + i);
+                }
+          }
+        }
+
+        std::vector<double> w(C.size()); // by default all are zero
+        for (int i = 0; i < X.size(); i++)
+        {
+
+            min_dist = std::numeric_limits<double>::max();
+            for (int j = 0; j < C.size(); j++)
+            {
+                square_dist = dist(X[i], C[j], num_features);
+                if (square_dist < min_dist)
+                {
+                    min_dist = square_dist;
+                    index = j;
+                }
+            }
+            // we found the minimum index, so we increment corresp. weight
+            w[index]++;
+        }
+
+
+        // repeat kmeans++ on C
+        index = rand() % C.size();
+        auto& x = C[index].x;
+        for (auto field : x)
+            params[field.fea] = field.val;
+
+        params[K * num_features] += 1;
+        C.erase(C.begin() + index);
+
+        double sum;
+        for (int i = 1; i < K; i++)
+        {
+            sum = 0;
+            std::vector<double> dist(C.size());
+            for (int j = 0; j < C.size(); j++){
+                dist[j] = get_nearest_center<double>(C[j], i, params, num_features);
+                sum += dist[j];
+            }
+
+            sum = sum * rand() / (RAND_MAX - 1.);
+
+            for (int j = 0; j < C.size(); j++){
+                sum -= dist[j];
+                if (sum > 0)
+                    continue;
+
+                auto& x = C[j].x;
+                for (auto field : x)
+                    params[i  * num_features + field.fea] = field.val;
+
+                C.erase(C.begin() + j);
                 break;
             }
             params[K * num_features + i] += 1;

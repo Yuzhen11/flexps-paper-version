@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
     double learning_rate_coefficient = std::stod(Context::get_param("learning_rate_coefficient"));
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
-    std::string random_init = Context::get_param("random_init"); // randomly initialize the k center points
+    std::string init_mode = Context::get_param("init_mode"); // randomly initialize the k center points
 
     if (!rt)
         return 1;
@@ -59,15 +59,16 @@ int main(int argc, char *argv[])
     init_task.set_kvstore(kv);
     init_task.set_dimensions(K * num_features + K); // use params[K * num_features] - params[K * num_features + K] to store v[K]
 
-    engine.AddTask(std::move(init_task), [K, num_features, &data_store, &random_init](const Info& info) {
-        init_centers(info, num_features, K, data_store, random_init);
+    engine.AddTask(std::move(init_task), [K, num_features, &data_store, &init_mode](const Info& info) {
+        init_centers(info, num_features, K, data_store, init_mode);
     });
 
     start_time = std::chrono::steady_clock::now();
     engine.Submit();
     end_time = std::chrono::steady_clock::now();
     auto init_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    husky::LOG_I << YELLOW("Init time: " + std::to_string(init_time) + " ms");
+    if (Context::get_worker_info().get_process_id() == 0)
+        husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
 
     // training task
@@ -101,6 +102,7 @@ int main(int argc, char *argv[])
             double alpha;
             int itr = rand() % local_data.size(); // random start point
 
+            auto start_train = std::chrono::steady_clock::now();
             for (int i = 0; i < batch_size; ++i) {  // read 100 numbers, it should go through everything
                 auto& data = local_data[itr++];
                 auto& x = data.x;
@@ -122,8 +124,12 @@ int main(int argc, char *argv[])
             }
 
             // test model
-            if (iter % report_interval == 0 && (iter / 1000) % num_train_workers == info.get_cluster_id())
+            if (iter % report_interval == 0 && (iter / 1000) % num_train_workers == info.get_cluster_id()){
                 test_error(params, data_store, iter, K, data_size, num_features, info.get_cluster_id());
+                auto current_time = std::chrono::steady_clock::now();
+                auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_train).count();
+                husky::LOG_I << CLAY("Iter, Time: " + std::to_string(iter) + "," + std::to_string(train_time));
+            }
             
             // update params
             for (int i = 0; i < step_sum.size(); i++)
