@@ -26,6 +26,24 @@ using husky::lib::ml::LabeledPointHObj;
 enum class DataFormat { kLIBSVMFormat, kTSVFormat };
 
 
+template <typename T>
+void vec_to_str(const std::string& name, std::vector<T>& vec, std::stringstream& ss) {
+    ss << name;
+    for (auto& v : vec) ss << "," << v;
+    ss << "\n";
+}
+
+
+template <typename T>
+void get_stage_conf(const std::string& conf_str, std::vector<T>& vec, int num_stage) {
+    std::vector<std::string> split_result;
+    boost::split(split_result, conf_str, boost::is_any_of(","), boost::algorithm::token_compress_on);
+    vec.reserve(num_stage);
+    for (auto& i : split_result) { vec.push_back(std::stoi(i)); }
+    assert(vec.size() == num_stage);
+}
+
+
 // load data evenly
 template <typename FeatureT, typename LabelT, bool is_sparse>
 void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, LabelT, is_sparse>>& data, DataFormat format,
@@ -172,17 +190,17 @@ void test_error(const std::vector<double>& params, datastore::DataStore<LabeledP
     datastore::DataSampler<LabeledPointHObj<double, int, true>> data_sampler(data_store);
     double sum = 0; // sum of square error
     int pred_y;
-    std::vector<int> count(3);
+    // std::vector<int> count(3); // for tuning learning rate only
 
     for (int i = 0; i < data_size; i++) {
         // get next data
         sum += get_nearest_center<double>(data_sampler.next(), K, params, num_features, pred_y);
-        count[pred_y]++;
+        //count[pred_y]++;
     }
 
     husky::LOG_I << "Worker " + std::to_string(cluster_id) + ", iter " + std::to_string(iter) << ":Within Set Sum of Squared Errors = " << GREEN(std::to_string(sum));
-    for (int i = 0; i < K; i++)  // for tuning learning rate
-        husky::LOG_I << RED("Worker " + std::to_string(cluster_id) + ", count" + std::to_string(i) + ": " + std::to_string(count[i]));
+    //for (int i = 0; i < K; i++)  // for tuning learning rate
+    //    husky::LOG_I << RED("Worker " + std::to_string(cluster_id) + ", count" + std::to_string(i) + ": " + std::to_string(count[i]));
 }
 
 
