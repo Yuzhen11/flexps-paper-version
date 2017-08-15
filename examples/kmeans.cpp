@@ -25,25 +25,6 @@ using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
 enum class DataFormat { kLIBSVMFormat, kTSVFormat };
 
-
-template <typename T>
-void vec_to_str(const std::string& name, std::vector<T>& vec, std::stringstream& ss) {
-    ss << name;
-    for (auto& v : vec) ss << "," << v;
-    ss << "\n";
-}
-
-
-template <typename T>
-void get_stage_conf(const std::string& conf_str, std::vector<T>& vec, int num_stage) {
-    std::vector<std::string> split_result;
-    boost::split(split_result, conf_str, boost::is_any_of(","), boost::algorithm::token_compress_on);
-    vec.reserve(num_stage);
-    for (auto& i : split_result) { vec.push_back(std::stoi(i)); }
-    assert(vec.size() == num_stage);
-}
-
-
 // load data evenly
 template <typename FeatureT, typename LabelT, bool is_sparse>
 void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, LabelT, is_sparse>>& data, DataFormat format,
