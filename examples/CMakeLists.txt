@@ -115,3 +115,13 @@ target_link_libraries(ALSshared profiler)
 endif(USE_PROFILER)
 target_link_libraries(ALSshared ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(ALSshared)
+
+# Kmeans
+add_executable(Kmeans kmeans.cpp)
+target_link_libraries(Kmeans husky)
+target_link_libraries(Kmeans husky-ml)
+if(USE_PROFILER)
+target_link_libraries(Kmeans profiler)
+endif(USE_PROFILER)
+target_link_libraries(Kmeans ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(Kmeans)
