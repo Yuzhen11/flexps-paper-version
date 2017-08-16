@@ -171,7 +171,7 @@ void test_error(const std::vector<double>& params, datastore::DataStore<LabeledP
     datastore::DataSampler<LabeledPointHObj<double, int, true>> data_sampler(data_store);
     double sum = 0; // sum of square error
     int pred_y;
-    // std::vector<int> count(3); // for tuning learning rate only
+    //std::vector<int> count(3); // for tuning the learning rate
 
     for (int i = 0; i < data_size; i++) {
         // get next data
@@ -181,7 +181,7 @@ void test_error(const std::vector<double>& params, datastore::DataStore<LabeledP
 
     husky::LOG_I << "Worker " + std::to_string(cluster_id) + ", iter " + std::to_string(iter) << ":Within Set Sum of Squared Errors = " << GREEN(std::to_string(sum));
     //for (int i = 0; i < K; i++)  // for tuning learning rate
-    //    husky::LOG_I << RED("Worker " + std::to_string(cluster_id) + ", count" + std::to_string(i) + ": " + std::to_string(count[i]));
+        //husky::LOG_I << RED("Worker " + std::to_string(cluster_id) + ", count" + std::to_string(i) + ": " + std::to_string(count[i]));
 }
 
 
@@ -441,7 +441,7 @@ int main(int argc, char *argv[])
     end_time = std::chrono::steady_clock::now();
     auto init_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     if (Context::get_worker_info().get_process_id() == 0)
-        husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
+        husky::LOG_I << YELLOW("Init time: " + std::to_string(init_time) + " ms");
 
 
     // training task
