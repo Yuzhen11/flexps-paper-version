@@ -132,3 +132,10 @@ target_link_libraries(TestInitConsistencyControl husky)
 target_link_libraries(TestInitConsistencyControl husky-ml)
 target_link_libraries(TestInitConsistencyControl ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(TestInitConsistencyControl)
+
+# TestKmeans
+add_executable(TestKmeans test_kmeans.cpp)
+target_link_libraries(TestKmeans husky)
+target_link_libraries(TestKmeans husky-ml)
+target_link_libraries(TestKmeans ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(TestKmeans)
