@@ -132,3 +132,10 @@ target_link_libraries(TestInitConsistencyControl husky)
 target_link_libraries(TestInitConsistencyControl husky-ml)
 target_link_libraries(TestInitConsistencyControl ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(TestInitConsistencyControl)
+
+# TestKVStore
+add_executable(TestKVStore test_kvstore.cpp)
+target_link_libraries(TestKVStore husky)
+target_link_libraries(TestKVStore husky-ml)
+target_link_libraries(TestKVStore ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(TestKVStore)
