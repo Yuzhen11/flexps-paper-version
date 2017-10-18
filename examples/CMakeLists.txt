@@ -136,3 +136,12 @@ endif(USE_PROFILER)
 target_link_libraries(Kmeans_multi_stage ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(Kmeans_multi_stage)
 
+# AutoParallelismTaskExample
+add_executable(AutoParallelismTaskExample auto_parallelism_task.cpp)
+target_link_libraries(AutoParallelismTaskExample husky)
+target_link_libraries(AutoParallelismTaskExample husky-ml)
+if(USE_PROFILER)
+target_link_libraries(AutoParallelismTaskExample profiler)
+endif(USE_PROFILER)
+target_link_libraries(AutoParallelismTaskExample ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(AutoParallelismTaskExample)
