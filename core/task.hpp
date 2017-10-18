@@ -124,7 +124,12 @@ class AutoParallelismTask : public MLTask {
     AutoParallelismTask() = default;
     AutoParallelismTask(int id) : MLTask(id) { type_ = Type::AutoParallelismTaskType; }
 
-    void set_epoch_iters(const std::vector<int>& iters) { iters_ = iters; }
+    void set_epoch_iters(const std::vector<int>& iters) { 
+        assert(iters.size());
+        iters_ = iters; 
+        set_total_epoch(iters.size());
+    }
+    const std::vector<int>& get_epoch_iters() const { return iters_; }
 
     void set_epoch_lambda(const std::function<void(const Info&, int)>& func) { func_ = func; }
     const auto& get_epoch_lambda() { return func_; }

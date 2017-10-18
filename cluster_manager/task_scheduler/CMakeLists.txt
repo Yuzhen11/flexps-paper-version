@@ -6,6 +6,7 @@ file(GLOB mlmanager-scheduler-files
     priority_task_scheduler.cpp
     sequential_task_scheduler.cpp
     greedy_task_scheduler.cpp
+    auto_parallelism_task_scheduler.cpp
     available_workers.cpp
     task_scheduler_utils.cpp)
 husky_cache_variable(mlmanager-scheduler-files ${mlmanager-scheduler-files})

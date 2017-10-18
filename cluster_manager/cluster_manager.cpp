@@ -4,6 +4,7 @@
 #include "cluster_manager/task_scheduler/task_scheduler.hpp"
 #include "cluster_manager/task_scheduler/greedy_task_scheduler.hpp"
 #include "cluster_manager/task_scheduler/sequential_task_scheduler.hpp"
+#include "cluster_manager/task_scheduler/auto_parallelism_task_scheduler.hpp"
 #include "cluster_manager/task_scheduler/priority_task_scheduler.hpp"
 #include "cluster_manager/task_scheduler/history_manager.hpp"
 #include "core/constants.hpp"
@@ -49,6 +50,9 @@ void ClusterManager::setup_task_scheduler(const std::string& hint) {
         husky::LOG_I << "[ClusterManager]: TaskScheduler set to Sequential";
     } else if (hint == "priority") {
         task_scheduler_.reset(new PriorityTaskScheduler(worker_info_));
+        husky::LOG_I << "[ClusterManager]: TaskScheduler set to Priority";
+    } else if (hint == "autoparallelism") {
+        task_scheduler_.reset(new AutoParallelismTaskScheduler(worker_info_));
         husky::LOG_I << "[ClusterManager]: TaskScheduler set to Priority";
     } else if (hint == "") {  // The default is sequential
         task_scheduler_.reset(new SequentialTaskScheduler(worker_info_));

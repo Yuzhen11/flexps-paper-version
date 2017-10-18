@@ -49,9 +49,9 @@ void InstanceRunner::assign_worker(const std::pair<int, int>& tid_cid, std::shar
     if (instance->get_type() == Task::Type::AutoParallelismTaskType) {
         units_[tid_cid.first] = boost::thread([this, instance, tid_cid, is_leader] {
             Info info = utility::instance_to_info(*instance, worker_info_, tid_cid, is_leader);
+            auto& lambda = static_cast<AutoParallelismTask*>(task_store_.get_task(instance->get_id()).get())->get_epoch_lambda();
+            lambda(info, static_cast<AutoParallelismTask*>(instance->get_task())->get_current_stage_iters());
 
-            auto* task = static_cast<AutoParallelismTask*>(task_store_.get_task(instance->get_id()).get());
-            task->get_epoch_lambda()(info, task->get_current_stage_iters());
             zmq::socket_t socket = cluster_manager_connector_.get_socket_to_recv();
             zmq_sendmore_int32(&socket, constants::kThreadFinished);
             zmq_sendmore_int32(&socket, instance->get_id());
