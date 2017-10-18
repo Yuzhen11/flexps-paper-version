@@ -9,6 +9,7 @@
 #include "husky/base/serialization.hpp"
 
 #include "core/color.hpp"
+#include "core/info.hpp"
 
 namespace husky {
 
@@ -23,7 +24,8 @@ class Task {
         MLTaskType,
         HuskyTaskType,
         DummyType,
-        ConfigurableWorkersTaskType
+        ConfigurableWorkersTaskType,
+        AutoParallelismTaskType
     };
 
     // For serialization usage only
@@ -84,6 +86,37 @@ class Task {
 
     Type type_;  // task type
     std::map<std::string, std::string> hint_;  // the hint
+};
+
+/*
+ * AutoParallelismTask will set the parallelism automatically
+ */
+class AutoParallelismTask : public Task {
+   public:
+    AutoParallelismTask() = default;
+    AutoParallelismTask(int id) : Task(id, Type::AutoParallelismTaskType) {}
+
+    void set_epoch_iters(const std::vector<int>& iters) {
+        iters_ = iters;
+    }
+
+    void set_epoch_lambda(const std::function<void(const Info&, int)>& func) {
+        func_ = func;
+    }
+
+    virtual BinStream& serialize(BinStream& bin) const {
+        Task::serialize(bin);
+        bin << iters_;
+    }
+    virtual BinStream& deserialize(BinStream& bin) {
+        Task::deserialize(bin);
+        bin >> iters_;
+    }
+    friend BinStream& operator<<(BinStream& bin, const AutoParallelismTask& task) { return task.serialize(bin); }
+    friend BinStream& operator>>(BinStream& bin, AutoParallelismTask& task) { return task.deserialize(bin); }
+   private:
+    std::vector<int> iters_;
+    std::function<void(const Info&, int)> func_;
 };
 
 class MLTask : public Task {
@@ -159,6 +192,7 @@ class ConfigurableWorkersTask : public MLTask {
      std::vector<std::string> worker_num_type_;
 };
 
+
 /*
  * Husky Task
  */
@@ -204,6 +238,12 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
       bin >> *task;
       ret.reset(task);
       break;
+    }
+    case Task::Type::AutoParallelismTaskType: {
+        AutoParallelismTask* task = new AutoParallelismTask();
+        bin >> *task;
+        ret.reset(task);
+        break;
     }
     default:
         throw base::HuskyException("Deserializing task error");
