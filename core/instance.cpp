@@ -1,7 +1,9 @@
 #include "instance.hpp"
 
+#include <string>
+
 namespace husky {
-    
+
 Instance::Instance(const Task& task) { set_task(task); }
 
 void Instance::set_task(const Task& task, const std::string& hint) {
@@ -18,12 +20,18 @@ void Instance::set_task(const Task& task, const std::string& hint) {
         task_.reset(new MLTask(static_cast<const MLTask&>(task)));
         break;
     }
-    case Task::Type::ConfigurableWorkersTaskType: { // TwoPhasesTask
+    case Task::Type::ConfigurableWorkersTaskType: {  // TwoPhasesTask
         task_.reset(new ConfigurableWorkersTask(static_cast<const ConfigurableWorkersTask&>(task)));
         break;
     }
+    case Task::Type::AutoParallelismTaskType: {  // Task with dynamic parallelism
+        task_ = std::make_unique<AutoParallelismTask>(static_cast<const AutoParallelismTask&>(task));
+        break;
+    }
     default:
-        throw base::HuskyException("Constructing instance error");
+        throw base::HuskyException(
+            "Constructing instance error: type is " +
+            std::to_string(static_cast<std::underlying_type<Task::Type>::type>(task.get_type())));
     }
 }
 
@@ -33,8 +41,8 @@ void Instance::show_instance() const {
     for (auto& kv : cluster_)
         num_threads += kv.second.size();
     husky::LOG_I << GREEN("[Instance]: Task id:" + std::to_string(task_->get_id()) + " Epoch:" +
-                          std::to_string(task_->get_current_epoch()) + " Proc Num:" +
-                          std::to_string(cluster_.size()) + " Thread Num:" + std::to_string(num_threads));
+                          std::to_string(task_->get_current_epoch()) + " Proc Num:" + std::to_string(cluster_.size()) +
+                          " Thread Num:" + std::to_string(num_threads));
     for (auto& kv : cluster_) {
         std::stringstream ss;
         ss << "Proc id: " << kv.first << ": { ";

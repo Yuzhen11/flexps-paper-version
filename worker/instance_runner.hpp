@@ -1,7 +1,7 @@
 #pragma once
 
-#include <thread>
 #include <boost/thread/thread.hpp>
+#include <thread>
 
 #include "husky/base/log.hpp"
 #include "husky/base/serialization.hpp"
@@ -25,7 +25,8 @@ namespace husky {
 class InstanceRunner {
    public:
     InstanceRunner() = delete;
-    InstanceRunner(const WorkerInfo& worker_info, ClusterManagerConnector& cluster_manager_connector, TaskStore& task_store)
+    InstanceRunner(const WorkerInfo& worker_info, ClusterManagerConnector& cluster_manager_connector,
+                   TaskStore& task_store)
         : worker_info_(worker_info),
           cluster_manager_connector_(cluster_manager_connector),
           task_store_(task_store),
@@ -47,6 +48,7 @@ class InstanceRunner {
     void remove_instance(int instance_id);
 
    private:
+    void assign_worker(const std::pair<int, int>& tid_cid, std::shared_ptr<Instance> instance, bool is_leader);
     const WorkerInfo& worker_info_;
     ClusterManagerConnector& cluster_manager_connector_;
     TaskStore& task_store_;

@@ -84,39 +84,8 @@ class Task {
 
     int num_workers_ = 0;  // num of workers needed to run the job
 
-    Type type_;  // task type
+    Type type_;                                // task type
     std::map<std::string, std::string> hint_;  // the hint
-};
-
-/*
- * AutoParallelismTask will set the parallelism automatically
- */
-class AutoParallelismTask : public Task {
-   public:
-    AutoParallelismTask() = default;
-    AutoParallelismTask(int id) : Task(id, Type::AutoParallelismTaskType) {}
-
-    void set_epoch_iters(const std::vector<int>& iters) {
-        iters_ = iters;
-    }
-
-    void set_epoch_lambda(const std::function<void(const Info&, int)>& func) {
-        func_ = func;
-    }
-
-    virtual BinStream& serialize(BinStream& bin) const {
-        Task::serialize(bin);
-        bin << iters_;
-    }
-    virtual BinStream& deserialize(BinStream& bin) {
-        Task::deserialize(bin);
-        bin >> iters_;
-    }
-    friend BinStream& operator<<(BinStream& bin, const AutoParallelismTask& task) { return task.serialize(bin); }
-    friend BinStream& operator>>(BinStream& bin, AutoParallelismTask& task) { return task.deserialize(bin); }
-   private:
-    std::vector<int> iters_;
-    std::function<void(const Info&, int)> func_;
 };
 
 class MLTask : public Task {
@@ -143,9 +112,42 @@ class MLTask : public Task {
     friend BinStream& operator>>(BinStream& bin, MLTask& task) { return task.deserialize(bin); }
 
    protected:
-
-    int kv_id_ = -1;  // the corresponding kvstore id
+    int kv_id_ = -1;   // the corresponding kvstore id
     size_t dim_ = -1;  // the parameter dimensions
+};
+
+/*
+ * AutoParallelismTask will set the parallelism automatically
+ */
+class AutoParallelismTask : public MLTask {
+   public:
+    AutoParallelismTask() = default;
+    AutoParallelismTask(int id) : MLTask(id) { type_ = Type::AutoParallelismTaskType; }
+
+    void set_epoch_iters(const std::vector<int>& iters) { iters_ = iters; }
+
+    void set_epoch_lambda(const std::function<void(const Info&, int)>& func) { func_ = func; }
+    const auto& get_epoch_lambda() { return func_; }
+
+    void set_current_stage_iters(int n_iters) { current_stage_iters_ = n_iters; }
+    int get_current_stage_iters() { return current_stage_iters_; }
+
+    virtual BinStream& serialize(BinStream& bin) const {
+        Task::serialize(bin);
+        bin << iters_ << current_stage_iters_;
+    }
+    virtual BinStream& deserialize(BinStream& bin) {
+        Task::deserialize(bin);
+        bin >> iters_ >> current_stage_iters_;
+    }
+
+    friend BinStream& operator<<(BinStream& bin, const AutoParallelismTask& task) { return task.serialize(bin); }
+    friend BinStream& operator>>(BinStream& bin, AutoParallelismTask& task) { return task.deserialize(bin); }
+
+   private:
+    std::vector<int> iters_;
+    int current_stage_iters_ = 0;
+    std::function<void(const Info&, int)> func_;
 };
 
 /*
@@ -178,20 +180,19 @@ class ConfigurableWorkersTask : public MLTask {
     friend BinStream& operator>>(BinStream& bin, ConfigurableWorkersTask& task) { return task.deserialize(bin); }
 
    private:
-     /**
-      * worker_num = [5]
-      */
-     std::vector<int> worker_num_;
-     /**
-      * worker_num_type equal "threads_per_worker", run 5 threads per worker
-      * worker_num_type equal "threads_per_cluster", run 5 threads per cluster
-      * worker_num_type equal "local_threads", run 5 local threads
-      * worker_num_type equal "threads_traverse_cluster", run 5 threads per worker by per worker
-      * worker_num_type equal "threads_on_worker:2", run 5 threads on worker 2
-      */
-     std::vector<std::string> worker_num_type_;
+    /**
+     * worker_num = [5]
+     */
+    std::vector<int> worker_num_;
+    /**
+     * worker_num_type equal "threads_per_worker", run 5 threads per worker
+     * worker_num_type equal "threads_per_cluster", run 5 threads per cluster
+     * worker_num_type equal "local_threads", run 5 local threads
+     * worker_num_type equal "threads_traverse_cluster", run 5 threads per worker by per worker
+     * worker_num_type equal "threads_on_worker:2", run 5 threads on worker 2
+     */
+    std::vector<std::string> worker_num_type_;
 };
-
 
 /*
  * Husky Task
@@ -234,10 +235,10 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
         break;
     }
     case Task::Type::ConfigurableWorkersTaskType: {
-      ConfigurableWorkersTask* task = new ConfigurableWorkersTask();
-      bin >> *task;
-      ret.reset(task);
-      break;
+        ConfigurableWorkersTask* task = new ConfigurableWorkersTask();
+        bin >> *task;
+        ret.reset(task);
+        break;
     }
     case Task::Type::AutoParallelismTaskType: {
         AutoParallelismTask* task = new AutoParallelismTask();
