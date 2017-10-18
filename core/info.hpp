@@ -3,7 +3,6 @@
 #include <memory>
 #include <unordered_map>
 
-#include "core/task.hpp"
 #include "husky/base/log.hpp"
 #include "husky/core/worker_info.hpp"
 
@@ -11,6 +10,7 @@
 
 namespace husky {
 
+class Task;
 class Info {
    public:
     // getter
@@ -38,12 +38,12 @@ class Info {
     std::vector<int> get_local_tids() const { return worker_info_.get_local_tids(); }
     std::vector<int> get_pids() const { return worker_info_.get_pids(); }
     int get_current_epoch() const { return current_epoch_; }
-    int get_total_epoch() const { return task_->get_total_epoch(); }
+    int get_total_epoch() const;
     bool is_leader() const { return is_leader_; }
-    const std::map<std::string, std::string>& get_hint() const { return task_->get_hint(); }
+    const std::map<std::string, std::string>& get_hint() const;
 
     Task* const get_task() const { return task_; }
-    inline int const get_task_id() const { return task_->get_id(); }
+    int const get_task_id() const;
     const std::unordered_map<int, int>& get_cluster_global() const { return cluster_id_to_global_id_; }
 
     int get_tid(int cluster_id) const {

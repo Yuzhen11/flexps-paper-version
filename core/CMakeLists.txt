@@ -17,6 +17,7 @@ include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${Boost_IN
 
 file(GLOB mlcore-src-files
     instance.cpp
+    info.cpp
     )
 husky_cache_variable(mlcore-src-files ${mlcore-src-files})
 
