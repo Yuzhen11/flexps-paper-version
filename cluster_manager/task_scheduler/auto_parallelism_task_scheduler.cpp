@@ -12,17 +12,15 @@
 namespace husky {
 
 void AutoParallelismTaskScheduler::init_tasks(const std::vector<std::shared_ptr<Task>>& tasks) {
-    bool first = true;
     for (auto& task : tasks) {
         tasks_queue_.push(task);
-        if (task->get_type() == Task::Type::AutoParallelismTaskType) {
-            first = false;
-            auto& epoch_iters = static_cast<AutoParallelismTask*>(task.get())->get_epoch_iters();
-            assert(epoch_iters.size() > 0);
-            search_worker_.set_num_total_iters(epoch_iters[0]);  // initialize search_worker_
-        }
     }
-    assert(!first);
+    auto& task = tasks_queue_.front();
+    if (task->get_type() == Task::Type::AutoParallelismTaskType) {
+        auto& epoch_iters = static_cast<AutoParallelismTask*>(task.get())->get_epoch_iters();
+        assert(epoch_iters.size() > 0);
+        policy_->set_num_total_iters(epoch_iters[0]);  // initialize policy_
+    }
 }
 
 void AutoParallelismTaskScheduler::finish_thread(int instance_id, int global_thread_id) {
@@ -40,11 +38,11 @@ void AutoParallelismTaskScheduler::finish_thread(int instance_id, int global_thr
             if (task->get_type() == Task::Type::AutoParallelismTaskType) {
                 husky::LOG_I << CLAY("Task " + std::to_string(task->get_id()) + 
                         " epoch " + std::to_string(task->get_current_epoch()) + 
-                        " subepoch " + std::to_string(search_worker_.sub_epoch) + 
+                        " subepoch " + std::to_string(policy_->sub_epoch) + 
                         " finished ");
-                bool finish = search_worker_.finish_subepoch();
+                bool finish = policy_->finish_subepoch();
                 if (finish) {  // finish stage
-                    search_worker_.reset();
+                    policy_->reset();
                     husky::LOG_I << CLAY("Task " + std::to_string(task->get_id()) + " epoch " + std::to_string(task->get_current_epoch()) + " finished ");
                     task->inc_epoch();  // Trying to work on next epoch
                     if (task->get_current_epoch() ==
@@ -54,13 +52,13 @@ void AutoParallelismTaskScheduler::finish_thread(int instance_id, int global_thr
                         if (!tasks_queue_.empty() && tasks_queue_.front()->get_type() == Task::Type::AutoParallelismTaskType) {
                             auto& epoch_iters = static_cast<AutoParallelismTask*>(tasks_queue_.front().get())->get_epoch_iters();
                             assert(epoch_iters.size() > 0);
-                            search_worker_.set_num_total_iters(epoch_iters[0]);  // initialize search_worker_
+                            policy_->set_num_total_iters(epoch_iters[0]);  // initialize policy_
                         }
                     } else {
                         // reset num total iters for changing stage
                         auto& epoch_iters = static_cast<AutoParallelismTask*>(task.get())->get_epoch_iters();
                         assert(epoch_iters.size() > task->get_current_epoch());
-                        search_worker_.set_num_total_iters(epoch_iters[task->get_current_epoch()]);  // initialize search_worker_
+                        policy_->set_num_total_iters(epoch_iters[task->get_current_epoch()]);  // initialize policy_
                     }
                 }
             } else {
@@ -73,7 +71,7 @@ void AutoParallelismTaskScheduler::finish_thread(int instance_id, int global_thr
                     if (!tasks_queue_.empty() && tasks_queue_.front()->get_type() == Task::Type::AutoParallelismTaskType) {
                         auto& epoch_iters = static_cast<AutoParallelismTask*>(tasks_queue_.front().get())->get_epoch_iters();
                         assert(epoch_iters.size() > 0);
-                        search_worker_.set_num_total_iters(epoch_iters[0]);  // initialize search_worker_
+                        policy_->set_num_total_iters(epoch_iters[0]);  // initialize policy_
                     }
                 }
             }
@@ -98,12 +96,12 @@ std::vector<std::shared_ptr<Instance>> AutoParallelismTaskScheduler::extract_ins
 bool AutoParallelismTaskScheduler::is_finished() { return tasks_queue_.empty(); }
 
 std::shared_ptr<Instance> AutoParallelismTaskScheduler::task_to_instance_auto_parallelism(const Task& task) {
-    search_worker_.generate_plan();
+    policy_->generate_plan();
     std::shared_ptr<Instance> instance(new Instance);
     instance->set_task(task);
-    instance->set_num_workers(search_worker_.current_worker_per_process * num_processes_);
+    instance->set_num_workers(policy_->current_worker_per_process * num_processes_);
 
-    std::vector<std::pair<int, int>> pid_tids = available_workers_.get_workers_per_process(search_worker_.current_worker_per_process, num_processes_);
+    std::vector<std::pair<int, int>> pid_tids = available_workers_.get_workers_per_process(policy_->current_worker_per_process, num_processes_);
     assert(!pid_tids.empty());
     int j = 0;
     for (auto pid_tid : pid_tids) {
@@ -114,13 +112,13 @@ std::shared_ptr<Instance> AutoParallelismTaskScheduler::task_to_instance_auto_pa
     HistoryManager::get().update_history(instance->get_id(), pid_tids);
     husky::LOG_I << YELLOW("Task: "+std::to_string(instance->get_id())+" added");
     husky::LOG_I << YELLOW("num_workers: " + std::to_string(instance->get_num_workers())
-            + "\ncurrent_iters: " + std::to_string(search_worker_.current_iters)
-            + "\ntotal_iters: " << std::to_string(search_worker_.num_total_iters)
-            + "\ntry_iters: " << std::to_string(search_worker_.try_iters));
+            + "\ncurrent_iters: " + std::to_string(policy_->current_iters)
+            + "\ntotal_iters: " << std::to_string(policy_->num_total_iters)
+            + "\ntry_iters: " << std::to_string(policy_->try_iters));
 
     auto* p_task = instance->get_task();
-    static_cast<AutoParallelismTask*>(p_task)->set_current_stage_iters(search_worker_.try_iters);
-    search_worker_.start_subepoch();
+    static_cast<AutoParallelismTask*>(p_task)->set_current_stage_iters(policy_->try_iters);
+    policy_->start_subepoch();
     return instance;
 }
 
