@@ -124,9 +124,9 @@ class AutoParallelismTask : public MLTask {
     AutoParallelismTask() = default;
     AutoParallelismTask(int id) : MLTask(id) { type_ = Type::AutoParallelismTaskType; }
 
-    void set_epoch_iters(const std::vector<int>& iters) { 
+    void set_epoch_iters(const std::vector<int>& iters) {
         assert(iters.size());
-        iters_ = iters; 
+        iters_ = iters;
         set_total_epoch(iters.size());
     }
     const std::vector<int>& get_epoch_iters() const { return iters_; }
@@ -138,11 +138,11 @@ class AutoParallelismTask : public MLTask {
     int get_current_stage_iters() { return current_stage_iters_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
-        Task::serialize(bin);
+        MLTask::serialize(bin);
         bin << iters_ << current_stage_iters_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
-        Task::deserialize(bin);
+        MLTask::deserialize(bin);
         bin >> iters_ >> current_stage_iters_;
     }
 

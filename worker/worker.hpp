@@ -12,8 +12,8 @@
 #include "worker/basic.hpp"
 #include "worker/cluster_manager_connector.hpp"
 #include "worker/instance_runner.hpp"
-#include "worker/task_store.hpp"
 #include "worker/model_transfer_manager.hpp"
+#include "worker/task_store.hpp"
 
 namespace husky {
 
@@ -25,7 +25,8 @@ namespace husky {
 class Worker {
    public:
     Worker() = delete;
-    Worker(const WorkerInfo& worker_info_, ModelTransferManager* model_transfer_manager, ClusterManagerConnector&& cluster_manager_connector_);
+    Worker(const WorkerInfo& worker_info_, ModelTransferManager* model_transfer_manager,
+           ClusterManagerConnector&& cluster_manager_connector_);
 
     // User need to add task to taskstore
     template <typename TaskT>

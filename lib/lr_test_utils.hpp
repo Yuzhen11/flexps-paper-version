@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <cmath>
 
 #include "core/info.hpp"
 #include "datastore/datastore.hpp"
@@ -43,7 +44,11 @@ float lr_test_objective(const husky::lib::ml::LabeledPointHObj<float, float, tru
     }
     pred_y += model[model.size() - 1];  // intercept
     pred_y = 1. / (1. + exp(-pred_y));
-    return fabs(y - pred_y);
+    if (y == 0) {
+        return -log(1. - pred_y);
+    } else {  // y == 1
+        return -log(pred_y);
+    }
 }
 
 float squared_deviation(const std::vector<float>& model1, const std::vector<float>& model2) {
@@ -91,7 +96,7 @@ void load_benchmark_model(std::vector<float>& benchmark_model, const std::string
     }
 }
 
-int sgd_train(const Info& info, datastore::DataStore<LabeledPointHObj<float,float,true>>& data_store, const config::AppConfig& config, std::vector<float>& benchmark_model, int report_interval, int accum_iter = 0, bool write_model = false) {
+void sgd_train(const Info& info, datastore::DataStore<LabeledPointHObj<float,float,true>>& data_store, const config::AppConfig& config, std::vector<float>& benchmark_model, int report_interval, int accum_iter = 0, bool write_model = false) {
     auto worker = ml::CreateMLWorker<float>(info);
     // Create BatchDataSampler for mini-batch SGD
     datastore::BatchDataSampler<husky::lib::ml::LabeledPointHObj<float, float, true>> batch_data_sampler(data_store, config.batch_size);
@@ -183,6 +188,7 @@ int sgd_train(const Info& info, datastore::DataStore<LabeledPointHObj<float,floa
         worker->Pull({0}, &vals);
         worker->Push({0}, {0});
     }
+    // output the model
     if (write_model && info.get_current_epoch() == info.get_total_epoch() - 1) {
         std::vector<husky::constants::Key> all_keys;
         for (int i = 0; i < config.num_params; i++)

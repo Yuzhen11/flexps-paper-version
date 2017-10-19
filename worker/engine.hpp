@@ -4,9 +4,9 @@
 
 #include "husky/core/context.hpp"
 #include "worker/basic.hpp"
+#include "worker/model_transfer_manager.hpp"
 #include "worker/task_factory.hpp"
 #include "worker/worker.hpp"
-#include "worker/model_transfer_manager.hpp"
 
 #include "husky/core/constants.hpp"
 #include "husky/core/coordinator.hpp"

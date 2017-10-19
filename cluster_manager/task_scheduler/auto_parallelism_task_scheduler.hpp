@@ -180,7 +180,7 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
     };
     struct IncreaseBestPolicy : public AutoParallelismPolicy {
         virtual void sub_reset() override {
-            current_worker_per_process = 0;
+            current_worker_per_process = 0;  // TODO(tatiana): better use memory and workload indicator
             max_worker_per_process = 10;
             min_worker_per_process = 1;
             try_iters = 10;

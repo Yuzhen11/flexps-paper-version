@@ -97,7 +97,7 @@ AppConfig SetAppConfigWithContext() {
     config.learning_rate_update = Context::get_param("learning_rate_update");
     config.batch_size = std::stoi(Context::get_param("batch_size"));
 
-    const std::vector<std::string> trainers_set({"lr", "svm"});
+    const std::vector<std::string> trainers_set({"lr", "svm", "lasso"});
     assert(std::find(trainers_set.begin(), trainers_set.end(), config.trainer) != trainers_set.end());
     husky::LOG_I << CLAY("Trainer: "+config.trainer);
     husky::LOG_I << CLAY("use_chunk: "+std::to_string(config.use_chunk));
