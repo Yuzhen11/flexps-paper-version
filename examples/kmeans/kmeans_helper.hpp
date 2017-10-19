@@ -41,7 +41,7 @@ void get_stage_conf(const std::string& conf_str, std::vector<T>& vec, int num_st
     boost::split(split_result, conf_str, boost::is_any_of(","), boost::algorithm::token_compress_on);
     vec.reserve(num_stage);
     for (auto& i : split_result) {
-        vec.push_back(std::stoi(i));
+        vec.push_back(std::stod(i));
     }
     assert(vec.size() == num_stage);
 }
@@ -155,16 +155,14 @@ float dist(auto& point1, auto& point2, int num_features) {
 
 // return ID of cluster whose center is the nearest (uses euclidean distance), and the distance
 std::pair<int, float> get_nearest_center(const LabeledPointHObj<float, int, true>& point, int K,
-                                         const std::vector<float>& params, int num_features) {
+                                         const std::vector<std::vector<float>>& params, int num_features) {
     float square_dist, min_square_dist = std::numeric_limits<float>::max();
     int id_cluster_center = -1;
     auto& x = point.x;
 
     for (int i = 0; i < K; i++)  // calculate the dist between point and clusters[i]
     {
-        typename std::vector<float>::const_iterator first = params.begin() + i * num_features;
-        typename std::vector<float>::const_iterator last = first + num_features;
-        std::vector<float> diff(first, last);
+        std::vector<float> diff = params[i];
 
         for (auto field : x)
             diff[field.fea] -= field.val;
@@ -181,8 +179,9 @@ std::pair<int, float> get_nearest_center(const LabeledPointHObj<float, int, true
 }
 
 // test the Sum of Square Error of the model
-void test_error(const std::vector<float>& params, datastore::DataStore<LabeledPointHObj<float, int, true>>& data_store,
-                int iter, int K, int data_size, int num_features, int cluster_id) {
+void test_error(const std::vector<std::vector<float>>& params,
+                datastore::DataStore<LabeledPointHObj<float, int, true>>& data_store, int iter, int K, int data_size,
+                int num_features, int cluster_id) {
     datastore::DataSampler<LabeledPointHObj<float, int, true>> data_sampler(data_store);
     float sum = 0;  // sum of square error
     std::pair<int, float> id_dist;
@@ -203,7 +202,7 @@ void test_error(const std::vector<float>& params, datastore::DataStore<LabeledPo
 }
 
 void random_init(int K, int num_features, std::vector<LabeledPointHObj<float, int, true>>& local_data,
-                 std::vector<float>& params) {
+                 std::vector<std::vector<float>>& params) {
     std::vector<int> prohibited_indexes;
     int index;
     for (int i = 0; i < K; i++) {
@@ -216,17 +215,17 @@ void random_init(int K, int num_features, std::vector<LabeledPointHObj<float, in
                 prohibited_indexes.push_back(index);
                 auto& x = local_data[index].x;
                 for (auto field : x)
-                    params[i * num_features + field.fea] = field.val;
+                    params[i][field.fea] = field.val;
 
                 break;
             }
         }
-        params[K * num_features + i] += 1;
+        params[K][i] += 1;
     }
 }
 
 void kmeans_plus_plus_init(int K, int num_features, std::vector<LabeledPointHObj<float, int, true>>& local_data,
-                           std::vector<float>& params) {
+                           std::vector<std::vector<float>>& params) {
     auto X = local_data;
     std::vector<float> dist(X.size());
     int index;
@@ -234,9 +233,9 @@ void kmeans_plus_plus_init(int K, int num_features, std::vector<LabeledPointHObj
     index = rand() % X.size();
     auto& x = X[index].x;
     for (auto field : x)
-        params[field.fea] = field.val;
+        params[0][field.fea] = field.val;
 
-    params[K * num_features] += 1;
+    params[K][0] += 1;
     X.erase(X.begin() + index);
 
     float sum;
@@ -257,17 +256,17 @@ void kmeans_plus_plus_init(int K, int num_features, std::vector<LabeledPointHObj
 
             auto& x = X[j].x;
             for (auto field : x)
-                params[i * num_features + field.fea] = field.val;
+                params[i][field.fea] = field.val;
 
             X.erase(X.begin() + j);
             break;
         }
-        params[K * num_features + i] += 1;
+        params[K][i] += 1;
     }
 }
 
 void kmeans_parallel_init(int K, int num_features, std::vector<LabeledPointHObj<float, int, true>>& local_data,
-                          std::vector<float>& params) {
+                          std::vector<std::vector<float>>& params) {
     int index;
     std::vector<LabeledPointHObj<float, int, true>> C;
     auto X = local_data;
@@ -329,9 +328,9 @@ void kmeans_parallel_init(int K, int num_features, std::vector<LabeledPointHObj<
     index = rand() % C.size();
     auto& x = C[index].x;
     for (auto field : x)
-        params[field.fea] = field.val;
+        params[0][field.fea] = field.val;
 
-    params[K * num_features] += 1;
+    params[K][0] += 1;
     C.erase(C.begin() + index);
 
     float sum;
@@ -352,12 +351,12 @@ void kmeans_parallel_init(int K, int num_features, std::vector<LabeledPointHObj<
 
             auto& x = C[j].x;
             for (auto field : x)
-                params[i * num_features + field.fea] = field.val;
+                params[i][field.fea] = field.val;
 
             C.erase(C.begin() + j);
             break;
         }
-        params[K * num_features + i] += 1;
+        params[K][i] += 1;
     }
 }
 
@@ -365,20 +364,23 @@ void init_centers(const Info& info, int num_features, int K,
                   datastore::DataStore<LabeledPointHObj<float, int, true>>& data_store, std::string init_mode) {
     // initialize a worker
     auto worker = ml::CreateMLWorker<float>(info);
-    // auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
-    std::vector<husky::constants::Key> all_keys;
-    for (int i = 0; i < K * num_features + K; i++)  // set keys
-        all_keys.push_back(i);
+
+    std::vector<husky::constants::Key> chunk_ids(K + 1);  // set keys
+    std::iota(chunk_ids.begin(), chunk_ids.end(), 0);
+    std::vector<std::vector<float>> params(K + 1);
+    std::vector<std::vector<float>*> params_ptrs(K + 1);
+
+    for (int i = 0; i < K + 1; ++i) {
+        params[i].resize(num_features);
+        params_ptrs[i] = &params[i];
+    }
 
     // read from datastore
     auto& local_data = data_store.Pull(info.get_local_id());
     husky::LOG_I << YELLOW("local_data.size: " + std::to_string(local_data.size()));
-    std::vector<float> params(K * num_features + K);
-
     // use only one worker to initialize the params
     auto start_time = std::chrono::steady_clock::now();
-    worker->Pull(all_keys, &params);
-
+    worker->PullChunks(chunk_ids, params_ptrs);
     if (init_mode == "random")  // K-means: choose K distinct values for the centers of the clusters randomly
         random_init(K, num_features, local_data, params);
     else if (init_mode == "kmeans++")  // K-means++
@@ -389,5 +391,5 @@ void init_centers(const Info& info, int num_features, int K,
     }
 
     husky::LOG_I << RED("params's size: " + std::to_string(params.size()));
-    worker->Push(all_keys, params);
+    worker->PushChunks(chunk_ids, params_ptrs);
 }
