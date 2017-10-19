@@ -62,3 +62,10 @@ target_link_libraries(AutoElasticPS husky)
 target_link_libraries(AutoElasticPS husky-ml)
 target_link_libraries(AutoElasticPS ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(AutoElasticPS)
+
+# re-organize LR SVRG
+add_executable(LR lrsvrg.cpp)
+target_link_libraries(LR husky)
+target_link_libraries(LR husky-ml)
+target_link_libraries(LR ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(LR)
