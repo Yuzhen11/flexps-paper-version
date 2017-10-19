@@ -39,6 +39,9 @@ template <typename Val>
 class KVServer : public KVServerBase {
    public:
     KVServer() = delete;
+    KVServer(int kv_id, std::unique_ptr<ServerBase>&& server) 
+        : server_base_(std::move(server)) {}
+    /*
     KVServer(int kv_id, int server_id, const std::map<std::string, std::string>& hint) {
         try {
             using namespace husky::constants;
@@ -131,6 +134,7 @@ class KVServer : public KVServerBase {
             throw husky::base::HuskyException("Unknown KVServer hint");
         }
     }
+    */
     ~KVServer() = default;
 
     /*
@@ -149,9 +153,8 @@ class KVServer : public KVServerBase {
  */
 class KVManager {
    public:
-    KVManager(int server_id, husky::LocalMailbox& mailbox, int channel_id)
-        : server_id_(server_id), 
-          customer_(new ServerCustomer(
+    KVManager(husky::LocalMailbox& mailbox, int channel_id)
+        : customer_(new ServerCustomer(
               mailbox, [this](int kv_id, int ts, husky::base::BinStream& bin) { Process(kv_id, ts, bin); },
               channel_id)) {
         customer_->Start();
@@ -167,8 +170,8 @@ class KVManager {
      * make sure all the kvstore is set up before the actual workload
      */
     template <typename Val>
-    void CreateKVManager(int kv_id, const std::map<std::string, std::string>& hint) {
-        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(kv_id, server_id_, hint))));
+    void CreateKVManager(int kv_id, std::unique_ptr<ServerBase>&& server) {
+        kv_store_.insert(std::make_pair(kv_id, std::unique_ptr<KVServer<Val>>(new KVServer<Val>(kv_id, std::move(server)))));
     }
 
    private:
@@ -185,7 +188,6 @@ class KVManager {
     std::unique_ptr<ServerCustomer> customer_;
     std::unordered_map<int, std::unique_ptr<KVServerBase>> kv_store_;
 
-    int server_id_;
 };
 
 }  // namespace kvstore

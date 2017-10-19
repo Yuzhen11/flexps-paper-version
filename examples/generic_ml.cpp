@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     { 
         {husky::constants::kType, husky::constants::kHogwild} 
     };
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(10);
     task1.set_kvstore(kv1);
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
     {
         {husky::constants::kType, husky::constants::kSingle}
     };
-    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
+    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
     kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv2, 10);
     auto task2 = TaskFactory::Get().CreateTask<MLTask>();
     task2.set_dimensions(10);
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
         {husky::constants::kConsistency, husky::constants::kBSP},
         {husky::constants::kNumWorkers, "4"}
     };
-    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);  // for bsp server
+    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_map", 4, -1, 10, 10);  // for bsp server
     auto task3 = TaskFactory::Get().CreateTask<MLTask>();
     task3.set_dimensions(10);
     task3.set_kvstore(kv3);
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
         {husky::constants::kNumWorkers, "4"},
         {husky::constants::kStaleness, "1"}
     };
-    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
+    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_map", 4, -1, 10, 10);
     auto task4 = TaskFactory::Get().CreateTask<MLTask>();
     task4.set_dimensions(5);
     task4.set_kvstore(kv4);
@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
         {husky::constants::kConsistency, husky::constants::kASP},
         {husky::constants::kNumWorkers, "4"}
     };
-    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
+    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>("default_add_map", -1, -1, 10, 10);
     auto task5 = TaskFactory::Get().CreateTask<MLTask>();
     task5.set_dimensions(5);
     task5.set_kvstore(kv5);
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
         {husky::constants::kType, husky::constants::kSPMT},
         {husky::constants::kConsistency, husky::constants::kASP}
     };
-    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
+    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
     auto task6 = TaskFactory::Get().CreateTask<MLTask>();
     task6.set_dimensions(10);
     task6.set_kvstore(kv6);

@@ -36,7 +36,8 @@ void KVStore::Start(const husky::WorkerInfo& worker_info, husky::MailboxEventLoo
     // Create Servers
     for (int i = 0; i < num_servers_per_process; ++ i) {
         int server_id = i * num_processes_ + worker_info.get_process_id();
-        kvservers.push_back(new kvstore::KVManager(server_id, *kvserver_mailboxes[i].get(), husky::constants::kv_channel_id));
+        kvservers.push_back(new kvstore::KVManager(*kvserver_mailboxes[i].get(), husky::constants::kv_channel_id));
+        server_ids.push_back(server_id);
     }
 
     // Create kvworkers
