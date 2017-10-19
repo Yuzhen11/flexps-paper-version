@@ -48,14 +48,15 @@ int main(int argc, char* argv[]) {
         {husky::constants::kConsistency, husky::constants::kASP},
         {husky::constants::kNumWorkers, "1"},
     };
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint);  // didn't set max_key and chunk_size
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, K * num_features + num_features,
+                                                          num_features);  // set max_key and chunk_size
 
     // initialization task
     auto init_task = TaskFactory::Get().CreateTask<MLTask>(1, 1, Task::Type::MLTaskType);
     init_task.set_hint(hint);
     init_task.set_kvstore(kv);
-    init_task.set_dimensions(K * num_features +
-                             K);  // use params[K * num_features] - params[K * num_features + K] to store v[K]
+    // use params[K][0] - params[K][K-1] to store v[K], assuming num_features >= K
+    init_task.set_dimensions(K * num_features + num_features);
 
     engine.AddTask(std::move(init_task), [K, num_features, &data_store, &init_mode](const Info& info) {
         init_centers(info, num_features, K, data_store, init_mode);
@@ -73,7 +74,7 @@ int main(int argc, char* argv[]) {
 
     training_task.set_hint(hint);
     training_task.set_kvstore(kv);
-    training_task.set_dimensions(K * num_features + K);
+    training_task.set_dimensions(K * num_features + num_features);
 
     engine.AddTask(std::move(training_task), [&data_store, num_iters, report_interval, K, batch_size, num_features,
                                               data_size, learning_rate_coefficient,
@@ -82,40 +83,45 @@ int main(int argc, char* argv[]) {
         // initialize a worker
         auto worker = ml::CreateMLWorker<float>(info);
 
-        std::vector<husky::constants::Key> all_keys;
-        for (int i = 0; i < K * num_features + K; i++)  // set keys
-            all_keys.push_back(i);
+        std::vector<size_t> chunk_ids(K + 1);
+        std::iota(chunk_ids.begin(), chunk_ids.end(), 0);  // set keys
+        std::vector<std::vector<float>> params(K + 1);
+        std::vector<std::vector<float>> step_sums(K + 1);
+        std::vector<std::vector<float>*> pull_ptrs(K + 1);
+        std::vector<std::vector<float>*> push_ptrs(K + 1);
 
-        std::vector<float> params;
+        for (int i = 0; i < K + 1; ++i) {
+            params[i].resize(num_features);
+            pull_ptrs[i] = &params[i];
+            push_ptrs[i] = &step_sums[i];
+        }
+
         // read from datastore
         datastore::DataSampler<LabeledPointHObj<float, int, true>> data_sampler(data_store);
 
         // training task
         for (int iter = 0; iter < num_iters; iter++) {
-            worker->Pull(all_keys, &params);
-            std::vector<float> step_sum(params);
+            worker->PullChunks(chunk_ids, pull_ptrs);
+            step_sums = params;
 
             // training A mini-batch
             int id_nearest_center;
-            float alpha;
+            float learning_rate;
             data_sampler.random_start_point();
 
             auto start_train = std::chrono::steady_clock::now();
             for (int i = 0; i < batch_size / num_train_workers; ++i) {
                 auto& data = data_sampler.next();
                 auto& x = data.x;
-                id_nearest_center = get_nearest_center(data, K, step_sum, num_features).first;
-                alpha = learning_rate_coefficient / ++step_sum[K * num_features + id_nearest_center];
+                id_nearest_center = get_nearest_center(data, K, step_sums, num_features).first;
+                learning_rate = learning_rate_coefficient / ++step_sums[K][id_nearest_center];
 
-                std::vector<float>::const_iterator first = step_sum.begin() + id_nearest_center * num_features;
-                std::vector<float>::const_iterator last = step_sum.begin() + (id_nearest_center + 1) * num_features;
-                std::vector<float> c(first, last);
-
+                std::vector<float> deltas = step_sums[id_nearest_center];
                 for (auto field : x)
-                    c[field.fea] -= field.val;
+                    deltas[field.fea] -= field.val;
 
                 for (int j = 0; j < num_features; j++)
-                    step_sum[j + id_nearest_center * num_features] -= alpha * c[j];
+                    step_sums[id_nearest_center][j] -= learning_rate * deltas[j];
             }
 
             // test model
@@ -128,10 +134,11 @@ int main(int argc, char* argv[]) {
             }
 
             // update params
-            for (int i = 0; i < step_sum.size(); i++)
-                step_sum[i] -= params[i];
+            for (int i = 0; i < K + 1; ++i)
+                for (int j = 0; j < num_features; ++j)
+                    step_sums[i][j] -= params[i][j];
 
-            worker->Push(all_keys, step_sum);
+            worker->PushChunks(chunk_ids, push_ptrs);
         }
     });
     start_time = std::chrono::steady_clock::now();
