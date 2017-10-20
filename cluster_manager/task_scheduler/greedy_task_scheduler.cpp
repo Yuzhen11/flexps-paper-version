@@ -60,7 +60,7 @@ std::vector<std::shared_ptr<Instance>> GreedyTaskScheduler::extract_instances() 
             auto& hint = instance->get_task()->get_hint();
             std::vector<int> candidate_proc;
             if (instance->get_task()->get_type() == Task::Type::MLTaskType 
-                    && hint.at(husky::constants::kType) == husky::constants::kPS) {
+                    && hint == husky::constants::kPS) {
                 // don't consider history when running pstask
                 for (int i = 0; i < num_processes_; ++ i) {
                     candidate_proc.push_back(i);

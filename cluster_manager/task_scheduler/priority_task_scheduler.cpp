@@ -49,7 +49,7 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
             auto task = task_manager_.get_task_by_id(id);
             auto& hint = task->get_hint();
             if (task->get_type() == Task::Type::MLTaskType 
-                    && hint.at(husky::constants::kType) == husky::constants::kPS) {
+                    && hint == husky::constants::kPS) {
                 // don't consider history when running pstask
                 for (int i = 0; i < num_processes_; ++ i) {
                     proc_ids.push_back(i);

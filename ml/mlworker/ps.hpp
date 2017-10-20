@@ -27,15 +27,12 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
     PSWorker(PSWorker&&) = delete;
     PSWorker& operator=(PSWorker&&) = delete;
 
-    PSWorker(const husky::Info& info) 
+    PSWorker(const husky::Info& info, const husky::TableInfo& table_info)
         : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
         // set kvworker
         int local_id = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
-        auto& hint = info.get_task()->get_hint();
-        if (hint.find(husky::constants::kConsistency) != hint.end()
-                && (hint.at(husky::constants::kConsistency) == husky::constants::kSSP 
-                    || hint.at(husky::constants::kConsistency) == husky::constants::kBSP)) {
+        if (table_info.consistency == husky::Consistency::BSP || table_info.consistency == husky::Consistency::SSP) {
             kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
             send_all_ = true;
         } else {
@@ -226,10 +223,10 @@ class PSMapNoneWorker : public mlworker::GenericMLWorker<Val> {
     PSMapNoneWorker(PSMapNoneWorker&&) = delete;
     PSMapNoneWorker& operator=(PSMapNoneWorker&&) = delete;
 
-    PSMapNoneWorker(const husky::Info& info)
+    PSMapNoneWorker(const husky::Info& info, const husky::TableInfo& table_info)
         : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
         // set staleness
-        staleness_ = stoi(info.get_task()->get_hint().at(husky::constants::kStaleness));
+        staleness_ = table_info.kStaleness;
         // set kvworker
         int local_id = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
@@ -343,12 +340,12 @@ class PSChunkNoneWorker : public mlworker::GenericMLWorker<Val> {
     PSChunkNoneWorker(PSChunkNoneWorker&&) = delete;
     PSChunkNoneWorker operator=(PSChunkNoneWorker&&) = delete;
 
-    PSChunkNoneWorker(const husky::Info& info) :
+    PSChunkNoneWorker(const husky::Info& info, const husky::TableInfo& table_info) :
         model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()),
         model_(model_id_, static_cast<husky::MLTask*>(info.get_task())->get_dimensions()),
         local_id_(info.get_local_id()) {
             // Configure model
-            model_.SetStaleness(stoi(info.get_task()->get_hint().at(husky::constants::kStaleness)));
+            model_.SetStaleness(table_info.kStaleness);
             // Set kvworker
             kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
             kvworker_->Wait(model_id_, kvworker_->InitForConsistencyControl(model_id_, info.get_num_workers()));
@@ -443,7 +440,7 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
     PSNoneChunkWorker& operator=(const PSNoneChunkWorker&) = delete;
     PSNoneChunkWorker& operator=(PSNoneChunkWorker&&) = delete;
 
-    PSNoneChunkWorker(const husky::Info& info, zmq::context_t& context) :
+    PSNoneChunkWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context) :
         shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
         info_(info),
         model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
@@ -457,7 +454,7 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
         }
         // 2. Sync
         shared_state_.SyncState();
-        staleness_ = stoi(info.get_task()->get_hint().at(husky::constants::kStaleness));
+        staleness_ = table_info.kStaleness;
         // set local id and kvworker
         local_id_ = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
@@ -563,7 +560,7 @@ class PSMapChunkWorker : public mlworker::GenericMLWorker<Val> {
     PSMapChunkWorker(PSMapChunkWorker&&) = delete;
     PSMapChunkWorker& operator=(PSMapChunkWorker&&) = delete;
 
-    PSMapChunkWorker(const husky::Info& info, zmq::context_t& context)
+    PSMapChunkWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
           model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
@@ -576,7 +573,7 @@ class PSMapChunkWorker : public mlworker::GenericMLWorker<Val> {
         }
         // 2. Sync
         shared_state_.SyncState();
-        staleness_ = stoi(info.get_task()->get_hint().at(husky::constants::kStaleness));
+        staleness_ = table_info.kStaleness;
         // set local id and kvworker
         local_id_ = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id_);
@@ -707,7 +704,7 @@ class PSChunkChunkWorker : public mlworker::GenericMLWorker<Val> {
     PSChunkChunkWorker(PSChunkChunkWorker&&) = delete;
     PSChunkChunkWorker& operator=(PSChunkChunkWorker&&) = delete;
 
-    PSChunkChunkWorker(const husky::Info& info, zmq::context_t& context)
+    PSChunkChunkWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
           model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()),
@@ -722,7 +719,7 @@ class PSChunkChunkWorker : public mlworker::GenericMLWorker<Val> {
         }
         // 2. Sync
         shared_state_.SyncState();
-        staleness_ = stoi(info.get_task()->get_hint().at(husky::constants::kStaleness));
+        staleness_ = table_info.kStaleness;
 
         // Set local id and kvworker
         local_id_ = info.get_local_id();

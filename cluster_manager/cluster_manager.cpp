@@ -161,12 +161,11 @@ void ClusterManager:: send_instances(const std::vector<std::shared_ptr<Instance>
 void ClusterManager::send_last_instance(const std::shared_ptr<Instance>& instance) {
     auto& hint = instance->get_task()->get_hint();
     // if there's not kType or not kEnableDirectModelTransfer, return
-    if (hint.find(husky::constants::kType) == hint.end() || hint.find(husky::constants::kEnableDirectModelTransfer) == hint.end())
+    if (hint.empty() || instance->get_task()->get_dmt() == false)
         return;
-    // TODO SMPT not done yet
-    if (hint.at(husky::constants::kType) != husky::constants::kSingle
-            && hint.at(husky::constants::kType) != husky::constants::kHogwild
-            && hint.at(husky::constants::kType) != husky::constants::kSPMT)  // support Single, Hogwild and SPMT
+    if (hint != husky::constants::kSingle
+        && hint != husky::constants::kHogwild
+        && hint != husky::constants::kSPMT)  // support Single, Hogwild and SPMT
         return;
     if (instance->get_epoch() == 0)  // skip for the first epoch
         return;

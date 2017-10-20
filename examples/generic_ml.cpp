@@ -7,8 +7,8 @@
 
 using namespace husky;
 
-auto test_mlworker_lambda = [](const Info& info) {
-    auto worker = ml::CreateMLWorker<float>(info);
+auto test_mlworker_lambda = [](const Info& info, const TableInfo& table_info) {
+    auto worker = ml::CreateMLWorker<float>(info, table_info);
     int num_iter = 1001;
     for (int i = 0; i < num_iter; ++ i) {
         std::vector<float> rets;
@@ -36,19 +36,21 @@ int main(int argc, char** argv) {
     // Didn't specify the epoch num and thread num, leave cluster_manager to decide them
 
     //  A Hogwild! Task
-    std::map<std::string, std::string> hint = 
-    { 
-        {husky::constants::kType, husky::constants::kHogwild} 
-    };
+    // std::map<std::string, std::string> hint = 
+    // { 
+    //     {husky::constants::kType, husky::constants::kHogwild} 
+    // };
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
     task1.set_dimensions(10);
     task1.set_kvstore(kv1);
-    task1.set_hint(hint);  // set the running type explicitly
+    task1.set_hint(husky::constants::kHogwild);  // set the running type explicitly
     task1.set_total_epoch(2);                             // 2 epochs
     task1.set_num_workers(4);                             // 4 workers
     engine.AddTask(task1, [](const Info& info) {
-        auto worker = ml::CreateMLWorker<float>(info);
+        TableInfo table_info{husky::ModeType::Hogwild, husky::Consistency::None, husky::WorkerType::None, husky::ParamType::IntegralType};
+        husky::LOG_I << "table info: " << table_info.DebugString();
+        auto worker = ml::CreateMLWorker<float>(info, table_info);
         // int k = 3;
         // worker->Put(k, 0.456);
         // float v = worker->Get(k);
@@ -63,6 +65,7 @@ int main(int argc, char** argv) {
         }
     });
 
+    /*
     // A Single Task
     hint = 
     {
@@ -75,6 +78,7 @@ int main(int argc, char** argv) {
     task2.set_kvstore(kv2);
     task2.set_hint(hint);
     engine.AddTask(task2, [](const Info& info) {
+        TableInfo table_info{husky::ModeType::Single, husky::Consistency::None, husky::WorkerType::None, husky::ParamType::IntegralType};
         auto worker = ml::CreateMLWorker<float>(info);
         worker->Push({2}, {3});
         std::vector<float> res;
@@ -99,7 +103,8 @@ int main(int argc, char** argv) {
     engine.AddTask(task3, [](const Info& info) {
         if (info.get_cluster_id() == 0)
             husky::LOG_I << "PS BSP Model running";
-        test_mlworker_lambda(info);
+        TableInfo table_info{husky::ModeType::PS, husky::Consistency::BSP, husky::WorkerType::PSWorker, husky::ParamType::None};
+        test_mlworker_lambda(info, table_info);
     });
 
     // SSP
@@ -119,7 +124,8 @@ int main(int argc, char** argv) {
     engine.AddTask(task4, [](const Info& info) {
         if (info.get_cluster_id() == 0)
             husky::LOG_I << "PS SSP Model running";
-        test_mlworker_lambda(info);
+        TableInfo table_info{husky::ModeType::PS, husky::Consistency::SSP, husky::WorkerType::PSWorker};
+        test_mlworker_lambda(info, table_info);
     });
 
     // ASP
@@ -138,7 +144,8 @@ int main(int argc, char** argv) {
     engine.AddTask(task5, [](const Info& info) {
         if (info.get_cluster_id() == 0)
             husky::LOG_I << "PS ASP Model running";
-        test_mlworker_lambda(info);
+        TableInfo table_info{husky::ModeType::PS, husky::Consistency::ASP, husky::WorkerType::PSWorker};
+        test_mlworker_lambda(info, table_info);
     });
 
     //  A SPMT Task
@@ -154,8 +161,9 @@ int main(int argc, char** argv) {
     task6.set_hint(hint);
     task6.set_num_workers(4);                             // 4 workers
     engine.AddTask(task6, [](const Info& info) {
-        test_mlworker_lambda(info);
+        test_mlworker_lambda(info, table_info);
     });
+    */
 
     engine.Submit();
     engine.Exit();

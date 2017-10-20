@@ -36,10 +36,10 @@ class Task {
     virtual ~Task() {}
 
     virtual BinStream& serialize(BinStream& bin) const {
-        bin << id_ << total_epoch_ << current_epoch_ << num_workers_ << type_ << hint_;
+        bin << id_ << total_epoch_ << current_epoch_ << num_workers_ << type_ << hint_ << dmt_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
-        bin >> id_ >> total_epoch_ >> current_epoch_ >> num_workers_ >> type_ >> hint_;
+        bin >> id_ >> total_epoch_ >> current_epoch_ >> num_workers_ >> type_ >> hint_ >> dmt_;
     }
 
     /*
@@ -57,7 +57,8 @@ class Task {
     inline int get_current_epoch() const { return current_epoch_; }
     inline int get_num_workers() const { return num_workers_; }
     inline Type get_type() const { return type_; }
-    const std::map<std::string, std::string>& get_hint() const { return hint_; }
+    const std::string& get_hint() const { return hint_; }
+    inline bool get_dmt() const { return dmt_; }
 
     // setter
     inline void set_id(int id) { id_ = id; }
@@ -65,7 +66,8 @@ class Task {
     inline void set_current_epoch(int current_epoch) { current_epoch_ = current_epoch; }
     inline void set_num_workers(int num_workers) { num_workers_ = num_workers; }
     inline void set_type(Type type) { type_ = type; }
-    void set_hint(const std::map<std::string, std::string>& hint) { hint_ = hint; }
+    void set_hint(const std::string& hint) { hint_ = hint; }
+    void set_dmt() { dmt_ = true; }
 
     inline void inc_epoch() { current_epoch_ += 1; }
 
@@ -85,7 +87,8 @@ class Task {
     int num_workers_ = 0;  // num of workers needed to run the job
 
     Type type_;                                // task type
-    std::map<std::string, std::string> hint_;  // the hint
+    std::string hint_;  // the hint
+    bool dmt_ = false;  // direct model transfer
 };
 
 class MLTask : public Task {

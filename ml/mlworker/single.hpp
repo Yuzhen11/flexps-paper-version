@@ -26,30 +26,29 @@ class SingleWorker : public mlworker::GenericMLWorker<Val> {
     SingleWorker(SingleWorker&&) = delete;
     SingleWorker& operator=(SingleWorker&&) = delete;
 
-    SingleWorker(const husky::Info& info)
+    SingleWorker(const husky::Info& info, const husky::TableInfo& table_info)
         : info_(info) {
         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
         int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
 
-        auto& hint = info.get_task()->get_hint();
-        if (hint.find(husky::constants::kEnableDirectModelTransfer) != hint.end()) {
-            enable_direct_model_transfer_ = true;
-        }
-        if (hint.find(husky::constants::kParamType) != hint.end() 
-                && hint.at(husky::constants::kParamType) == husky::constants::kChunkType) {
+        enable_direct_model_transfer_ = table_info.kEnableDirectModelTransfer;
+        if (table_info.param_type == husky::ParamType::ChunkType) {
             assert(enable_direct_model_transfer_ == false);
             // Use Chunk model
             model_.reset(new model::ChunkBasedModel<Val>(model_id, num_params));
             p_chunk_params_ = static_cast<model::ChunkBasedModel<Val>*>(model_.get())->GetParamsPtr();
             use_chunk_model_ = true;
             chunk_size_ = kvstore::RangeManager::Get().GetChunkSize(model_id);
-        } else {
+        } else if (table_info.param_type == husky::ParamType::IntegralType) {
             // Use Integral model
             model_.reset(new model::IntegralModel<Val>(model_id, num_params));
             p_integral_params_= static_cast<model::IntegralModel<Val>*>(model_.get())->GetParamsPtr();
             use_chunk_model_ = false;
             // Load 
             Load();
+        } else {
+            husky::LOG_I << "table_info: " << table_info.DebugString();
+            assert(false);
         }
 
         // For logging debug message

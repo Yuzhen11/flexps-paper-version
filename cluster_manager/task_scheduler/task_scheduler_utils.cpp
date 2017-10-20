@@ -178,11 +178,11 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
 	       husky::LOG_I << "illegal worker_num_type!";
         }
     } else if (instance->get_type() == Task::Type::MLTaskType && (
-            hint.at(husky::constants::kType) == husky::constants::kSingle
-            || hint.at(husky::constants::kType) == husky::constants::kHogwild
-            || hint.at(husky::constants::kType) == husky::constants::kSPMT)
+            hint == husky::constants::kSingle
+            || hint == husky::constants::kHogwild
+            || hint == husky::constants::kSPMT)
                 ) {  // if task is MLTask and kType is kSingle/kHogwild/kSPMT
-        if (hint.at(husky::constants::kType) == husky::constants::kSingle) {  // Single must use 1 thread
+        if (hint == husky::constants::kSingle) {  // Single must use 1 thread
             assert(required_num_threads == 1);
         }
         for (auto &pid : candidate_proc) {
