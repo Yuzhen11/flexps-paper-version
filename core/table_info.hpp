@@ -76,10 +76,10 @@ struct TableInfo {
     const int kv_id;
     const int dims;
     const ModeType mode_type = ModeType::None;
-    const Consistency consistency = Consistency::None;
+    Consistency consistency = Consistency::None;
     const WorkerType worker_type = WorkerType::None;
-    const ParamType param_type = ParamType::None;
-    const int kStaleness;
+    ParamType param_type = ParamType::None;
+    int kStaleness;
     const bool kEnableDirectModelTransfer;
     const CacheInfo cache_info;
 
