@@ -46,17 +46,17 @@ class KVStore {
     void Stop();
 
     template <typename Val>
-    std::unique_ptr<ServerBase> ServerFactory(const std::string& hint, int num_workers, int staleness, int server_id) {
+    std::unique_ptr<ServerBase> ServerFactory(int id, const std::string& hint, int num_workers, int staleness, int server_id) {
         using Key = husky::constants::Key;
         std::unique_ptr<ServerBase> server;
         if (hint == "default_assign_map") {
             std::unordered_map<Key, Val> store;
             server.reset(new DefaultUpdateServer<Val,
-                std::unordered_map<Key, Val>>(kv_id, server_id, std::move(store), false, true));  // unordered_map, assign
+                std::unordered_map<Key, Val>>(id, server_id, std::move(store), false, true));  // unordered_map, assign
         } else if (hint == "default_add_map") {
             std::unordered_map<Key, Val> store;
             server.reset(new DefaultUpdateServer<Val,
-                std::unordered_map<Key, Val>>(kv_id, server_id, std::move(store), false, true));  // unordered_map, assign
+                std::unordered_map<Key, Val>>(id, server_id, std::move(store), false, true));  // unordered_map, assign
         } else if (hint == "bsp_add_map") {
             std::unordered_map<Key, Val> store;
             server.reset(new BSPServer<Val, 
@@ -66,27 +66,27 @@ class KVStore {
             server.reset(new SSPServer<Val, 
                 std::unordered_map<Key, Val>>(server_id, num_workers, std::move(store), false, staleness));  // unordered_map, ssp
         } else if (hint == "default_assign_vector") {
-            assert(RangeManager::Get().GetMaxKey(kv_id) != std::numeric_limits<Key>::max());
+            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
             std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
+            store.resize(RangeManager::Get().GetServerSize(id, server_id));
             server.reset(new DefaultUpdateServer<Val,
-                std::vector<Val>>(kv_id, server_id, std::move(store), true, true));  // vector, assign
+                std::vector<Val>>(id, server_id, std::move(store), true, true));  // vector, assign
         } else if (hint == "default_add_vector") {
-            assert(RangeManager::Get().GetMaxKey(kv_id) != std::numeric_limits<Key>::max());
+            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
             std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
+            store.resize(RangeManager::Get().GetServerSize(id, server_id));
             server.reset(new DefaultUpdateServer<Val,
-                std::vector<Val>>(kv_id, server_id, std::move(store), true, false));  // vector, add
+                std::vector<Val>>(id, server_id, std::move(store), true, false));  // vector, add
         } else if (hint == "bsp_add_vector") {
-            assert(RangeManager::Get().GetMaxKey(kv_id) != std::numeric_limits<Key>::max());
+            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
             std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
+            store.resize(RangeManager::Get().GetServerSize(id, server_id));
             server.reset(new BSPServer<Val, 
                 std::vector<Val>>(server_id, num_workers, std::move(store), true, false));  // vector, bsp
         } else if (hint == "ssp_add_vector") {
-            assert(RangeManager::Get().GetMaxKey(kv_id) != std::numeric_limits<Key>::max());
+            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
             std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(kv_id, server_id));
+            store.resize(RangeManager::Get().GetServerSize(id, server_id));
             server.reset(new 
                 SSPServer<Val, std::vector<Val>>(server_id, num_workers, std::move(store), true, staleness));  // vector, ssp
         } else {
@@ -113,7 +113,7 @@ class KVStore {
         for (int i = 0; i < kvservers.size(); ++ i) {
             assert(i < server_ids.size());
             int server_id = server_ids[i];
-            std::unique_ptr<ServerBase> server = ServerFactory<Val>(hint, num_workers, staleness, server_id);
+            std::unique_ptr<ServerBase> server = ServerFactory<Val>(kv_id, hint, num_workers, staleness, server_id);
             kvservers[i]->CreateKVManager<Val>(kv_id, std::move(server));
         }
         for (auto* kvworker : kvworkers) {
@@ -136,8 +136,8 @@ class KVStore {
         for (int i = 0; i < kvservers.size(); ++ i) {
             assert(i < server_ids.size());
             int server_id = server_ids[i];
-            std::unique_ptr<ServerBase> server = ServerFactory<Val>(hint, num_workers, staleness, server_id);
-            kvservers[i]->CreateKVManager<Val>(kv_id, std::move(server));
+            std::unique_ptr<ServerBase> server = ServerFactory<Val>(id, hint, num_workers, staleness, server_id);
+            kvservers[i]->CreateKVManager<Val>(id, std::move(server));
         }
         for (auto* kvworker : kvworkers) {
             kvworker->AddProcessFunc<Val>(id);

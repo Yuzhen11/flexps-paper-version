@@ -97,7 +97,7 @@ target_link_libraries(SPMT_PS ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(SPMT_PS)
 
 # ALS
-add_executable(ALS als.cpp)
+add_executable(ALS mf_als/als.cpp)
 target_link_libraries(ALS husky)
 target_link_libraries(ALS husky-ml)
 if(USE_PROFILER)
@@ -107,7 +107,7 @@ target_link_libraries(ALS ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(ALS)
 
 # ALSshared
-add_executable(ALSshared als_shared.cpp)
+add_executable(ALSshared mf_als/als_shared.cpp)
 target_link_libraries(ALSshared husky)
 target_link_libraries(ALSshared husky-ml)
 if(USE_PROFILER)
