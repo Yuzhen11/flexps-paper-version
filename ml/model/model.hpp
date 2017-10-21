@@ -26,8 +26,8 @@ class Model {
     }
 
     // TODO: The API is strange
-    virtual void Load(int local_id, const std::string& hint) = 0;
-    virtual void Dump(int local_id, const std::string& hint) = 0;
+    virtual void Load(int local_id, int task_id, const std::string& hint) = 0;
+    virtual void Dump(int local_id, int task_id, const std::string& hint) = 0;
 
    protected:
     int model_id_;

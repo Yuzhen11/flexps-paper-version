@@ -28,7 +28,7 @@ class PSWorker : public mlworker::GenericMLWorker<Val> {
     PSWorker& operator=(PSWorker&&) = delete;
 
     PSWorker(const husky::Info& info, const husky::TableInfo& table_info)
-        : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+        : model_id_(table_info.kv_id) {
         // set kvworker
         int local_id = info.get_local_id();
         kvworker_ = kvstore::KVStore::Get().get_kvworker(local_id);
@@ -129,12 +129,12 @@ class PSBspWorker : public mlworker::GenericMLWorker<Val> {
     PSBspWorker(PSBspWorker&&) = delete;
     PSBspWorker& operator=(PSBspWorker&&) = delete;
 
-    PSBspWorker(const husky::Info& info, zmq::context_t& context)
+    PSBspWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
         info_(info),
-        model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+        model_id_(table_info.kv_id) {
 
-        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        size_t num_params = table_info.dims;
         if (info.is_leader()) {
             PSState* state = new PSState(model_id_, num_params, info.get_num_local_workers());
             // 1. Init
@@ -224,7 +224,7 @@ class PSMapNoneWorker : public mlworker::GenericMLWorker<Val> {
     PSMapNoneWorker& operator=(PSMapNoneWorker&&) = delete;
 
     PSMapNoneWorker(const husky::Info& info, const husky::TableInfo& table_info)
-        : model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
+        : model_id_(table_info.kv_id) {
         // set staleness
         staleness_ = table_info.kStaleness;
         // set kvworker
@@ -341,8 +341,8 @@ class PSChunkNoneWorker : public mlworker::GenericMLWorker<Val> {
     PSChunkNoneWorker operator=(PSChunkNoneWorker&&) = delete;
 
     PSChunkNoneWorker(const husky::Info& info, const husky::TableInfo& table_info) :
-        model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()),
-        model_(model_id_, static_cast<husky::MLTask*>(info.get_task())->get_dimensions()),
+        model_id_(table_info.kv_id),
+        model_(model_id_, table_info.dims),
         local_id_(info.get_local_id()) {
             // Configure model
             model_.SetStaleness(table_info.kStaleness);
@@ -443,8 +443,8 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
     PSNoneChunkWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context) :
         shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
         info_(info),
-        model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
-         size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        model_id_(table_info.kv_id) {
+        size_t num_params = table_info.dims;
         if (info.is_leader()) {
             PSState* state = new PSState;
             state->p_model_ = new model::ChunkBasedPSModel<Val>(model_id_, num_params);
@@ -563,8 +563,8 @@ class PSMapChunkWorker : public mlworker::GenericMLWorker<Val> {
     PSMapChunkWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
-          model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()) {
-        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+          model_id_(table_info.kv_id) {
+        size_t num_params = table_info.dims;
         if (info.is_leader()) {
             PSState* state = new PSState;
             state->p_model_ = new model::ChunkBasedPSModel<Val>(model_id_, num_params);
@@ -707,10 +707,10 @@ class PSChunkChunkWorker : public mlworker::GenericMLWorker<Val> {
     PSChunkChunkWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
-          model_id_(static_cast<husky::MLTask*>(info.get_task())->get_kvstore()),
+          model_id_(table_info.kv_id),
           chunk_clocks_(kvstore::RangeManager::Get().GetChunkNum(model_id_), -1),
           params_(kvstore::RangeManager::Get().GetChunkNum(model_id_)) {
-        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        size_t num_params = table_info.dims;
         if (info.is_leader()) {
             PSState* state = new PSState;
             state->p_model_ = new model::ChunkBasedPSModel<Val>(model_id_, num_params);

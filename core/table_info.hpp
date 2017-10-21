@@ -73,6 +73,8 @@ struct TableInfo {
             return ss.str();
         }
     };
+    const int kv_id;
+    const int dims;
     const ModeType mode_type = ModeType::None;
     const Consistency consistency = Consistency::None;
     const WorkerType worker_type = WorkerType::None;
@@ -84,13 +86,15 @@ struct TableInfo {
     std::string DebugString() const {
         std::stringstream ss;
         ss << "{";
+        ss << " id:" << kv_id;
+        ss << " dims:" << dims;
         ss << " ModeType:" << ModeTypeName[static_cast<int>(mode_type)];
         ss << " Consistency:" << ConsistencyName[static_cast<int>(consistency)];
         ss << " WorkerType:" << WorkerTypeName[static_cast<int>(worker_type)];
         ss << " ParamType:" << ParamTypeName[static_cast<int>(param_type)];
         ss << " kStaleness:" << kStaleness;
         ss << " kEnableDirectModelTransfer:" << kEnableDirectModelTransfer;
-        ss << cache_info.DebugString();
+        ss << " " << cache_info.DebugString();
         ss << "}";
         return ss.str();
     }

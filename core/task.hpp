@@ -87,7 +87,7 @@ class Task {
     int num_workers_ = 0;  // num of workers needed to run the job
 
     Type type_;                                // task type
-    std::string hint_;  // the hint
+    std::string hint_;  // {kSingle, kHogwild, kSPMT, kPS}, kPS is by default and not necessary
     bool dmt_ = false;  // direct model transfer
 };
 
@@ -97,26 +97,14 @@ class MLTask : public Task {
     MLTask(int id) : Task(id, Type::MLTaskType) {}
     MLTask(int id, int total_epoch, int num_workers, Task::Type type) : Task(id, total_epoch, num_workers, type) {}
 
-    void set_dimensions(int dim) { dim_ = dim; }
-    void set_kvstore(int kv_id) { kv_id_ = kv_id; }
-
-    size_t get_dimensions() const { return dim_; }
-    int get_kvstore() const { return kv_id_; }
-
     virtual BinStream& serialize(BinStream& bin) const {
         Task::serialize(bin);
-        bin << kv_id_ << dim_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
         Task::deserialize(bin);
-        bin >> kv_id_ >> dim_;
     }
     friend BinStream& operator<<(BinStream& bin, const MLTask& task) { return task.serialize(bin); }
     friend BinStream& operator>>(BinStream& bin, MLTask& task) { return task.deserialize(bin); }
-
-   protected:
-    int kv_id_ = -1;   // the corresponding kvstore id
-    size_t dim_ = -1;  // the parameter dimensions
 };
 
 /*

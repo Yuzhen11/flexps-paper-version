@@ -34,7 +34,7 @@ class ModelTransferManager {
     /*
      * Worker uses SendTask to send the task to ModelTransferManager's event-loop
      */
-    void SendTask(int dst, int model_id);
+    void SendTask(int dst, int task_id);
     /*
      * Worker uses SendHalt to halt the ModelTransferManager's event-loop
      */

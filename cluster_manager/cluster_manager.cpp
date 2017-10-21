@@ -188,12 +188,12 @@ void ClusterManager::send_last_instance(const std::shared_ptr<Instance>& instanc
     }
     assert(dst != -1);
 
-    int model_id = static_cast<MLTask*>(instance->get_task())->get_kvstore();
-    husky::LOG_I << RED("Enable ModelTransferManager: src: "+std::to_string(src)+" dst: "+std::to_string(dst)+" model_id: "+std::to_string(model_id));
+    int task_id = instance->get_task()->get_id();
+    husky::LOG_I << RED("Enable ModelTransferManager: src: "+std::to_string(src)+" dst: "+std::to_string(dst)+" task_id: "+std::to_string(task_id));
     auto& socket = cluster_manager_connection_->get_send_socket(worker_info_.get_process_id(src));
     zmq_sendmore_int32(&socket, constants::kClusterManagerDirectTransferModel);
     zmq_sendmore_int32(&socket, dst);
-    zmq_send_int32(&socket, model_id);
+    zmq_send_int32(&socket, task_id);
 }
 
 void ClusterManager::set_last_instance(const std::shared_ptr<Instance>& instance) {

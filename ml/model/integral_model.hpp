@@ -41,21 +41,21 @@ class IntegralModel : public Model<Val> {
         }
     }
 
-    virtual void Load(int local_id, const std::string& hint) override {  // coordination and sync are handled by MLWorker
+    virtual void Load(int local_id, int task_id, const std::string& hint) override {  // coordination and sync are handled by MLWorker
         if (hint == husky::constants::kKVStoreIntegral) {
             LoadIntegralFromKV(local_id, model_id_, num_params_, &params_);
         } else if (hint == husky::constants::kTransferIntegral) {
-            LoadIntegralFromStore(local_id, model_id_, &params_);
+            LoadIntegralFromStore(local_id, task_id, &params_);
         } else {
             throw husky::base::HuskyException("Unknown hint in IntegralModel: "+hint);
         }
     }
 
-    virtual void Dump(int local_id, const std::string& hint) override {
+    virtual void Dump(int local_id, int task_id, const std::string& hint) override {
         if (hint == husky::constants::kKVStoreIntegral) {
             DumpIntegralToKV(local_id, model_id_, num_params_, params_);
         } else if (hint == husky::constants::kTransferIntegral) {
-            DumpIntegralToStore(model_id_, params_);
+            DumpIntegralToStore(task_id, params_);
         } else {
             throw husky::base::HuskyException("Unknown hint in IntegralModel "+hint);
         }

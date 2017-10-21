@@ -47,10 +47,10 @@ void ModelTransferManager::Serve(MailboxEventLoop* const el) {
 /*
  * Worker uses SendTask to send the task to ModelTransferManager's event-loop
  */
-void ModelTransferManager::SendTask(int dst, int model_id) {
+void ModelTransferManager::SendTask(int dst, int task_id) {
     zmq_sendmore_int32(send_socket_.get(), kCmdTask);
     zmq_sendmore_int32(send_socket_.get(), dst);
-    zmq_send_int32(send_socket_.get(), model_id);
+    zmq_send_int32(send_socket_.get(), task_id);
 }
 
 /*
@@ -73,9 +73,9 @@ void ModelTransferManager::Main() {
         switch (type) {
         case kCmdTask: {
             int dst = zmq_recv_int32(recv_socket_.get());
-            int model_id = zmq_recv_int32(recv_socket_.get());
-            base::BinStream bin = ModelTransferStore::Get().Pop(model_id);
-            husky::LOG_I<< RED("Sending model: dst: "+std::to_string(dst)+" model_id: "+std::to_string(model_id));
+            int task_id = zmq_recv_int32(recv_socket_.get());
+            base::BinStream bin = ModelTransferStore::Get().Pop(task_id);
+            husky::LOG_I<< RED("Sending model: dst: "+std::to_string(dst)+" task_id: "+std::to_string(task_id));
             mailbox_->send(dst, 0, 0, bin);
             break;
         }

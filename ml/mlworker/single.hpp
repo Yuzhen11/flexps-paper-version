@@ -28,8 +28,8 @@ class SingleWorker : public mlworker::GenericMLWorker<Val> {
 
     SingleWorker(const husky::Info& info, const husky::TableInfo& table_info)
         : info_(info) {
-        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
-        int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
+        size_t num_params = table_info.dims;
+        int model_id = table_info.kv_id;
 
         enable_direct_model_transfer_ = table_info.kEnableDirectModelTransfer;
         if (table_info.param_type == husky::ParamType::ChunkType) {
@@ -67,13 +67,13 @@ class SingleWorker : public mlworker::GenericMLWorker<Val> {
     void Load() {
         // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the first epoch
         std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() != 0) ? husky::constants::kTransferIntegral : husky::constants::kKVStoreIntegral;
-        model_->Load(info_.get_local_id(), hint);
+        model_->Load(info_.get_local_id(), info_.get_task()->get_id(), hint);
     }
 
     void Dump() {
         // hint will be set to kTransfer if enable_direct_model_transfer_ and it's not the last epoch
         std::string hint = (enable_direct_model_transfer_ == true && info_.get_current_epoch() < info_.get_total_epoch()-1) ? husky::constants::kTransferIntegral : husky::constants::kKVStoreIntegral;
-        model_->Dump(info_.get_local_id(), hint);
+        model_->Dump(info_.get_local_id(), info_.get_task()->get_id(), hint);
     }
 
     /*

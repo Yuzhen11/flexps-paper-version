@@ -31,7 +31,7 @@ class HogwildWorker : public SPMTWorker<Val> {
     HogwildWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context)
         : SPMTWorker<Val>(info, table_info, context, true) {
         if (use_chunk_model_ == true) {
-            int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
+            int model_id = table_info.kv_id;
             chunk_size_ = kvstore::RangeManager::Get().GetChunkSize(model_id);
             p_chunk_params_ = static_cast<model::ChunkBasedMTModel<Val>*>(shared_state_.Get()->p_model_)->GetParamsPtr();
         } else {

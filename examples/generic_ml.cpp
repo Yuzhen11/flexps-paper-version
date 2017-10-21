@@ -40,15 +40,19 @@ int main(int argc, char** argv) {
     // { 
     //     {husky::constants::kType, husky::constants::kHogwild} 
     // };
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
+    int dims = 10;
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, dims, 10);
     auto task1 = TaskFactory::Get().CreateTask<MLTask>();
-    task1.set_dimensions(10);
-    task1.set_kvstore(kv1);
     task1.set_hint(husky::constants::kHogwild);  // set the running type explicitly
     task1.set_total_epoch(2);                             // 2 epochs
     task1.set_num_workers(4);                             // 4 workers
-    engine.AddTask(task1, [](const Info& info) {
-        TableInfo table_info{husky::ModeType::Hogwild, husky::Consistency::None, husky::WorkerType::None, husky::ParamType::IntegralType};
+    engine.AddTask(task1, [kv1, dims](const Info& info) {
+        TableInfo table_info{
+            kv1, dims, 
+            husky::ModeType::Hogwild, 
+            husky::Consistency::None, 
+            husky::WorkerType::None, 
+            husky::ParamType::IntegralType};
         husky::LOG_I << "table info: " << table_info.DebugString();
         auto worker = ml::CreateMLWorker<float>(info, table_info);
         // int k = 3;
@@ -61,7 +65,7 @@ int main(int argc, char** argv) {
             worker->Pull({start}, &vals);
             worker->Push({start}, {0.01});
             start += 1;
-            start %= static_cast<MLTask*>(info.get_task())->get_dimensions();
+            start %= dims;
         }
     });
 

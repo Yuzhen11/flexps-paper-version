@@ -51,8 +51,8 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
           is_hogwild_(is_hogwild) {
-        int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
-        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        int model_id = table_info.kv_id;
+        size_t num_params = table_info.dims;
         // check valid
         if (info_.get_num_local_workers() != info_.get_num_workers()) {
             throw husky::base::HuskyException("[SPMT] threads are not in the same machine. Task is:" +
@@ -217,7 +217,7 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
                     hint = husky::constants::kKVStoreIntegral;
                 }
             }
-            shared_state_.Get()->p_model_->Load(info_.get_local_id(), hint);
+            shared_state_.Get()->p_model_->Load(info_.get_local_id(), info_.get_task()->get_id(), hint);
         }
         shared_state_.Barrier();
     }
@@ -241,7 +241,7 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
                     hint = husky::constants::kKVStoreIntegral;
                 }
             }
-            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), hint);
+            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), info_.get_task()->get_id(), hint);
         }
         shared_state_.Barrier();
     }
