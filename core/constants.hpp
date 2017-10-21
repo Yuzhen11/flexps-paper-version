@@ -27,78 +27,12 @@ const uint32_t kIOHDFSSubsetLoad = 301;
 // hdfs_binary
 const uint32_t kIOHDFSBinarySubsetLoad = 302;
 
-
 /*
- * storage type
- *
- * If Users want to use kvstore directly, they may set the kStorageType explicitly to
- * control the storage format of the kvstore.
- *
- * The default storage type is kUnorderedMapStorage. 
+ * TODO: This is only used in Load and Dump. May put in a better place
  */
-constexpr const char* const kStorageType = "storage_type";
-constexpr const char* const kVectorStorage = "vector_storage";
-constexpr const char* const kUnorderedMapStorage = "unordered_map_storage";
-
-/*
- * kvstore update type
- *
- * If Users want to use kvstore directly, they may set the kUpdateType explicitly to 
- * control the update methods of kvstore
- *
- * add_update means store[key] += val
- * assign_update means store[key] = val 
- */
-constexpr const char* const kUpdateType = "update_type";
-constexpr const char* const kAddUpdate = "add_update";
-constexpr const char* const kAssignUpdate = "assign_update";
-/*
- * type
- *
- * ML user needs set the worker type explicitly.
- */
-constexpr const char* const kType = "type";
-constexpr const char* const kSingle = "Single";
-constexpr const char* const kHogwild = "Hogwild";
-constexpr const char* const kSPMT = "SPMT";
-constexpr const char* const kPS = "PS";
-
-/*
- * consistency
- *
- * The consistency level can be kSSP, kBSP, kASP.
- * User using PS and SPMT may need to set kConsistency
- */
-constexpr const char* const kConsistency = "consistency";
-constexpr const char* const kSSP = "SSP";
-constexpr const char* const kBSP = "BSP";
-constexpr const char* const kASP = "ASP";
-
-// worker type
-constexpr const char* const kWorkerType = "worker_type";
-constexpr const char* const kPSWorker = "PSWorker";
-constexpr const char* const kPSMapNoneWorker = "PSMapNoneWorker";
-constexpr const char* const kPSChunkNoneWorker= "PSChunkNoneWorker";
-constexpr const char* const kPSMapChunkWorker = "PSMapChunkWorker";
-constexpr const char* const kPSChunkChunkWorker = "PSChunkChunkWorker";
-constexpr const char* const kPSNoneChunkWorker = "PSNoneChunkWorker";
-constexpr const char* const kPSBspWorker = "PSBspWorker";
-
-constexpr const char* const kNumWorkers = "num_workers";
-constexpr const char* const kStaleness = "staleness";
-
-
-constexpr const char* const kEnableDirectModelTransfer = "direct_model_transfer";
 constexpr const char* const kKVStoreChunks = "kvstore_chunks";
 constexpr const char* const kKVStoreIntegral = "kvstore_integral";
 constexpr const char* const kTransferIntegral = "transfer_integral";
-
-/*
- * param_type
- */
-constexpr const char* const kParamType = "param_type";
-constexpr const char* const kIntegralType = "integral_type";
-constexpr const char* const kChunkType = "chunk_type";
 
 /*
  * load_type 
@@ -109,19 +43,6 @@ constexpr const char* const kChunkType = "chunk_type";
 constexpr const char* const kLoadHdfsType = "load_hdfs_type";
 constexpr const char* const kLoadHdfsLocally = "load_hdfs_locally";
 constexpr const char* const kLoadHdfsGlobally = "load_hdfs_globally";
-
-/*
- * For different Cache Strategy
- */
-constexpr const char* const kCacheStrategy = "cache_strategy";
-constexpr const char* const kLRU = "LRU";
-constexpr const char* const kLFU = "LFU";
-constexpr const char* const kRandom= "Random";
-constexpr const char* const kCacheThreshold = "cache_threshold";
-constexpr const char* const kDumpFactor = "dump_factor";
-
-
-constexpr const char* const kEmpty = "";
 
 }  // namespace anonymous
 }  // namespace constants
