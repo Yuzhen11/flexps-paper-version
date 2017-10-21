@@ -60,11 +60,11 @@ TEST_F(TestSequentialTaskScheduler, TestExtractInstancesSingleProc) {
 
     for (auto& task_ptr : tasks) {
         if (task_ptr->get_num_workers() == 1) {
-            task_ptr->set_hint(husky::constants::kSingle);
+            task_ptr->set_local();
         }
         else {
             // SPMT share the same scheduling startegy
-            task_ptr->set_hint(husky::constants::kHogwild);
+            task_ptr->set_local();
         }
     }
     HistoryManager::get().start(num_process);
@@ -75,9 +75,6 @@ TEST_F(TestSequentialTaskScheduler, TestExtractInstancesSingleProc) {
 
 TEST_F(TestSequentialTaskScheduler, TestExtractInstancesPS) {
     HistoryManager::get().clear_history();
-    for (auto& task_ptr : tasks) {
-        task_ptr->set_hint(husky::constants::kPS);
-    }
     HistoryManager::get().start(num_process);
     SequentialTaskScheduler sts(worker_info);
     sts.init_tasks(tasks);

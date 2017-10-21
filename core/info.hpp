@@ -40,7 +40,6 @@ class Info {
     int get_current_epoch() const { return current_epoch_; }
     int get_total_epoch() const;
     bool is_leader() const { return is_leader_; }
-    const std::string& get_hint() const;
 
     Task* const get_task() const { return task_; }
     int const get_task_id() const;

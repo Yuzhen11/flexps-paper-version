@@ -147,7 +147,6 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
         int required_num_threads, const std::vector<int>& candidate_proc) {
 
     std::vector<std::pair<int, int>> pid_tids;
-    auto& hint = instance->get_task()->get_hint();
     if (instance->get_type() == Task::Type::ConfigurableWorkersTaskType) {
         std::vector<int> worker_num = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num();
         std::vector<std::string> worker_num_type = static_cast<const ConfigurableWorkersTask*>(instance->get_task())->get_worker_num_type();
@@ -177,14 +176,8 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
         else {
 	       husky::LOG_I << "illegal worker_num_type!";
         }
-    } else if (instance->get_type() == Task::Type::MLTaskType && (
-            hint == husky::constants::kSingle
-            || hint == husky::constants::kHogwild
-            || hint == husky::constants::kSPMT)
-                ) {  // if task is MLTask and kType is kSingle/kHogwild/kSPMT
-        if (hint == husky::constants::kSingle) {  // Single must use 1 thread
-            assert(required_num_threads == 1);
-        }
+    } else if (instance->get_type() == Task::Type::MLTaskType && 
+            instance->get_task()->get_local() == true) {  // if task is MLTask and it is local 
         for (auto &pid : candidate_proc) {
             pid_tids = available_workers.get_workers_exact_process(required_num_threads, pid, num_processes);
             if (pid_tids.size() == required_num_threads) {
