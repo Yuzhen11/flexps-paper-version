@@ -84,6 +84,7 @@ void KVStore::Stop() {
     }
     kvservers.clear();
     kvserver_mailboxes.clear();
+    server_ids.clear();
     // Clear the RangeManager
     RangeManager::Get().Clear();
 }
