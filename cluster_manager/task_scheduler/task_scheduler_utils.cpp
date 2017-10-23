@@ -12,9 +12,9 @@
 namespace husky {
 
 void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task) {
-    // TODO If the task type is MLTaskType and the running type is unset,
+    // TODO If the task type is BasicTaskType and the running type is unset,
     // need to decide it's real running type now
-    if (task.get_type() == Task::Type::MLTaskType) {
+    if (task.get_type() == Task::Type::BasicTaskType) {
         // TODO now set to SingleTaskType for testing...
         instance->set_task(task, "");
         // instance->set_task(task, Task::Type::HogwildTaskType);
@@ -22,8 +22,8 @@ void instance_basic_setup(std::shared_ptr<Instance>& instance, const Task& task)
         instance->set_task(task);
     }
 
-    // TODO: ClusterManager needs to design workers number for MLTaskType if user didn't set it
-    if (task.get_type() == Task::Type::MLTaskType && task.get_num_workers() == 0)
+    // TODO: ClusterManager needs to design workers number for BasicTaskType if user didn't set it
+    if (task.get_type() == Task::Type::BasicTaskType && task.get_num_workers() == 0)
         instance->set_num_workers(1);
 }
 
@@ -176,8 +176,8 @@ std::vector<std::pair<int, int>> select_threads_from_subset(
         else {
 	       husky::LOG_I << "illegal worker_num_type!";
         }
-    } else if (instance->get_type() == Task::Type::MLTaskType && 
-            instance->get_task()->get_local() == true) {  // if task is MLTask and it is local 
+    } else if (instance->get_type() == Task::Type::BasicTaskType && 
+            instance->get_task()->get_local() == true) {  // if task is BasicTask and it is local 
         for (auto &pid : candidate_proc) {
             pid_tids = available_workers.get_workers_exact_process(required_num_threads, pid, num_processes);
             if (pid_tids.size() == required_num_threads) {

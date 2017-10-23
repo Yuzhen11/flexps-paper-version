@@ -48,7 +48,7 @@ std::vector<std::shared_ptr<Instance>> PriorityTaskScheduler::extract_instances(
 
             auto task = task_manager_.get_task_by_id(id);
             bool local  = task->get_local();
-            if (task->get_type() == Task::Type::MLTaskType 
+            if (task->get_type() == Task::Type::BasicTaskType 
                     && local == false) {
                 // don't consider history when running pstask
                 for (int i = 0; i < num_processes_; ++ i) {

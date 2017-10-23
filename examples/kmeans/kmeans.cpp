@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
     if (Context::get_worker_info().get_process_id() == 0)
         husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
-    // set hint for kvstore and MLTask
+    // set hint for kvstore and Task
     std::map<std::string, std::string> hint = {
         {husky::constants::kType, husky::constants::kPS},
         {husky::constants::kConsistency, husky::constants::kASP},
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
                                                           num_features);  // set max_key and chunk_size
 
     // initialization task
-    auto init_task = TaskFactory::Get().CreateTask<MLTask>(1, 1, Task::Type::MLTaskType);
+    auto init_task = TaskFactory::Get().CreateTask<Task>(1, 1, Task::Type::BasicTaskType);
     init_task.set_hint(hint);
     init_task.set_kvstore(kv);
     // use params[K][0] - params[K][K-1] to store v[K], assuming num_features >= K
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
         husky::LOG_I << YELLOW("Init time: " + std::to_string(init_time) + " ms");
 
     // training task
-    auto training_task = TaskFactory::Get().CreateTask<MLTask>(1, num_train_workers, Task::Type::MLTaskType);
+    auto training_task = TaskFactory::Get().CreateTask<Task>(1, num_train_workers, Task::Type::BasicTaskType);
 
     training_task.set_hint(hint);
     training_task.set_kvstore(kv);

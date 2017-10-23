@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     //  A Hogwild! Task
     int dims1 = 10;
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, dims1, 10);
-    auto task1 = TaskFactory::Get().CreateTask<MLTask>();
+    auto task1 = TaskFactory::Get().CreateTask<Task>();
     task1.set_local();
     task1.set_total_epoch(2);                             // 2 epochs
     task1.set_num_workers(4);                             // 4 workers
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
     int dims2 = 10;
     int kv2 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, dims2, 10);
     kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv2, 10);
-    auto task2 = TaskFactory::Get().CreateTask<MLTask>();
+    auto task2 = TaskFactory::Get().CreateTask<Task>();
     task2.set_local();
     task2.set_num_workers(1);
     TableInfo table_info2 {
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     int num_workers3 = 4;
     int dims3 = 10;
     int kv3 = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_map", num_workers3, -1, dims3, 10);  // for bsp server
-    auto task3 = TaskFactory::Get().CreateTask<MLTask>();
+    auto task3 = TaskFactory::Get().CreateTask<Task>();
     task3.set_num_workers(num_workers3);
     TableInfo table_info3 {
         kv3, dims3,
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
     int staleness4 = 1;
     int num_workers4 = 4;
     int kv4 = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_map", num_workers4, staleness4, dims4, 10);
-    auto task4 = TaskFactory::Get().CreateTask<MLTask>();
+    auto task4 = TaskFactory::Get().CreateTask<Task>();
     task4.set_num_workers(num_workers4);
     TableInfo table_info4 {
         kv4, dims4,
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
     int dims5 = 10;
     int num_workers5 = 4;
     int kv5 = kvstore::KVStore::Get().CreateKVStore<float>("default_add_map", -1, -1, dims5, 10);
-    auto task5 = TaskFactory::Get().CreateTask<MLTask>();
+    auto task5 = TaskFactory::Get().CreateTask<Task>();
     task5.set_num_workers(num_workers5);
     TableInfo table_info5 {
         kv5, dims5,
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
     int dims6 = 10;
     int num_workers6 = 4;
     int kv6 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, dims6, 10);
-    auto task6 = TaskFactory::Get().CreateTask<MLTask>();
+    auto task6 = TaskFactory::Get().CreateTask<Task>();
     task6.set_local();
     task6.set_num_workers(num_workers6);
     TableInfo table_info6 {

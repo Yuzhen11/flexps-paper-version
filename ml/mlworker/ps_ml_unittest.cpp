@@ -61,7 +61,7 @@ TEST_F(TestPS, Construct) {
     int dims = 10;
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_map", num_workers, staleness, dims, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     task.set_total_epoch(1);
     // Create an Instance
     husky::Instance instance;
@@ -118,7 +118,7 @@ void test_multiple_threads(TestPS* obj, int type) {
     int dims = 100;
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_map", num_workers, staleness, dims, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     task.set_total_epoch(2);
     // Create an Instance
     husky::Instance instance;

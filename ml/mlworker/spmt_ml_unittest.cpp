@@ -56,7 +56,7 @@ class TestSPMT: public testing::Test {
 TEST_F(TestSPMT, Construct) {
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
@@ -117,7 +117,7 @@ void test_single_thread(const husky::ParamType& param_type, const husky::Consist
         is_hogwild = true;
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
@@ -168,7 +168,7 @@ void test_multiple_threads(const husky::ParamType& param_type, const husky::Cons
         is_hogwild = true;
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid

@@ -28,7 +28,7 @@ class TestPriorityTaskScheduler: public testing::Test {
         int num_workers = 1; 
         int num_tasks = 3;
         for (int i=0; i<num_tasks; i++) {
-            std::shared_ptr<Task> task_ptr(new Task(id+i, total_epoch+i, num_workers+i, Task::Type::MLTaskType));
+            std::shared_ptr<Task> task_ptr(new Task(id+i, total_epoch+i, num_workers+i, Task::Type::BasicTaskType));
             tasks.push_back(std::move(task_ptr));
         }
     }

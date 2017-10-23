@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
     auto hint = config::ExtractHint(config);
     int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, K * num_features + num_features,
                                                           num_features);  // set max_key and chunk_size
-    auto init_task = TaskFactory::Get().CreateTask<MLTask>(1, 1, Task::Type::MLTaskType);
+    auto init_task = TaskFactory::Get().CreateTask<Task>(1, 1, Task::Type::BasicTaskType);
     init_task.set_hint(hint);
     init_task.set_kvstore(kv);
     // use params[K][0] - params[K][K-1] to store v[K], assuming num_features >= K

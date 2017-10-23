@@ -59,7 +59,7 @@ std::vector<std::shared_ptr<Instance>> GreedyTaskScheduler::extract_instances() 
 
             bool local = instance->get_task()->get_local();
             std::vector<int> candidate_proc;
-            if (instance->get_task()->get_type() == Task::Type::MLTaskType 
+            if (instance->get_task()->get_type() == Task::Type::BasicTaskType 
                     && local == false) {
                 // don't consider history when running pstask
                 for (int i = 0; i < num_processes_; ++ i) {

@@ -49,7 +49,7 @@ class TestSingle: public testing::Test {
 TEST_F(TestSingle, Construct) {
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
@@ -95,7 +95,7 @@ void testV2(ml::mlworker::SingleWorker<float>& worker) {
 TEST_F(TestSingle, Integral) {
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
@@ -125,7 +125,7 @@ TEST_F(TestSingle, Integral) {
 TEST_F(TestSingle, Chunk) {
     int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
     // Create a task
-    husky::MLTask task(0);
+    husky::Task task(0);
     task.set_total_epoch(1);
     // Create an Instance
     husky::Instance instance;

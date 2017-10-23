@@ -21,16 +21,13 @@ class Task {
    public:
     enum class Type {
         BasicTaskType,
-        MLTaskType,
-        HuskyTaskType,
-        DummyType,
         ConfigurableWorkersTaskType,
         AutoParallelismTaskType
     };
 
     // For serialization usage only
     Task() = default;
-    Task(int id, Type type = Type::DummyType) : id_(id), type_(type) {}
+    Task(int id, Type type = Type::BasicTaskType) : id_(id), type_(type) {}
     Task(int id, int total_epoch, int num_workers, Type type = Type::BasicTaskType)
         : id_(id), total_epoch_(total_epoch), num_workers_(num_workers), type_(type) {}
     virtual ~Task() {}
@@ -91,29 +88,13 @@ class Task {
     bool dmt_ = false;  // direct model transfer
 };
 
-class MLTask : public Task {
-   public:
-    MLTask() = default;
-    MLTask(int id) : Task(id, Type::MLTaskType) {}
-    MLTask(int id, int total_epoch, int num_workers, Task::Type type) : Task(id, total_epoch, num_workers, type) {}
-
-    virtual BinStream& serialize(BinStream& bin) const {
-        Task::serialize(bin);
-    }
-    virtual BinStream& deserialize(BinStream& bin) {
-        Task::deserialize(bin);
-    }
-    friend BinStream& operator<<(BinStream& bin, const MLTask& task) { return task.serialize(bin); }
-    friend BinStream& operator>>(BinStream& bin, MLTask& task) { return task.deserialize(bin); }
-};
-
 /*
  * AutoParallelismTask will set the parallelism automatically
  */
-class AutoParallelismTask : public MLTask {
+class AutoParallelismTask : public Task {
    public:
     AutoParallelismTask() = default;
-    AutoParallelismTask(int id) : MLTask(id) { type_ = Type::AutoParallelismTaskType; }
+    AutoParallelismTask(int id) : Task(id) { type_ = Type::AutoParallelismTaskType; }
 
     void set_epoch_iters(const std::vector<int>& iters) {
         assert(iters.size());
@@ -129,11 +110,11 @@ class AutoParallelismTask : public MLTask {
     int get_current_stage_iters() { return current_stage_iters_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
-        MLTask::serialize(bin);
+        Task::serialize(bin);
         bin << iters_ << current_stage_iters_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
-        MLTask::deserialize(bin);
+        Task::deserialize(bin);
         bin >> iters_ >> current_stage_iters_;
     }
 
@@ -150,13 +131,13 @@ class AutoParallelismTask : public MLTask {
  * ConfigurableWorkersTask Task
  *
  */
-class ConfigurableWorkersTask : public MLTask {
+class ConfigurableWorkersTask : public Task {
    public:
     // For serialization usage only
     ConfigurableWorkersTask() = default;
-    ConfigurableWorkersTask(int id) : MLTask(id) { type_ = Type::ConfigurableWorkersTaskType; }
+    ConfigurableWorkersTask(int id) : Task(id) { type_ = Type::ConfigurableWorkersTaskType; }
     ConfigurableWorkersTask(int id, int total_epoch, int num_workers)
-        : MLTask(id, total_epoch, num_workers, Type::ConfigurableWorkersTaskType) {}
+        : Task(id, total_epoch, num_workers, Type::ConfigurableWorkersTaskType) {}
 
     void set_worker_num(const std::vector<int>& worker_num) { worker_num_ = worker_num; }
     void set_worker_num_type(const std::vector<std::string>& worker_num_type) { worker_num_type_ = worker_num_type; }
@@ -165,11 +146,11 @@ class ConfigurableWorkersTask : public MLTask {
     std::vector<std::string> get_worker_num_type() const { return worker_num_type_; }
 
     virtual BinStream& serialize(BinStream& bin) const {
-        MLTask::serialize(bin);
+        Task::serialize(bin);
         return bin << worker_num_ << worker_num_type_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
-        MLTask::deserialize(bin);
+        Task::deserialize(bin);
         return bin >> worker_num_ >> worker_num_type_;
     }
     friend BinStream& operator<<(BinStream& bin, const ConfigurableWorkersTask& task) { return task.serialize(bin); }
@@ -190,19 +171,6 @@ class ConfigurableWorkersTask : public MLTask {
     std::vector<std::string> worker_num_type_;
 };
 
-/*
- * Husky Task
- */
-class HuskyTask : public Task {
-   public:
-    // For serialization usage only
-    HuskyTask() = default;
-    HuskyTask(int id) : Task(id, Type::HuskyTaskType) {}
-    HuskyTask(int id, int total_epoch, int num_workers) : Task(id, total_epoch, num_workers, Type::HuskyTaskType) {}
-    friend BinStream& operator<<(BinStream& bin, const HuskyTask& task) { return task.serialize(bin); }
-    friend BinStream& operator>>(BinStream& bin, HuskyTask& task) { return task.deserialize(bin); }
-};
-
 namespace task {
 namespace {
 
@@ -214,18 +182,6 @@ std::unique_ptr<Task> deserialize(BinStream& bin) {
     switch (type) {
     case Task::Type::BasicTaskType: {  // Basic Task
         Task* task = new Task();
-        bin >> *task;
-        ret.reset(task);
-        break;
-    }
-    case Task::Type::HuskyTaskType: {  // Husky Task
-        HuskyTask* task = new HuskyTask();
-        bin >> *task;
-        ret.reset(task);
-        break;
-    }
-    case Task::Type::MLTaskType: {  // ML Task
-        MLTask* task = new MLTask();
         bin >> *task;
         ret.reset(task);
         break;

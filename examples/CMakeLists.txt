@@ -16,6 +16,8 @@
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${HUSKY_EXTERNAL_INCLUDE})
 
 add_subdirectory(lda)
+add_subdirectory(mf_als)
+add_subdirectory(kmeans)
 
 ### Applications
 
@@ -95,46 +97,6 @@ target_link_libraries(SPMT_PS husky)
 target_link_libraries(SPMT_PS husky-ml)
 target_link_libraries(SPMT_PS ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(SPMT_PS)
-
-# ALS
-add_executable(ALS mf_als/als.cpp)
-target_link_libraries(ALS husky)
-target_link_libraries(ALS husky-ml)
-if(USE_PROFILER)
-target_link_libraries(ALS profiler)
-endif(USE_PROFILER)
-target_link_libraries(ALS ${HUSKY_EXTERNAL_LIB})
-husky_default_properties(ALS)
-
-# ALSshared
-add_executable(ALSshared mf_als/als_shared.cpp)
-target_link_libraries(ALSshared husky)
-target_link_libraries(ALSshared husky-ml)
-if(USE_PROFILER)
-target_link_libraries(ALSshared profiler)
-endif(USE_PROFILER)
-target_link_libraries(ALSshared ${HUSKY_EXTERNAL_LIB})
-husky_default_properties(ALSshared)
-
-# Kmeans
-add_executable(Kmeans kmeans/kmeans.cpp)
-target_link_libraries(Kmeans husky)
-target_link_libraries(Kmeans husky-ml)
-if(USE_PROFILER)
-target_link_libraries(Kmeans profiler)
-endif(USE_PROFILER)
-target_link_libraries(Kmeans ${HUSKY_EXTERNAL_LIB})
-husky_default_properties(Kmeans)
-
-# Kmeans_multi_stage
-add_executable(Kmeans_multi_stage kmeans/kmeans_multi_stage.cpp)
-target_link_libraries(Kmeans_multi_stage husky)
-target_link_libraries(Kmeans_multi_stage husky-ml)
-if(USE_PROFILER)
-target_link_libraries(Kmeans_multi_stage profiler)
-endif(USE_PROFILER)
-target_link_libraries(Kmeans_multi_stage ${HUSKY_EXTERNAL_LIB})
-husky_default_properties(Kmeans_multi_stage)
 
 # AutoParallelismTaskExample
 add_executable(AutoParallelismTaskExample auto_parallelism_task.cpp)
