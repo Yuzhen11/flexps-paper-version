@@ -11,8 +11,8 @@ int main(int argc, char* argv[]) {
     int report_interval = std::stoi(Context::get_param("report_interval"));  // test performance after each test_iters
     int data_size = std::stoi(Context::get_param("data_size"));              // the size of the whole dataset
     float learning_rate_coefficient = std::stod(Context::get_param("learning_rate_coefficient"));
-    int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
+    int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
     std::string init_mode = Context::get_param("init_mode");  // randomly initialize the k center points
 
     if (!rt)
@@ -28,8 +28,9 @@ int main(int argc, char* argv[]) {
         Context::get_worker_info().get_num_local_workers());
 
     // Create load_task
-    auto load_task = TaskFactory::Get().CreateTask<HuskyTask>(1, num_load_workers);  // 1 epoch, 4 workers
-    engine.AddTask(std::move(load_task), [&data_store, &num_features](const Info& info) {
+    auto load_task = TaskFactory::Get().CreateTask<Task>(1, num_load_workers);  // 1 epoch, 4 workers
+    
+    engine.AddTask(std::move(load_task), [&data_store, &num_features, load_task](const Info& info) {
         load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, num_features, info);
         husky::LOG_I << RED("Finished Load Data!");
     });
@@ -42,24 +43,24 @@ int main(int argc, char* argv[]) {
     if (Context::get_worker_info().get_process_id() == 0)
         husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
-    // set hint for kvstore and Task
-    std::map<std::string, std::string> hint = {
-        {husky::constants::kType, husky::constants::kPS},
-        {husky::constants::kConsistency, husky::constants::kASP},
-        {husky::constants::kNumWorkers, "1"},
-    };
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, K * num_features + num_features,
+    // use params[K][0] - params[K][K-1] to store v[K], assuming num_features >= K
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_vector", 1, 0, K * num_features + num_features,
                                                           num_features);  // set max_key and chunk_size
 
     // initialization task
     auto init_task = TaskFactory::Get().CreateTask<Task>(1, 1, Task::Type::BasicTaskType);
-    init_task.set_hint(hint);
-    init_task.set_kvstore(kv);
-    // use params[K][0] - params[K][K-1] to store v[K], assuming num_features >= K
-    init_task.set_dimensions(K * num_features + num_features);
+    TableInfo table_info1 {
+        kv, K * num_features + num_features, 
+        husky::ModeType::PS, 
+        husky::Consistency::ASP, 
+        husky::WorkerType::PSWorker, 
+        husky::ParamType::IntegralType
+    };
 
-    engine.AddTask(std::move(init_task), [K, num_features, &data_store, &init_mode](const Info& info) {
-        init_centers(info, num_features, K, data_store, init_mode);
+
+    engine.AddTask(std::move(init_task), [K, num_features, &data_store, &init_mode, table_info1](const Info& info) {
+        husky::LOG_I << "Table info of init_task: " << table_info1.DebugString();
+        init_centers(info, table_info1, num_features, K, data_store, init_mode);
     });
 
     start_time = std::chrono::steady_clock::now();
@@ -71,17 +72,21 @@ int main(int argc, char* argv[]) {
 
     // training task
     auto training_task = TaskFactory::Get().CreateTask<Task>(1, num_train_workers, Task::Type::BasicTaskType);
-
-    training_task.set_hint(hint);
-    training_task.set_kvstore(kv);
-    training_task.set_dimensions(K * num_features + num_features);
+    TableInfo table_info2 {
+        kv, K * num_features + num_features,
+        husky::ModeType::PS, 
+        husky::Consistency::SSP, 
+        husky::WorkerType::PSWorker, 
+        husky::ParamType::IntegralType
+    };
 
     engine.AddTask(std::move(training_task), [&data_store, num_iters, report_interval, K, batch_size, num_features,
                                               data_size, learning_rate_coefficient,
-                                              num_train_workers](const Info& info) {
+                                              num_train_workers, table_info2](const Info& info) {
 
+        husky::LOG_I << "Table info of training_task: " << table_info2.DebugString();
         // initialize a worker
-        auto worker = ml::CreateMLWorker<float>(info);
+        auto worker = ml::CreateMLWorker<float>(info, table_info2);
 
         std::vector<size_t> chunk_ids(K + 1);
         std::iota(chunk_ids.begin(), chunk_ids.end(), 0);  // set keys
