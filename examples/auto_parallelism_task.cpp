@@ -14,7 +14,8 @@ int main(int argc, char** argv) {
 
     int kv = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
     auto task = TaskFactory::Get().CreateTask<AutoParallelismTask>();
-    task.set_epoch_iters({100, 100});
+    // task.set_epoch_iters({100, 100});
+    task.set_epoch_iters_and_batchsizes({100, 100}, {500, 600});
     task.set_epoch_lambda([](const Info& info, int num_iters) {
         if (info.get_cluster_id() == 0)
             husky::LOG_I << "num_iters: " << num_iters;

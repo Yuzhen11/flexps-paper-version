@@ -101,7 +101,15 @@ class AutoParallelismTask : public Task {
         iters_ = iters;
         set_total_epoch(iters.size());
     }
+    void set_epoch_iters_and_batchsizes(const std::vector<int>& iters, const std::vector<int>& batchsizes) {
+        assert(iters.size());
+        assert(iters.size() == batchsizes.size());
+        iters_ = iters;
+        batchsizes_ = batchsizes;
+        set_total_epoch(iters.size());
+    }
     const std::vector<int>& get_epoch_iters() const { return iters_; }
+    const std::vector<int>& get_batchsizes() const { return batchsizes_; }
 
     void set_epoch_lambda(const std::function<void(const Info&, int)>& func) { func_ = func; }
     const auto& get_epoch_lambda() { return func_; }
@@ -111,11 +119,11 @@ class AutoParallelismTask : public Task {
 
     virtual BinStream& serialize(BinStream& bin) const {
         Task::serialize(bin);
-        bin << iters_ << current_stage_iters_;
+        bin << iters_ << current_stage_iters_ << batchsizes_;
     }
     virtual BinStream& deserialize(BinStream& bin) {
         Task::deserialize(bin);
-        bin >> iters_ >> current_stage_iters_;
+        bin >> iters_ >> current_stage_iters_ >> batchsizes_;
     }
 
     friend BinStream& operator<<(BinStream& bin, const AutoParallelismTask& task) { return task.serialize(bin); }
@@ -123,6 +131,7 @@ class AutoParallelismTask : public Task {
 
    private:
     std::vector<int> iters_;
+    std::vector<int> batchsizes_;
     int current_stage_iters_ = 0;
     std::function<void(const Info&, int)> func_;
 };

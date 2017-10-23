@@ -17,9 +17,7 @@ void AutoParallelismTaskScheduler::init_tasks(const std::vector<std::shared_ptr<
     }
     auto& task = tasks_queue_.front();
     if (task->get_type() == Task::Type::AutoParallelismTaskType) {
-        auto& epoch_iters = static_cast<AutoParallelismTask*>(task.get())->get_epoch_iters();
-        assert(epoch_iters.size() > 0);
-        policy_->set_num_total_iters(epoch_iters[0]);  // initialize policy_
+        start_stage(tasks_queue_.front().get(), 0);
     }
 }
 
@@ -42,7 +40,7 @@ void AutoParallelismTaskScheduler::finish_thread(int instance_id, int global_thr
                         " finished ");
                 bool finish = policy_->finish_subepoch();
                 if (finish) {  // finish stage
-                    policy_->reset();
+                    policy_->reset_stage();
                     husky::LOG_I << CLAY("Task " + std::to_string(task->get_id()) + " epoch " + std::to_string(task->get_current_epoch()) + " finished ");
                     task->inc_epoch();  // Trying to work on next epoch
                     if (task->get_current_epoch() ==
@@ -50,15 +48,11 @@ void AutoParallelismTaskScheduler::finish_thread(int instance_id, int global_thr
                         tasks_queue_.pop();
                         // reset num total iters for next task
                         if (!tasks_queue_.empty() && tasks_queue_.front()->get_type() == Task::Type::AutoParallelismTaskType) {
-                            auto& epoch_iters = static_cast<AutoParallelismTask*>(tasks_queue_.front().get())->get_epoch_iters();
-                            assert(epoch_iters.size() > 0);
-                            policy_->set_num_total_iters(epoch_iters[0]);  // initialize policy_
+                            start_stage(tasks_queue_.front().get(), 0);
                         }
                     } else {
-                        // reset num total iters for changing stage
-                        auto& epoch_iters = static_cast<AutoParallelismTask*>(task.get())->get_epoch_iters();
-                        assert(epoch_iters.size() > task->get_current_epoch());
-                        policy_->set_num_total_iters(epoch_iters[task->get_current_epoch()]);  // initialize policy_
+                        // Next stge
+                        start_stage(task.get(), task->get_current_epoch());
                     }
                 }
             } else {
@@ -69,9 +63,8 @@ void AutoParallelismTaskScheduler::finish_thread(int instance_id, int global_thr
                     tasks_queue_.pop();
                     // reset num total iters
                     if (!tasks_queue_.empty() && tasks_queue_.front()->get_type() == Task::Type::AutoParallelismTaskType) {
-                        auto& epoch_iters = static_cast<AutoParallelismTask*>(tasks_queue_.front().get())->get_epoch_iters();
-                        assert(epoch_iters.size() > 0);
-                        policy_->set_num_total_iters(epoch_iters[0]);  // initialize policy_
+                        // Next task
+                        start_stage(tasks_queue_.front().get(), 0);
                     }
                 }
             }
@@ -111,7 +104,7 @@ std::shared_ptr<Instance> AutoParallelismTaskScheduler::task_to_instance_auto_pa
     // update history
     HistoryManager::get().update_history(instance->get_id(), pid_tids);
     husky::LOG_I << YELLOW("Task: "+std::to_string(instance->get_id())+" added");
-    husky::LOG_I << YELLOW("num_workers: " + std::to_string(instance->get_num_workers())
+    husky::LOG_I << RED("num_workers: " + std::to_string(instance->get_num_workers())
             + "\ncurrent_iters: " + std::to_string(policy_->current_iters)
             + "\ntotal_iters: " << std::to_string(policy_->num_total_iters)
             + "\ntry_iters: " << std::to_string(policy_->try_iters));

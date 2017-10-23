@@ -29,7 +29,7 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
         // Choose a policy to use
         // policy_.reset(new IncreaseBestAmongSomeTriesPolicy());
         policy_.reset(new IncreaseBestPolicy());
-        policy_->reset();
+        policy_->reset_stage();
     }
 
     virtual ~AutoParallelismTaskScheduler() override {}
@@ -43,6 +43,18 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
     virtual bool is_finished() override;
 
    private:
+    void start_stage(Task* task, int epoch) {
+        auto& epoch_iters = static_cast<AutoParallelismTask*>(task)->get_epoch_iters();
+        auto& batchsizes = static_cast<AutoParallelismTask*>(task)->get_batchsizes();
+        if (batchsizes.size() == 0) {  // batchsizes is not given
+            assert(epoch_iters.size() > epoch);
+            policy_->start_stage(epoch_iters[epoch], 0);
+        } else {
+            assert(epoch_iters.size() == batchsizes.size());
+            assert(epoch_iters.size() > epoch);
+            policy_->start_stage(epoch_iters[epoch], batchsizes[epoch]);
+        }
+    }
 
     /*
      * Generate real running instance from task
@@ -73,14 +85,22 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
         int num_total_iters;
         int sub_epoch;
         bool fixed;  // mark whether the best parallelism degree has found
+        std::map<int, int> batchsize_to_best_parallelism_history;  // <bs, best_parallelism>
+        int current_batchsize;
 
         virtual ~AutoParallelismPolicy() {}
 
         /*
          * called for each stage
          */
-        void set_num_total_iters(int total_iters) {
+        void start_stage(int total_iters, int batchsize) {
             num_total_iters = total_iters;
+            current_batchsize = batchsize;
+            // Require batchsize > 0
+            if (batchsize > 0 && batchsize_to_best_parallelism_history.find(current_batchsize) != batchsize_to_best_parallelism_history.end()) {
+                husky::LOG_I << RED("find best parallelism through batchsize_to_best_parallelism_history!");
+                fix_parallelism(batchsize_to_best_parallelism_history[current_batchsize]);
+            }
         }
         /*
          * start timing
@@ -103,9 +123,9 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
             return current_iters == num_total_iters;
         }
         /*
-         * reset() is called when changing stage 
+         * reset_stage() is called when changing stage 
          */
-        void reset() {
+        void reset_stage() {
             current_iters = 0;
             sub_epoch = 0;
             times.clear();
@@ -117,9 +137,7 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
          * decide next sub epoch information
          */
         void generate_plan() {
-            if (fixed) {
-                assert(false);  // Do not suppose to call generate_plan() when the plan is fixed.
-            } else {
+            if (!fixed) {
                 sub_generate_plan();
             }
         }
@@ -134,7 +152,11 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
             }
             husky::LOG_I << BLUE(ss.str());
         }
-        void fix_parallelism() {
+        void fix_parallelism(int best_worker_per_process) {
+            if (current_batchsize > 0) {
+                batchsize_to_best_parallelism_history.insert({current_batchsize, best_worker_per_process});
+            }
+            current_worker_per_process = best_worker_per_process;
             try_iters = num_total_iters - current_iters;
             print_times_and_history();
             fixed = true;
@@ -148,6 +170,9 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
     };
 
     struct IncreaseBestAmongSomeTriesPolicy : public AutoParallelismPolicy {
+        IncreaseBestAmongSomeTriesPolicy() {
+            husky::LOG_I << RED("using IncreaseBestAmongSomeTriesPolicy");
+        }
         virtual void sub_reset() override {
             current_worker_per_process = 0;
             max_worker_per_process = 10;
@@ -165,8 +190,7 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
                     }
                 }
                 assert(worker_per_process_history.size() > min_i);
-                current_worker_per_process = worker_per_process_history[min_i];
-                fix_parallelism();
+                fix_parallelism(worker_per_process_history[min_i]);
             } else {
                 current_worker_per_process += 1;
                 if (current_worker_per_process > max_worker_per_process) {
@@ -179,17 +203,48 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
         const int kNumTries = 5;
     };
     struct IncreaseBestPolicy : public AutoParallelismPolicy {
+        IncreaseBestPolicy() {
+            husky::LOG_I << RED("using IncreaseBestPolicy");
+        }
         virtual void sub_reset() override {
-            current_worker_per_process = 0;  // TODO(tatiana): better use memory and workload indicator
+            current_worker_per_process = 0;
             max_worker_per_process = 10;
             min_worker_per_process = 1;
             try_iters = 10;
         }
         virtual void sub_generate_plan() override {
+            // try to use the batchsize history
+            if (current_worker_per_process == 0) {
+                if (batchsize_to_best_parallelism_history.find(current_batchsize) != batchsize_to_best_parallelism_history.end()) {
+                    fix_parallelism(batchsize_to_best_parallelism_history[current_batchsize]);
+                    return;
+                } else if (batchsize_to_best_parallelism_history.size()) {
+                    // prune some search space
+                    for (auto iter = batchsize_to_best_parallelism_history.begin();
+                            iter != batchsize_to_best_parallelism_history.end();
+                            ++ iter) {
+                        if (iter->first < current_batchsize) {
+                            min_worker_per_process = iter->second;
+                        } else {
+                            max_worker_per_process = iter->second;
+                            break;
+                        }
+                    }
+                    assert(min_worker_per_process <= max_worker_per_process);
+                    husky::LOG_I << RED("search space be pruned to: [" 
+                            << std::to_string(min_worker_per_process)
+                            << ", " << std::to_string(max_worker_per_process)
+                            << "]");
+                    if (min_worker_per_process == max_worker_per_process) {
+                        fix_parallelism(min_worker_per_process);
+                        return;
+                    }
+                    current_worker_per_process = min_worker_per_process - 1;
+                }
+            }
             assert(sub_epoch == times.size());
             if (sub_epoch > 1 && times[sub_epoch-1] > times[sub_epoch-2]) {
-                current_worker_per_process = worker_per_process_history[sub_epoch-2];
-                fix_parallelism();
+                fix_parallelism(worker_per_process_history[sub_epoch-2]);
             } else {
                 current_worker_per_process += 1;
                 if (current_worker_per_process > max_worker_per_process) {
