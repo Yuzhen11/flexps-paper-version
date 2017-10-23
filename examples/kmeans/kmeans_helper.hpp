@@ -20,8 +20,6 @@
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
-#include "lib/app_config.hpp"
-#include "lib/task_utils.hpp"
 
 using namespace husky;
 using husky::lib::ml::LabeledPointHObj;
@@ -360,10 +358,10 @@ void kmeans_parallel_init(int K, int num_features, std::vector<LabeledPointHObj<
     }
 }
 
-void init_centers(const Info& info, int num_features, int K,
+void init_centers(const Info& info, const TableInfo& table_info, int num_features, int K,
                   datastore::DataStore<LabeledPointHObj<float, int, true>>& data_store, std::string init_mode) {
     // initialize a worker
-    auto worker = ml::CreateMLWorker<float>(info);
+    auto worker = ml::CreateMLWorker<float>(info, table_info);
 
     std::vector<husky::constants::Key> chunk_ids(K + 1);  // set keys
     std::iota(chunk_ids.begin(), chunk_ids.end(), 0);
