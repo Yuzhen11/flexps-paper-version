@@ -175,18 +175,21 @@ class PSBspWorker {
         }
     }
 
-    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals, bool enable_cc = true) {
+    virtual void Push(const std::vector<husky::constants::Key>& keys, const std::vector<Val>& vals) {
         assert(push_count_ + 1 == pull_count_);
         push_count_ += 1;
         shared_state_.Get()->model_.Push(keys, vals, local_id_, info_.is_leader());
     }
     
-    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals, bool enable_cc = true) {
+    virtual void Pull(const std::vector<husky::constants::Key>& keys, std::vector<Val>* vals) {
         assert(push_count_ == pull_count_);
         pull_count_ += 1;
         shared_state_.Get()->model_.Pull(keys, vals, local_id_); 
     }
 
+    kvstore::KVWorker* GetKVWorker() {
+        return kvworker_;
+    }
    private:
     int model_id_;
     kvstore::KVWorker* kvworker_ = nullptr;
