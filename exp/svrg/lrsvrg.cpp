@@ -11,7 +11,7 @@
 
 #include "lib/load_data.hpp"
 
-#include "exp/svrg_helper.hpp"
+#include "exp/svrg/svrg_helper.hpp"
 
 // *Sample setup*
 //

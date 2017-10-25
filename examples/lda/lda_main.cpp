@@ -205,7 +205,6 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
 
     /*  difine the constants used int this function*/ 
     int need_compute_llh = std::stoi(Context::get_param("compute_llh"));
-    int num_process = std::stoi(Context::get_param("num_process"));
     int num_batches = std::stoi(Context::get_param("num_batches"));
     int max_vocs_each_pull = std::stoi(Context::get_param("max_vocs_each_pull"));
     std::string result_write_path = Context::get_param("result_write_path");
@@ -475,8 +474,8 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
 }
 
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input", "kWorkerType",
-                                          "hdfs_namenode", "hdfs_namenode_port", "compute_llh", "result_write_path", "num_process",
+    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input",
+                                          "hdfs_namenode", "hdfs_namenode_port", "compute_llh", "result_write_path",
                                           "alpha", "beta", "num_topics", "num_iterations", "num_load_workers", "num_train_workers", "max_voc_id", "staleness", 
                                           "num_batches", "max_vocs_each_pull", "consistency"}); 
     int num_topics = std::stoi(Context::get_param("num_topics"));
@@ -489,8 +488,6 @@ int main(int argc, char** argv) {
     float beta = std::stof(Context::get_param("beta"));
     int staleness = std::stoi(Context::get_param("staleness")); 
     std::string consistency =  Context::get_param("consistency");
-    std::string kWorkerType = Context::get_param("kWorkerType");
-    int num_process = std::stoi(Context::get_param("num_process"));
 
     if (!rt)
         return 1;
@@ -531,7 +528,7 @@ int main(int argc, char** argv) {
         staleness
     };
     
-    engine.AddTask(lda_task, [&corpus, num_epochs, num_process, lda_stat_table, lda_table, lda_table_info, num_topics, max_voc_id, num_iterations, alpha, beta](const Info& info) {
+    engine.AddTask(lda_task, [&corpus, num_epochs,  lda_stat_table, lda_table, lda_table_info, num_topics, max_voc_id, num_iterations, alpha, beta](const Info& info) {
         int local_id = info.get_local_id();
         auto& local_corpus = corpus.get_local_data(local_id);
         auto mlworker = ml::CreateMLWorker<int>(info, lda_table_info);
@@ -549,7 +546,7 @@ int main(int argc, char** argv) {
             ofs.open(Context::get_param("result_write_path"), std::ofstream::out | std::ofstream::app);
             ofs << Context::get_param("input") <<" num_topics:"<< Context::get_param("num_topics") <<" num_trian_workers:"<< Context::get_param("num_train_workers");
             ofs <<" staleness:" << Context::get_param("staleness");
-            ofs << "\nnum_epochs:"<<num_epochs<<" num_process"<<Context::get_param("num_process") <<" kWorkerType:"<<Context::get_param("kWorkerType")<< "\n";
+            ofs << "\nnum_epochs:"<<num_epochs<<"\n";
             ofs << " iter | pull_t | push_t | samplet | P+S+S | mailboxt | llh_time | llh\n";
             ofs.close();
         }
