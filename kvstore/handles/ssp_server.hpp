@@ -131,7 +131,7 @@ class SSPServer : public ServerBase {
     SSPServer() = delete;
     SSPServer(int server_id, int num_workers, StorageT&& store, bool is_vector, int staleness)
         : server_id_(server_id), num_workers_(num_workers), worker_progress_(num_workers), store_(std::move(store)), is_vector_(is_vector), staleness_(staleness) {
-        assert(staleness_ > 0);
+        assert(staleness_ >= 0);
         assert(staleness_ <= 10);
     }
 

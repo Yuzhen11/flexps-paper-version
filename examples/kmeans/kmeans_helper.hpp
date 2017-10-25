@@ -183,7 +183,7 @@ void test_error(const std::vector<std::vector<float>>& params,
     datastore::DataSampler<LabeledPointHObj<float, int, true>> data_sampler(data_store);
     float sum = 0;  // sum of square error
     std::pair<int, float> id_dist;
-    std::vector<int> count(3);
+    std::vector<int> count(K);
 
     for (int i = 0; i < data_size; i++) {
         // get next data

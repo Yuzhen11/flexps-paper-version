@@ -5,7 +5,6 @@ int main(int argc, char* argv[]) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port",
                                       "hdfs_namenode", "hdfs_namenode_port", "input", "num_features", "num_iters"});
     auto batch_size_str = Context::get_param("batch_sizes");
-    auto nums_workers_str = Context::get_param("nums_train_workers");
     auto nums_iters_str = Context::get_param("nums_iters");
     auto lr_coeffs_str = Context::get_param("lr_coeffs");
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
@@ -13,11 +12,9 @@ int main(int argc, char* argv[]) {
     int num_machine = std::stoi(Context::get_param("num_machine"));          // number of machine used
     // Get configs for each stage
     std::vector<int> batch_sizes;
-    std::vector<int> nums_workers;
     std::vector<int> nums_iters;
     std::vector<float> lr_coeffs;
     get_stage_conf(batch_size_str, batch_sizes, train_epoch);
-    get_stage_conf(nums_workers_str, nums_workers, train_epoch);
     get_stage_conf(nums_iters_str, nums_iters, train_epoch);
     get_stage_conf(lr_coeffs_str, lr_coeffs, train_epoch);
 
@@ -25,7 +22,6 @@ int main(int argc, char* argv[]) {
     if (Context::get_worker_info().get_process_id() == 0) {
         std::stringstream ss;
         vec_to_str("batch_sizes", batch_sizes, ss);
-        vec_to_str("nums_workers", nums_workers, ss);
         vec_to_str("nums_iters", nums_iters, ss);
         vec_to_str("lr_coeffs", lr_coeffs, ss);
         husky::LOG_I << ss.str();
@@ -91,29 +87,25 @@ int main(int argc, char* argv[]) {
         husky::LOG_I << YELLOW("Init time: " + std::to_string(init_time) + " ms");
 
     // Train task
-    auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
-    train_task.set_total_epoch(train_epoch);
-    train_task.set_worker_num(nums_workers);
-    train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_worker"));
+    auto train_task = TaskFactory::Get().CreateTask<AutoParallelismTask>();
+    train_task.set_epoch_iters_and_batchsizes(nums_iters, batch_sizes);
+
     TableInfo table_info2 {
         kv, K * num_features + num_features,
-        husky::ModeType::PS, 
-        husky::Consistency::SSP, 
-        husky::WorkerType::PSNoneChunkWorker, 
+        husky::ModeType::PS,
+        husky::Consistency::SSP,
+        husky::WorkerType::PSNoneChunkWorker,
         husky::ParamType::IntegralType,
         1
     };
 
-    // TODO mutable is not safe when the lambda is used more than once
-    engine.AddTask(train_task, [data_size, K, num_features, report_interval, &data_store, &batch_sizes,
-                                &nums_iters, &lr_coeffs, &nums_workers, &num_machine, table_info2](const Info& info) mutable {
-        
+    train_task.set_epoch_lambda([data_size, K, num_features, report_interval, &data_store, &batch_sizes,
+                                 &lr_coeffs, num_machine, table_info2, &nums_iters](const Info& info, int num_iters) {
         auto start_time = std::chrono::steady_clock::now();
         // set the config for this stage
         int current_stage = info.get_current_epoch();
-        int current_epoch_num_train_workers = nums_workers[current_stage];
+        int current_epoch_num_train_workers = info.get_num_workers();
         assert(current_epoch_num_train_workers > 0);
-        int current_epoch_num_iters = nums_iters[current_stage];
         assert(batch_sizes[current_stage] % current_epoch_num_train_workers == 0);
         // get batch size and learning rate for each worker thread
         int current_epoch_batch_size =
@@ -121,7 +113,7 @@ int main(int argc, char* argv[]) {
             (current_epoch_num_train_workers * num_machine);  // each machine containing num_train_workers threads
         double current_epoch_learning_rate_coefficient = lr_coeffs[current_stage];
         if (info.get_cluster_id() == 0)
-            husky::LOG_I << "Stage " << current_stage << ": " << current_epoch_num_iters << "," << current_epoch_num_train_workers
+            husky::LOG_I << "Stage " << current_stage << ": " << num_iters << "," << current_epoch_num_train_workers
                          << "," << current_epoch_batch_size << "," << current_epoch_learning_rate_coefficient;
 
         // initialize a worker
@@ -144,7 +136,7 @@ int main(int argc, char* argv[]) {
         }
 
         // training task
-        for (int iter = 0; iter < current_epoch_num_iters; iter++) {
+        for (int iter = 0; iter < num_iters; iter++) {
             worker->PullChunks(chunk_ids, pull_ptrs);
             step_sums = params;
 
@@ -187,9 +179,14 @@ int main(int argc, char* argv[]) {
         auto epoch_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         if (info.get_cluster_id() == 0){
             husky::LOG_I << "training time for epoch " << current_stage << ": " << epoch_time;
-            test_error(params, data_store, current_epoch_num_iters, K, data_size, num_features, info.get_cluster_id());
+            test_error(params, data_store, nums_iters[current_stage], K, data_size, num_features, info.get_cluster_id());
         }
     });
+    engine.AddTask(train_task, [](const Info& info) {
+        // dummy lambda. if we cannot remove it, we just leave it here
+    });
+
+    // Submit train task
     start_time = std::chrono::steady_clock::now();
     engine.Submit();
     end_time = std::chrono::steady_clock::now();
