@@ -140,6 +140,13 @@ class AutoParallelismTaskScheduler : public TaskScheduler {
             if (!fixed) {
                 sub_generate_plan();
             }
+            std::stringstream ss;
+            ss << "generate plan:";
+            ss << " current_worker_per_process:" << current_worker_per_process;
+            ss << " current_iters:" << current_iters;
+            ss << " try_iters:" << try_iters;
+            ss << " total_iters:" << num_total_iters;
+            husky::LOG_I << BLUE(ss.str());
         }
 
         void print_times_and_history() {

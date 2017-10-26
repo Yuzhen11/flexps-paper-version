@@ -3,13 +3,16 @@
 int main(int argc, char* argv[]) {
     // Get configs
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port",
-                                      "hdfs_namenode", "hdfs_namenode_port", "input", "num_features", "num_iters"});
+                                      "hdfs_namenode", "hdfs_namenode_port", "input", "num_features", "num_iters",
+                                      "staleness"});
     auto batch_size_str = Context::get_param("batch_sizes");
     auto nums_iters_str = Context::get_param("nums_iters");
     auto lr_coeffs_str = Context::get_param("lr_coeffs");
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     int report_interval = std::stoi(Context::get_param("report_interval"));  // test performance after each test_iters
     int num_machine = std::stoi(Context::get_param("num_machine"));          // number of machine used
+    int staleness = std::stoi(Context::get_param("staleness"));
+    assert(staleness >= 0 && staleness <= 50);
     // Get configs for each stage
     std::vector<int> batch_sizes;
     std::vector<int> nums_iters;
@@ -62,7 +65,7 @@ int main(int argc, char* argv[]) {
         husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
     // use params[K][0] - params[K][K-1] to store v[K], assuming num_features >= K
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_vector", 1, 0, K * num_features + num_features,
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_vector", 1, staleness, K * num_features + num_features,
                                                           num_features);  // set max_key and chunk_size
 
     auto init_task = TaskFactory::Get().CreateTask<Task>(1, 1, Task::Type::BasicTaskType);
@@ -71,7 +74,7 @@ int main(int argc, char* argv[]) {
         husky::ModeType::PS, 
         husky::Consistency::ASP, 
         husky::WorkerType::PSWorker, 
-        husky::ParamType::IntegralType
+        husky::ParamType::None
     };
 
     engine.AddTask(std::move(init_task), [K, num_features, &data_store, &init_mode, table_info1](const Info& info) {
@@ -95,8 +98,8 @@ int main(int argc, char* argv[]) {
         husky::ModeType::PS,
         husky::Consistency::SSP,
         husky::WorkerType::PSNoneChunkWorker,
-        husky::ParamType::IntegralType,
-        1
+        husky::ParamType::None,
+        staleness
     };
 
     train_task.set_epoch_lambda([data_size, K, num_features, report_interval, &data_store, &batch_sizes,

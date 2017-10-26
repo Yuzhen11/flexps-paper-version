@@ -2,7 +2,8 @@
 
 int main(int argc, char* argv[]) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port",
-                                          "hdfs_namenode", "hdfs_namenode_port", "input", "num_features", "num_iters"});
+                                          "hdfs_namenode", "hdfs_namenode_port", "input", "num_features", 
+                                          "num_iters", "staleness"});
 
     int num_iters = std::stoi(Context::get_param("num_iters"));
     int num_features = std::stoi(Context::get_param("num_features"));
@@ -14,6 +15,8 @@ int main(int argc, char* argv[]) {
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
     std::string init_mode = Context::get_param("init_mode");  // randomly initialize the k center points
+    int staleness = std::stoi(Context::get_param("staleness"));
+    assert(staleness >= 0 && staleness <= 50);
 
     if (!rt)
         return 1;
@@ -44,7 +47,7 @@ int main(int argc, char* argv[]) {
         husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
     // use params[K][0] - params[K][K-1] to store v[K], assuming num_features >= K
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_vector", 1, 0, K * num_features + num_features,
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_vector", 1, staleness, K * num_features + num_features,
                                                           num_features);  // set max_key and chunk_size
 
     // initialization task
@@ -54,7 +57,7 @@ int main(int argc, char* argv[]) {
         husky::ModeType::PS, 
         husky::Consistency::ASP, 
         husky::WorkerType::PSWorker, 
-        husky::ParamType::IntegralType
+        husky::ParamType::None
     };
 
 
@@ -76,9 +79,9 @@ int main(int argc, char* argv[]) {
         kv, K * num_features + num_features,
         husky::ModeType::PS, 
         husky::Consistency::SSP, 
-        husky::WorkerType::PSWorker, 
-        husky::ParamType::IntegralType,
-        1
+        husky::WorkerType::PSNoneChunkWorker, 
+        husky::ParamType::None,
+        staleness
     };
 
     engine.AddTask(std::move(training_task), [&data_store, num_iters, report_interval, K, batch_size, num_features,
@@ -141,6 +144,10 @@ int main(int argc, char* argv[]) {
                     step_sums[i][j] -= params[i][j];
 
             worker->PushChunks(chunk_ids, push_ptrs);
+
+            if (info.get_cluster_id() == 0) {
+                husky::LOG_I << "iter " << iter;
+            }
         }
         auto end_time = std::chrono::steady_clock::now();
         auto epoch_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();

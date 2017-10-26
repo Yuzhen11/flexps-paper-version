@@ -103,11 +103,6 @@ std::shared_ptr<Instance> AutoParallelismTaskScheduler::task_to_instance_auto_pa
     }
     // update history
     HistoryManager::get().update_history(instance->get_id(), pid_tids);
-    husky::LOG_I << YELLOW("Task: "+std::to_string(instance->get_id())+" added");
-    husky::LOG_I << RED("num_workers: " + std::to_string(instance->get_num_workers())
-            + "\ncurrent_iters: " + std::to_string(policy_->current_iters)
-            + "\ntotal_iters: " << std::to_string(policy_->num_total_iters)
-            + "\ntry_iters: " << std::to_string(policy_->try_iters));
 
     auto* p_task = instance->get_task();
     static_cast<AutoParallelismTask*>(p_task)->set_current_stage_iters(policy_->try_iters);

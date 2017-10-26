@@ -361,6 +361,8 @@ void kmeans_parallel_init(int K, int num_features, std::vector<LabeledPointHObj<
 void init_centers(const Info& info, const TableInfo& table_info, int num_features, int K,
                   datastore::DataStore<LabeledPointHObj<float, int, true>>& data_store, std::string init_mode) {
     // initialize a worker
+    // TODO: Only one worker do the initialization, make sure that the consistency controller in 
+    // the server side is not activated
     auto worker = ml::CreateMLWorker<float>(info, table_info);
 
     std::vector<husky::constants::Key> chunk_ids(K + 1);  // set keys
