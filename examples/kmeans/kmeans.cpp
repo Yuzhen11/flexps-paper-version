@@ -77,13 +77,15 @@ int main(int argc, char* argv[]) {
         husky::ModeType::PS, 
         husky::Consistency::SSP, 
         husky::WorkerType::PSWorker, 
-        husky::ParamType::IntegralType
+        husky::ParamType::IntegralType,
+        1
     };
 
     engine.AddTask(std::move(training_task), [&data_store, num_iters, report_interval, K, batch_size, num_features,
                                               data_size, learning_rate_coefficient,
                                               num_train_workers, table_info2](const Info& info) {
 
+        auto start_time = std::chrono::steady_clock::now();
         husky::LOG_I << "Table info of training_task: " << table_info2.DebugString();
         // initialize a worker
         auto worker = ml::CreateMLWorker<float>(info, table_info2);
@@ -114,7 +116,6 @@ int main(int argc, char* argv[]) {
             float learning_rate;
             data_sampler.random_start_point();
 
-            auto start_train = std::chrono::steady_clock::now();
             for (int i = 0; i < batch_size / num_train_workers; ++i) {
                 auto& data = data_sampler.next();
                 auto& x = data.x;
@@ -129,14 +130,10 @@ int main(int argc, char* argv[]) {
                     step_sums[id_nearest_center][j] -= learning_rate * deltas[j];
             }
 
-            // test model
-            if (iter % report_interval == 0 && (iter / report_interval) % num_train_workers == info.get_cluster_id()) {
-                test_error(params, data_store, iter, K, data_size, num_features, info.get_cluster_id());
-                auto current_time = std::chrono::steady_clock::now();
-                auto train_time =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_train).count();
-                husky::LOG_I << CLAY("Iter, Time: " + std::to_string(iter) + "," + std::to_string(train_time));
-            }
+            // test model each report_interval (if report_inteval = 0, dont test)
+            if (report_interval > 0)
+                if (iter % report_interval == 0 && (iter / report_interval) % num_train_workers == info.get_cluster_id())
+                    test_error(params, data_store, iter, K, data_size, num_features, info.get_cluster_id());
 
             // update params
             for (int i = 0; i < K + 1; ++i)
@@ -145,6 +142,10 @@ int main(int argc, char* argv[]) {
 
             worker->PushChunks(chunk_ids, push_ptrs);
         }
+        auto end_time = std::chrono::steady_clock::now();
+        auto epoch_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        if (info.get_cluster_id() == 0)
+            test_error(params, data_store, num_iters, K, data_size, num_features, info.get_cluster_id());
     });
     start_time = std::chrono::steady_clock::now();
     engine.Submit();

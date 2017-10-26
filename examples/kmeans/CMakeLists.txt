@@ -17,3 +17,13 @@ target_link_libraries(Kmeans_multi_stage profiler)
 endif(USE_PROFILER)
 target_link_libraries(Kmeans_multi_stage ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(Kmeans_multi_stage)
+
+# Kmeans_multi_stage_auto_parallelism
+add_executable(Kmeans_multi_stage_auto_parallelism kmeans_multi_stage_auto_parallelism.cpp)
+target_link_libraries(Kmeans_multi_stage_auto_parallelism husky)
+target_link_libraries(Kmeans_multi_stage_auto_parallelism husky-ml)
+if(USE_PROFILER)
+target_link_libraries(Kmeans_multi_stage_auto_parallelism profiler)
+endif(USE_PROFILER)
+target_link_libraries(Kmeans_multi_stage_auto_parallelism ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(Kmeans_multi_stage_auto_parallelism)
