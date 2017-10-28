@@ -193,7 +193,7 @@ void test_error(const std::vector<std::vector<float>>& params,
     }
 
     husky::LOG_I << "Worker " + std::to_string(cluster_id) + ", iter " + std::to_string(iter)
-                 << ":Within Set Sum of Squared Errors = " << GREEN(std::to_string(sum));
+                 << ": Within Set Sum of Squared Errors = " << GREEN(std::to_string(sum));
     for (int i = 0; i < K; i++)  // for tuning learning rate
         husky::LOG_I << RED("Worker " + std::to_string(cluster_id) + ", count" + std::to_string(i) + ": " +
                             std::to_string(count[i]));

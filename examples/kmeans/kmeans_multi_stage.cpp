@@ -6,21 +6,20 @@ int main(int argc, char* argv[]) {
                                       "hdfs_namenode", "hdfs_namenode_port", "input", "num_features", 
                                       "num_iters", "staleness"});
     auto batch_size_str = Context::get_param("batch_sizes");
-    auto nums_workers_str = Context::get_param("nums_train_workers");
+    auto threads_per_process_str = Context::get_param("threads_per_process");
     auto nums_iters_str = Context::get_param("nums_iters");
     auto lr_coeffs_str = Context::get_param("lr_coeffs");
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     int report_interval = std::stoi(Context::get_param("report_interval"));  // test performance after each test_iters
-    int num_machine = std::stoi(Context::get_param("num_machine"));          // number of machine used
     int staleness = std::stoi(Context::get_param("staleness"));
     assert(staleness >= 0 && staleness <= 50);
     // Get configs for each stage
     std::vector<int> batch_sizes;
-    std::vector<int> nums_workers;
+    std::vector<int> threads_per_process;
     std::vector<int> nums_iters;
     std::vector<float> lr_coeffs;
     get_stage_conf(batch_size_str, batch_sizes, train_epoch);
-    get_stage_conf(nums_workers_str, nums_workers, train_epoch);
+    get_stage_conf(threads_per_process_str, threads_per_process, train_epoch);
     get_stage_conf(nums_iters_str, nums_iters, train_epoch);
     get_stage_conf(lr_coeffs_str, lr_coeffs, train_epoch);
 
@@ -28,7 +27,7 @@ int main(int argc, char* argv[]) {
     if (Context::get_worker_info().get_process_id() == 0) {
         std::stringstream ss;
         vec_to_str("batch_sizes", batch_sizes, ss);
-        vec_to_str("nums_workers", nums_workers, ss);
+        vec_to_str("threads_per_process", threads_per_process, ss);
         vec_to_str("nums_iters", nums_iters, ss);
         vec_to_str("lr_coeffs", lr_coeffs, ss);
         husky::LOG_I << ss.str();
@@ -96,8 +95,8 @@ int main(int argc, char* argv[]) {
     // Train task
     auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
     train_task.set_total_epoch(train_epoch);
-    train_task.set_worker_num(nums_workers);
-    train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_worker"));
+    train_task.set_worker_num(threads_per_process);
+    train_task.set_worker_num_type(std::vector<std::string>(threads_per_process.size(), "threads_per_worker"));
     TableInfo table_info2 {
         kv, K * num_features + num_features,
         husky::ModeType::PS, 
@@ -109,23 +108,25 @@ int main(int argc, char* argv[]) {
 
     // TODO mutable is not safe when the lambda is used more than once
     engine.AddTask(train_task, [data_size, K, num_features, report_interval, &data_store, &batch_sizes,
-                                &nums_iters, &lr_coeffs, &nums_workers, &num_machine, table_info2](const Info& info) mutable {
+                                &nums_iters, &lr_coeffs, table_info2](const Info& info) mutable {
         
         auto start_time = std::chrono::steady_clock::now();
         // set the config for this stage
         int current_stage = info.get_current_epoch();
-        int current_epoch_num_train_workers = nums_workers[current_stage];
+        int current_epoch_num_train_workers = info.get_num_workers();
         assert(current_epoch_num_train_workers > 0);
         int current_epoch_num_iters = nums_iters[current_stage];
-        assert(batch_sizes[current_stage] % current_epoch_num_train_workers == 0);
         // get batch size and learning rate for each worker thread
         int current_epoch_batch_size =
-            batch_sizes[current_stage] /
-            (current_epoch_num_train_workers * num_machine);  // each machine containing num_train_workers threads
+            batch_sizes[current_stage] / current_epoch_num_train_workers;  // each machine containing num_train_workers threads
         double current_epoch_learning_rate_coefficient = lr_coeffs[current_stage];
         if (info.get_cluster_id() == 0)
-            husky::LOG_I << "Stage " << current_stage << ": " << current_epoch_num_iters << "," << current_epoch_num_train_workers
-                         << "," << current_epoch_batch_size << "," << current_epoch_learning_rate_coefficient;
+            husky::LOG_I << "Stage:" << current_stage 
+                         << ", iters:" << current_epoch_num_iters 
+                         << ", train_workers:" << current_epoch_num_train_workers
+                         << ", local batchsize:" << current_epoch_batch_size 
+                         << ", batchsize:" << batch_sizes[current_stage] 
+                         << ", learning rate:" << current_epoch_learning_rate_coefficient;
 
         // initialize a worker
         auto worker = ml::CreateMLWorker<float>(info, table_info2);
@@ -173,8 +174,7 @@ int main(int argc, char* argv[]) {
 
             // test model each report_interval (if report_inteval = 0, dont test)
             if (report_interval > 0) {
-                if (iter % report_interval == 0 &&
-                    (iter / report_interval) % current_epoch_num_train_workers == info.get_cluster_id()) {
+                if (iter % report_interval == 0 && info.get_cluster_id() == 0) {
                     test_error(params, data_store, iter, K, data_size, num_features, info.get_cluster_id());
                 }
             }
@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
         auto end_time = std::chrono::steady_clock::now();
         auto epoch_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         if (info.get_cluster_id() == 0){
-            husky::LOG_I << "training time for epoch " << current_stage << ": " << epoch_time;
+            husky::LOG_I << "training time for epoch " << current_stage << ": " << epoch_time << " ms";
             test_error(params, data_store, current_epoch_num_iters, K, data_size, num_features, info.get_cluster_id());
         }
     });
@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
     end_time = std::chrono::steady_clock::now();
     auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     if (Context::get_process_id() == 0)
-        husky::LOG_I << "Total training time: " << train_time;
+        husky::LOG_I << "Total training time: " << train_time << " ms";
 
     engine.Exit();
     kvstore::KVStore::Get().Stop();

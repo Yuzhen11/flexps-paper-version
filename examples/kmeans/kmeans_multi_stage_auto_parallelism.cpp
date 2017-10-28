@@ -109,15 +109,17 @@ int main(int argc, char* argv[]) {
         int current_stage = info.get_current_epoch();
         int current_epoch_num_train_workers = info.get_num_workers();
         assert(current_epoch_num_train_workers > 0);
-        assert(batch_sizes[current_stage] % current_epoch_num_train_workers == 0);
         // get batch size and learning rate for each worker thread
         int current_epoch_batch_size =
-            batch_sizes[current_stage] /
-            (current_epoch_num_train_workers * num_machine);  // each machine containing num_train_workers threads
+            batch_sizes[current_stage] / current_epoch_num_train_workers; // each machine containing num_train_workers threads
         double current_epoch_learning_rate_coefficient = lr_coeffs[current_stage];
         if (info.get_cluster_id() == 0)
-            husky::LOG_I << "Stage " << current_stage << ": " << num_iters << "," << current_epoch_num_train_workers
-                         << "," << current_epoch_batch_size << "," << current_epoch_learning_rate_coefficient;
+            husky::LOG_I << "Stage:" << current_stage 
+                         << ", iters:" << num_iters 
+                         << ", train_workers:" << current_epoch_num_train_workers
+                         << ", local batchsize:" << current_epoch_batch_size 
+                         << ", batchsize:" << batch_sizes[current_stage] 
+                         << ", learning rate:" << current_epoch_learning_rate_coefficient;
 
         // initialize a worker
         auto worker = ml::CreateMLWorker<float>(info, table_info2);
@@ -165,8 +167,7 @@ int main(int argc, char* argv[]) {
 
             // test model each report_interval (if report_inteval = 0, dont test)
             if (report_interval > 0) {
-                if (iter % report_interval == 0 &&
-                    (iter / report_interval) % current_epoch_num_train_workers == info.get_cluster_id()) {
+                if (iter % report_interval == 0 && info.get_cluster_id() == 0) {
                     test_error(params, data_store, iter, K, data_size, num_features, info.get_cluster_id());
                 }
             }
@@ -181,8 +182,8 @@ int main(int argc, char* argv[]) {
         auto end_time = std::chrono::steady_clock::now();
         auto epoch_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         if (info.get_cluster_id() == 0){
-            husky::LOG_I << "training time for epoch " << current_stage << ": " << epoch_time;
-            test_error(params, data_store, nums_iters[current_stage], K, data_size, num_features, info.get_cluster_id());
+            husky::LOG_I << "training time for epoch " << current_stage << ": " << epoch_time << " ms";
+            test_error(params, data_store, num_iters, K, data_size, num_features, info.get_cluster_id());
         }
     });
     engine.AddTask(train_task, [](const Info& info) {
@@ -195,7 +196,7 @@ int main(int argc, char* argv[]) {
     end_time = std::chrono::steady_clock::now();
     auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     if (Context::get_process_id() == 0)
-        husky::LOG_I << "Total training time: " << train_time;
+        husky::LOG_I << "Total training time: " << train_time << " ms";
 
     engine.Exit();
     kvstore::KVStore::Get().Stop();

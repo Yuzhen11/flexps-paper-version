@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
                                               num_train_workers, table_info2](const Info& info) {
 
         auto start_time = std::chrono::steady_clock::now();
-        husky::LOG_I << "Table info of training_task: " << table_info2.DebugString();
+        // husky::LOG_I << "Table info of training_task: " << table_info2.DebugString();
         // initialize a worker
         auto worker = ml::CreateMLWorker<float>(info, table_info2);
 
@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
 
             // test model each report_interval (if report_inteval = 0, dont test)
             if (report_interval > 0)
-                if (iter % report_interval == 0 && (iter / report_interval) % num_train_workers == info.get_cluster_id())
+                if (iter % report_interval == 0 && info.get_cluster_id() == 0)
                     test_error(params, data_store, iter, K, data_size, num_features, info.get_cluster_id());
 
             // update params
