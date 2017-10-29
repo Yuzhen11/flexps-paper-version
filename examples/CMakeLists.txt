@@ -17,6 +17,7 @@ include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${HUSKY_EX
 
 add_subdirectory(lda)
 add_subdirectory(mf_als)
+add_subdirectory(mf_sgd)
 add_subdirectory(kmeans)
 
 ### Applications

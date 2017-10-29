@@ -126,9 +126,7 @@ int main(int argc, char** argv) {
     kvstore::RangeManager::Get().CustomizeRanges(kv1, max_key, kChunkSize, kChunkNum, server_key_ranges,
                                                  server_chunk_ranges);
     // 1.6 Setup kvstore
-    std::map<std::string, std::string> hint = {{husky::constants::kStorageType, husky::constants::kVectorStorage},
-                                               {husky::constants::kUpdateType, husky::constants::kAssignUpdate}};
-    kvstore::KVStore::Get().SetupKVStore<float>(kv1, hint);
+    kvstore::KVStore::Get().SetupKVStore<float>(kv1, "default_assign_vector", -1, -1);
 
     // All the process should have this task running
     auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
@@ -219,7 +217,6 @@ int main(int argc, char** argv) {
         if (info.get_cluster_id() == 0) {
             husky::LOG_I << CLAY("Load done. Load time is: " + std::to_string(total_time) + " ms");
         }
-        std::cout << info.get_cluster_id() << std::endl;
         // Prepare pull keys
         std::set<size_t> keys[send_buffer.size()];  // keys for different iteration or permutation of block
         std::vector<size_t> chunk_ids[worker_number];
