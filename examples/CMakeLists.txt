@@ -21,6 +21,13 @@ add_subdirectory(kmeans)
 
 ### Applications
 
+# TestChunk 
+add_executable(TestChunk test_chunk.cpp)
+target_link_libraries(TestChunk husky)
+target_link_libraries(TestChunk husky-ml)
+target_link_libraries(TestChunk ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(TestChunk)
+
 # ClusterManagerMain
 add_executable(ClusterManagerMain ClusterManagerMain.cpp)
 target_link_libraries(ClusterManagerMain husky-ml-master)

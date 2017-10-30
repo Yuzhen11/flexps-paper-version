@@ -77,7 +77,7 @@ struct TableInfo {
     const int dims;
     const ModeType mode_type = ModeType::None;
     Consistency consistency = Consistency::None;
-    const WorkerType worker_type = WorkerType::None;
+    WorkerType worker_type = WorkerType::None;
     ParamType param_type = ParamType::None;
     int kStaleness;
     const bool kEnableDirectModelTransfer;
