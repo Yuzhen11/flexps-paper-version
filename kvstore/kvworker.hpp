@@ -729,6 +729,13 @@ class KVWorker {
                     }
                 }
             }
+            /*
+            if (push) {
+              husky::LOG_I << "push sent from " << info_.global_id << ", size:" << bin.size();
+            } else {
+              husky::LOG_I << "pull sent from " << info_.global_id << ", size:" << bin.size();
+            }
+            */
             customer_->send(info_.get_tid(i), bin);
         }
     }

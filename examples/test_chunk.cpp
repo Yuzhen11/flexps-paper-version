@@ -5,15 +5,20 @@
 
 #include "core/color.hpp"
 
+#include <ctime>
+#include <cstdlib>
+
 using namespace husky;
 
 int main(int argc, char** argv) {
     bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port",
         "dims", "chunk_size", "threads_per_process", "iters",
-        "staleness", "worker_type"});
+        "staleness", "worker_type", "kv_type", 
+        "sleep_time_after_pull", "sleep_time_after_push", "delay_after_pull", "delay_after_push"});
     if (!rt)
         return 1;
 
+    assert(staleness >= 0 && staleness <= 50);
     auto& engine = Engine::Get();
     kvstore::KVStore::Get().Start(Context::get_worker_info(), Context::get_mailbox_event_loop(),
                                   Context::get_zmq_context());
@@ -21,10 +26,15 @@ int main(int argc, char** argv) {
     const int chunk_size = std::stoi(Context::get_param("chunk_size"));
     assert(dims % chunk_size == 0);
     const int staleness = std::stoi(Context::get_param("staleness"));
-    const int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_vector", 1, 0, 
+    const std::string kv_type = Context::get_param("kv_type");
+    const int kv = kvstore::KVStore::Get().CreateKVStore<float>(kv_type, 1, staleness, 
         dims, chunk_size);
     const int threads_per_process = std::stoi(Context::get_param("threads_per_process"));
     const int iters = std::stoi(Context::get_param("iters"));
+    const int sleep_time_after_pull = std::stoi(Context::get_param("sleep_time_after_pull"));
+    const int sleep_time_after_push = std::stoi(Context::get_param("sleep_time_after_push"));
+    const int delay_after_pull = std::stoi(Context::get_param("delay_after_pull"));
+    const int delay_after_push = std::stoi(Context::get_param("delay_after_push"));
 
     auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
     train_task.set_total_epoch(1);
@@ -50,7 +60,8 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    engine.AddTask(train_task, [table_info, iters, dims, chunk_size](const Info& info) {
+    engine.AddTask(train_task, [table_info, iters, dims, chunk_size, 
+        sleep_time_after_pull, sleep_time_after_push, delay_after_pull, delay_after_push](const Info& info) {
         int num_chunks = dims / chunk_size;
         std::vector<size_t> chunk_ids(num_chunks);
         std::iota(chunk_ids.begin(), chunk_ids.end(), 0);
@@ -64,6 +75,8 @@ int main(int argc, char** argv) {
             push_ptrs[i] = &params[i];
         }
 
+        srand(time(0));
+
         auto worker = ml::CreateMLWorker<float>(info, table_info);
         std::chrono::microseconds pull_time{0};
         std::chrono::microseconds push_time{0};
@@ -72,14 +85,33 @@ int main(int argc, char** argv) {
             auto t1 = std::chrono::steady_clock::now();
             worker->PullChunks(chunk_ids, pull_ptrs);
             auto t2 = std::chrono::steady_clock::now();
-            worker->PushChunks(chunk_ids, push_ptrs);
-            auto t3 = std::chrono::steady_clock::now();
 
-            pull_time += std::chrono::duration_cast<std::chrono::microseconds>(t2-t1);
-            push_time += std::chrono::duration_cast<std::chrono::microseconds>(t3-t3);
+            // after pull
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_after_pull));
+            double subdelay = double(rand()) / RAND_MAX * delay_after_pull;
+            std::this_thread::sleep_for(std::chrono::milliseconds(int(subdelay)));
+
+            auto t3 = std::chrono::steady_clock::now();
+            worker->PushChunks(chunk_ids, push_ptrs);
+            auto t4 = std::chrono::steady_clock::now();
+
+            auto local_pull_time = std::chrono::duration_cast<std::chrono::microseconds>(t2-t1);
+            auto local_push_time = std::chrono::duration_cast<std::chrono::microseconds>(t4-t3);
+            pull_time += local_pull_time;
+            push_time += local_push_time;
+            // husky::LOG_I << "iter: " << iter;
+            
+            // after push
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_after_push));
+            subdelay = double(rand()) / RAND_MAX * delay_after_push;
+            std::this_thread::sleep_for(std::chrono::milliseconds(int(subdelay)));
+
+            auto t5 = std::chrono::steady_clock::now();
             if (info.get_cluster_id() == 0) {
-                auto iter_time = std::chrono::duration_cast<std::chrono::microseconds>(t3-t1);
-                husky::LOG_I << "iter_time: " << iter_time.count()/1000.0 << " ms";
+                auto iter_time = std::chrono::duration_cast<std::chrono::microseconds>(t5-t1);
+                husky::LOG_I << "iter_time: " << iter_time.count()/1000.0 << " ms"
+                  << ", pull_time:" << local_pull_time.count()/1000.0 << " ms"
+                  << ", push_time:" << local_push_time.count()/1000.0 << " ms";
             }
         }
         auto end_time = std::chrono::steady_clock::now();

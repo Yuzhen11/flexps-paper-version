@@ -99,14 +99,27 @@ class SSPServer : public ServerBase {
             worker_progress_.resize(src + 1);
         if (push) {  // if is push
             int progress = worker_progress_[src];
+            // if (progress > min_clock_ + staleness_) {
+            //     //husky::LOG_I << "min_clock_:" << min_clock_ << ", staleness_:" << staleness_ << ", progress:" << progress;
+            // }
             if (progress >= clock_count_.size())
                 clock_count_.resize(progress + 1);
             clock_count_[progress] += 1;  // add clock_count_
             worker_progress_[src] += 1;  // advance progress
             int expected_min_clock = progress - staleness_;
             if (expected_min_clock <= min_clock_) {  // acceptable staleness so process it
+                if (server_id_ == 0) {
+                    //husky::LOG_I << "start process push, src:" << src << ", progress:" << progress;
+                }
                 process_push(kv_id, ts, cmd, src, bin, customer);
+
+                if (server_id_ == 0) {
+                    //husky::LOG_I << "process push, src:" << src << ", progress:" << progress;
+                }
             } else {  // blocked to expected_min_clock
+                if (server_id_ == 0) {
+                    //husky::LOG_I << "blocked push";
+                }
                 if (blocked_pushes_.size() <= expected_min_clock)
                     blocked_pushes_.resize(expected_min_clock+1);
                 blocked_pushes_[expected_min_clock].emplace_back(cmd, src, ts, std::move(bin));
@@ -121,10 +134,19 @@ class SSPServer : public ServerBase {
                     else
                         Response<Val>(kv_id, ts, cmd, push, src, res, customer);
                 }
+
+                if (server_id_ == 0) {
+                    pull_count_this_iter_ += 1;
+                    //husky::LOG_I << "Directly response, src:" << src << ", progress:" << worker_progress_[src] << ", pull_count:" << pull_count_this_iter_;
+                }
             } else {  // block it to expected_min_clock(i.e. worker_progress_[src] - staleness_)
                 if (blocked_pulls_.size() <= expected_min_clock)
                     blocked_pulls_.resize(expected_min_clock + 1);
                 blocked_pulls_[expected_min_clock].emplace_back(cmd, src, ts, std::move(bin));
+
+                if (server_id_ == 0) {
+                    //husky::LOG_I << "block src:" << src << ", expected_min_clock:" << expected_min_clock;
+                }
             }
         }
     }
@@ -134,6 +156,8 @@ class SSPServer : public ServerBase {
         assert(staleness_ >= 0);
         assert(staleness_ <= 10);
     }
+
+    int pull_count_this_iter_ = 0;
 
    private:
     /*
@@ -145,6 +169,7 @@ class SSPServer : public ServerBase {
             Response<Val>(kv_id, ts, cmd, true, src, KVPairs<Val>(), customer);
         }
         if (clock_count_[min_clock_] == num_workers_) {
+            pull_count_this_iter_ = 0;
             min_clock_ += 1;
             // release all push blocked at min_clock_
             if (blocked_pushes_.size() <= min_clock_)
@@ -169,6 +194,9 @@ class SSPServer : public ServerBase {
                     else
                         Response<Val>(kv_id, std::get<2>(pull_pair), std::get<0>(pull_pair), false, std::get<1>(pull_pair), res, customer);
                 }
+            }
+            if (server_id_ == 0) {
+                //husky::LOG_I << "Unblocking " << blocked_pulls_[min_clock_].size() << " pulls";
             }
             std::vector<std::tuple<int, int, int, husky::base::BinStream>>().swap(blocked_pulls_[min_clock_]);
         }
