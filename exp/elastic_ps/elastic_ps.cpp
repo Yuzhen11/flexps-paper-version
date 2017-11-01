@@ -148,10 +148,11 @@ int main(int argc, char** argv) {
     auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
     train_task.set_total_epoch(train_epoch);
     train_task.set_worker_num(nums_workers);
-    train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_cluster"));
+    train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_worker"));
 
     engine.AddTask(train_task, [table_info, trainer, num_params, &report_interval, &data_store, lambda, &batch_sizes,
                                 &nums_iters, &alphas, &lr_coeffs, &nums_workers](const Info& info) {
+    auto start_time = std::chrono::steady_clock::now();
         // set objective
         Objective* objective_ptr;
         if (trainer == "lr") {
@@ -165,7 +166,7 @@ int main(int argc, char** argv) {
         SGDOptimizer sgd(objective_ptr, report_interval);
 
         int current_stage = info.get_current_epoch();
-        int num_train_workers = nums_workers[current_stage];
+        int num_train_workers = nums_workers[current_stage] * info.get_worker_info().get_num_processes();
         husky::ASSERT_MSG(num_train_workers > 0, "num_train_workers must be positive!");
 
         // Config for optimizer
@@ -186,6 +187,11 @@ int main(int argc, char** argv) {
             accum_iter += nums_iters[i];
         }
         sgd.train(info, table_info, data_store, conf, accum_iter);
+    auto end_time = std::chrono::steady_clock::now();
+    auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    if (info.get_cluster_id() == 0) {
+        husky::LOG_I << "Stage " <<current_stage << " traintime:" << train_time <<"ms";
+    }
     });
 
     // 5. Submit train task

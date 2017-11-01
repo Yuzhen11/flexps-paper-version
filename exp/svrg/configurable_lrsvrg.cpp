@@ -288,7 +288,7 @@ void SGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
     // every inner loop contains one mini batch
     for (int m=0; m<inner_loop; m++) {
         if (m == 1) {
-            start_time_inner = std::chrono::steady_clock::now();// It's valid when all workers start at the same time
+            start_time_inner = std::chrono::steady_clock::now();
         }
         std::vector<husky::constants::Key> batch_keys = mini_batch.prepare_next_batch();
         std::vector<float> w;
@@ -325,7 +325,7 @@ void SGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
         //mlworker_w.GetKVWorker()->Wait(kv_w, mlworker_w.GetKVWorker()->Push(kv_w, update_keys, update_vals));
         mlworker_w.GetKVWorker()->Wait(kv_w, mlworker_w.GetKVWorker()->Push(kv_w, batch_keys, w_updates0));
         auto start_time_e = std::chrono::steady_clock::now();
-        if (info.get_cluster_id() == 0 && (m + 1)%1000 == 0)
+        if (info.get_cluster_id() == 0&& (m+1)%1000 == 0)
 	        LOG_I<< m <<" batchkeys size:" <<batch_keys.size()<< " total time:" << (std::chrono::duration_cast<std::chrono::milliseconds>(start_time_e - start_time_a)).count();
 	    //LOG_I<< "computation time:" << (std::chrono::duration_cast<std::chrono::milliseconds>(start_time_d - start_time_c)).count()<<"";
     }
@@ -427,7 +427,6 @@ void FGD_update(datastore::DataStore<LabeledPointHObj<float, float, true>>& data
     }
 }
 
-
 int main(int argc, char** argv) {
     auto start_time0 = std::chrono::steady_clock::now();
     // Set config
@@ -439,6 +438,7 @@ int main(int argc, char** argv) {
                                  "num_load_workers",  // Use this number of workers to load data
                                  "num_train_workers",
                                  "fgd_threads_per_worker",  // The number of worker per process for fgd
+                                 "sgd_threads_per_worker",  // The number of worker per process for fgd
                                  "sgd_overall_batch_size",                // Total batch size in sgd stage?
                                  "outer_loop",      // Number of outerloop i.e. (fgd+sgd)
                                  "inner_loop"       // Number of inner_loop i.e. number of minibatches
@@ -452,7 +452,8 @@ int main(int argc, char** argv) {
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
 
-    int threads_per_worker = std::stoi(Context::get_param("fgd_threads_per_worker"));
+    int fgd_threads_per_worker = std::stoi(Context::get_param("fgd_threads_per_worker"));
+    int sgd_threads_per_worker = std::stoi(Context::get_param("sgd_threads_per_worker"));
     int sgd_overall_batch_size = std::stoi(Context::get_param("sgd_overall_batch_size"));
     int outer_loop = std::stoi(Context::get_param("outer_loop"));
     int inner_loop = std::stoi(Context::get_param("inner_loop"));
@@ -465,7 +466,7 @@ int main(int argc, char** argv) {
     datastore::DataStore<LabeledPointHObj<float, float, true>> data_store(Context::get_worker_info().get_num_local_workers());
 
     // create and submit load_task
-    auto load_task = TaskFactory::Get().CreateTask<Task>(); 
+    auto load_task = TaskFactory::Get().CreateTask<Task>();  // 1 epoch, 1 workers
     load_task.set_num_workers(num_load_workers);
     engine.AddTask(std::move(load_task), [&data_store, &num_features](const Info& info) {
         auto local_id = info.get_local_id();
@@ -481,65 +482,78 @@ int main(int argc, char** argv) {
     if (Context::get_worker_info().get_process_id() == 0)
         husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
-    int kv_w = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_vector", threads_per_worker, -1, num_params);  // for bsp server
-    int kv_u = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_vector", threads_per_worker, -1, num_params);
+    // create a configurable task and configure the worker_number in FGD stage and SGD stage
+    int train_epoch = 2 * outer_loop;
+    auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>(train_epoch, num_train_workers);
 
-    // new version begins //
+    std::vector<int> worker_num;
+    std::vector<std::string> worker_num_type;
+    // FGD stage 
+    worker_num.push_back(fgd_threads_per_worker);
+    worker_num_type.push_back("threads_per_worker");
+    // SGD stage 
+    worker_num.push_back(sgd_threads_per_worker);
+    worker_num_type.push_back("threads_per_worker");
+    train_task.set_worker_num(worker_num);
+    train_task.set_worker_num_type(*((const std::vector<std::string>*) (&worker_num_type)));
+
+    int kv_w = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_vector", fgd_threads_per_worker, -1, num_params);  // for bsp server
+    int kv_u = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_vector", sgd_threads_per_worker, -1, num_params);
 	int FGD_total_time = 0;
 	int SGD_total_time = 0;
-    // Define FGD_task
-    auto FGD_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>(1, num_train_workers);
-    FGD_task.set_worker_num({threads_per_worker});
-    FGD_task.set_worker_num_type({"threads_per_worker"});
-    auto FGD_lambda = [kv_w, kv_u, &data_store, alpha, num_params, data_size, &FGD_total_time] (const Info& info) { 
+
+    engine.AddTask(std::move(train_task), [&kv_w, &kv_u, &data_store, &alpha, num_params, data_size,
+                                           &fgd_threads_per_worker, sgd_threads_per_worker, inner_loop, &sgd_overall_batch_size, &FGD_total_time, &SGD_total_time](const Info& info) {
         auto start_time = std::chrono::steady_clock::now();
+
+        datastore::DataStoreWrapper<LabeledPointHObj<float, float, true>> data_store_wrapper(data_store);
+
         ml::mlworker2::PSBspWorker<float> mlworker_u(info, *Context::get_zmq_context(), kv_u, num_params);
         ml::mlworker2::PSBspWorker<float> mlworker_w(info, *Context::get_zmq_context(), kv_w, num_params);
 
-        FGD_update(data_store, kv_w, kv_u, alpha, num_params, info, data_size, mlworker_u, mlworker_w);
-
-        auto end_time = std::chrono::steady_clock::now();
-        if (info.get_cluster_id() == 0) {
-            auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-			FGD_total_time += train_time;
-            husky::LOG_I << YELLOW("FGD Train time: " + std::to_string(train_time) + " ms");
+        std::string epoch_type;
+        int current_epoch = info.get_current_epoch();
+        if (current_epoch % 2 == 0) {
+            epoch_type = "current_epoch: " + std::to_string(current_epoch) + " FGD";
+            if (info.get_cluster_id() == 0) {
+                husky::LOG_I << RED("FGD. current_epoch: " + std::to_string(current_epoch));
+            }
+            // do FGD
+            FGD_update(data_store, kv_w, kv_u, alpha, num_params, info, data_size, mlworker_u, mlworker_w);
+        } else {
+            epoch_type = "current_epoch: " + std::to_string(current_epoch) + " SGD";
+            if (info.get_cluster_id() == 0) {
+                husky::LOG_I << RED("SGD. current_epoch: " + std::to_string(current_epoch));
+            }
+            // do SGD
+            int total_threads = sgd_threads_per_worker* info.get_worker_info().get_num_processes();
+            int batch_size_per_worker = std::ceil(1.0 * std::min(data_size, sgd_overall_batch_size) / total_threads);
+            SGD_update(data_store, kv_w, kv_u, alpha, num_params, inner_loop, batch_size_per_worker, info, mlworker_u, mlworker_w);
         }
-    };
-    
-    // Define SGD_task
-    auto SGD_task = TaskFactory::Get().CreateTask<AutoParallelismTask>();
-    SGD_task.set_epoch_iters_and_batchsizes({inner_loop}, {sgd_overall_batch_size});
-    SGD_task.set_epoch_lambda([kv_w, kv_u, &data_store, alpha, num_params, data_size, &SGD_total_time, sgd_overall_batch_size] (const Info& info, int inner_loop) {
-        auto start_time = std::chrono::steady_clock::now();
-        ml::mlworker2::PSBspWorker<float> mlworker_u(info, *Context::get_zmq_context(), kv_u, num_params);
-        ml::mlworker2::PSBspWorker<float> mlworker_w(info, *Context::get_zmq_context(), kv_w, num_params);
-        int batch_size_per_worker = sgd_overall_batch_size * 1.0 / info.get_num_workers();
-        SGD_update(data_store, kv_w, kv_u, alpha, num_params, inner_loop, batch_size_per_worker, info, mlworker_u, mlworker_w);
 
         auto end_time = std::chrono::steady_clock::now();
-
         if (info.get_cluster_id() == 0) {
             auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-			SGD_total_time += train_time;
-            husky::LOG_I << YELLOW("SGD Train time: " + std::to_string(train_time) + " ms");
+			if (current_epoch % 2 == 0) {
+				FGD_total_time += train_time;
+			} else {
+				SGD_total_time += train_time;
+			}
+            husky::LOG_I << YELLOW(epoch_type + " Train time: " + std::to_string(train_time) + " ms");
         }
     });
-   
-    // Two kinds of alternating tasks FGD_task and SGD_task
-    for (int i = 0; i < outer_loop; i++) {
-        engine.AddTask(FGD_task, FGD_lambda); 
-        engine.AddTask(SGD_task, [](const Info& info) {/*dummy lambda*/});
 
-        // submit train task
-        start_time = std::chrono::steady_clock::now();
-        engine.Submit();
-        end_time = std::chrono::steady_clock::now();
-        if (Context::get_worker_info().get_process_id() == 0) {
-            auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-	    	auto end_to_end_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time0).count();
-            LOG_I << YELLOW("Total SGD time: " + std::to_string(SGD_total_time) + " ms"); LOG_I << YELLOW("Total FGD time: " + std::to_string(FGD_total_time) + " ms");
- 	    	LOG_I<<YELLOW("End_to_end time: " + std::to_string(end_to_end_time) + " ms");
-        }
+    // submit train task
+    start_time = std::chrono::steady_clock::now();
+    engine.Submit();
+    end_time = std::chrono::steady_clock::now();
+    if (Context::get_worker_info().get_process_id() == 0) {
+        auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+		auto end_to_end_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time0).count();
+        LOG_I << YELLOW("Total SGD time: " + std::to_string(SGD_total_time) + " ms");
+        LOG_I << YELLOW("Total FGD time: " + std::to_string(FGD_total_time) + " ms");
+		LOG_I << YELLOW("Total train time: " + std::to_string(SGD_total_time * sgd_threads_per_worker + FGD_total_time * fgd_threads_per_worker) + " ms");
+ 		LOG_I<<YELLOW("End_to_end time: " + std::to_string(end_to_end_time) + " ms");
     }
     engine.Exit();
     kvstore::KVStore::Get().Stop();
