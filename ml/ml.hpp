@@ -30,7 +30,9 @@ CreateMLWorker(const husky::Info& info, const husky::TableInfo& table_info) {
         mlworker.reset(new ml::mlworker::SPMTWorker<Val>(info, table_info,
             *husky::Context::get_zmq_context()));
     } else if (table_info.mode_type == husky::ModeType::PS) {
-        husky::LOG_I << "using " << husky::WorkerTypeName[static_cast<int>(table_info.worker_type)];
+        if (info.get_cluster_id() == 0) {
+            husky::LOG_I << RED("using " + husky::WorkerTypeName[static_cast<int>(table_info.worker_type)]);
+        }
         if (table_info.worker_type == husky::WorkerType::PSWorker) {
             mlworker.reset(new ml::mlworker::PSWorker<Val>(info, table_info));
         } else if (table_info.worker_type == husky::WorkerType::PSMapNoneWorker) {

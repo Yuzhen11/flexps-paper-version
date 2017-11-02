@@ -102,6 +102,7 @@ int main(int argc, char* argv[]) {
         husky::ModeType::PS, 
         husky::Consistency::SSP, 
         husky::WorkerType::PSNoneChunkWorker, 
+        // husky::WorkerType::PSWorker, 
         husky::ParamType::None,
         staleness
     };
@@ -148,8 +149,14 @@ int main(int argc, char* argv[]) {
         }
 
         // training task
+        std::chrono::microseconds pull_time{0};
+        std::chrono::microseconds push_time{0};
+        std::chrono::microseconds comp_time{0};
         for (int iter = 0; iter < current_epoch_num_iters; iter++) {
+            // husky::LOG_I << "iter " << iter;
+            auto t1 = std::chrono::steady_clock::now();
             worker->PullChunks(chunk_ids, pull_ptrs);
+            auto t2 = std::chrono::steady_clock::now();
             step_sums = params;
 
             // training A mini-batch
@@ -184,13 +191,30 @@ int main(int argc, char* argv[]) {
                 for (int j = 0; j < num_features; ++j)
                     step_sums[i][j] -= params[i][j];
 
+            auto t3 = std::chrono::steady_clock::now();
             worker->PushChunks(chunk_ids, push_ptrs);
+            auto t4 = std::chrono::steady_clock::now();
+
+            auto local_pull_time = std::chrono::duration_cast<std::chrono::microseconds>(t2-t1);
+            auto local_push_time = std::chrono::duration_cast<std::chrono::microseconds>(t4-t3);
+            auto local_comp_time = std::chrono::duration_cast<std::chrono::microseconds>(t3-t2);
+            pull_time += local_pull_time;
+            push_time += local_push_time;
+            comp_time += local_comp_time;
+            if (info.get_cluster_id() == 0) {
+                husky::LOG_I << "pull:" << local_pull_time.count()/1000.
+                  << ", push:" << local_push_time.count()/1000. 
+                  << ", comp:" << local_comp_time.count()/1000.;
+            }
         }
         auto end_time = std::chrono::steady_clock::now();
         auto epoch_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         if (info.get_cluster_id() == 0){
             husky::LOG_I << "training time for epoch " << current_stage << ": " << epoch_time << " ms";
-            test_error(params, data_store, current_epoch_num_iters, K, data_size, num_features, info.get_cluster_id());
+            husky::LOG_I << "pull_time: " << pull_time.count()/1000. << " ms";
+            husky::LOG_I << "push_time: " << push_time.count()/1000. << " ms";
+            husky::LOG_I << "comp_time: " << comp_time.count()/1000. << " ms";
+            // test_error(params, data_store, current_epoch_num_iters, K, data_size, num_features, info.get_cluster_id());
         }
     });
     start_time = std::chrono::steady_clock::now();

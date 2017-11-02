@@ -480,8 +480,8 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
         assert(pull_count_ == push_count_);
         ++pull_count_;
         
-        int stale = std::max(pull_count_ - staleness_ - 1, 0);
-        shared_state_.Get()->p_model_->PullWithMinClock(keys, vals, local_id_, stale);
+        int required_clock = std::max(pull_count_ - staleness_, 0);
+        shared_state_.Get()->p_model_->PullWithMinClock(keys, vals, local_id_, required_clock);
     }
 
     virtual void PushChunks(const std::vector<size_t>& chunk_keys, const std::vector<std::vector<Val>*>& chunk_vals) override {
@@ -495,16 +495,16 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
         ++pull_count_;
         shared_state_.Get()->p_push_buffer_->Flush(local_id_);
         
-        int stale = std::max(pull_count_ - staleness_ - 1, 0);
-        shared_state_.Get()->p_model_->PullChunksWithMinClock(chunk_keys, chunk_vals, local_id_, stale, nullptr);
+        int required_clock = std::max(pull_count_ - staleness_, 0);
+        shared_state_.Get()->p_model_->PullChunksWithMinClock(chunk_keys, chunk_vals, local_id_, required_clock, nullptr);
     }
 
     // v2: no read-your-writes guarantee
     virtual void Prepare_v2(const std::vector<husky::constants::Key>& keys) override {
         ++pull_count_;
         keys_ = const_cast<std::vector<husky::constants::Key>*>(&keys);
-        int stale = std::max(pull_count_ - staleness_ - 1, 0);
-        shared_state_.Get()->p_model_->Prepare(keys, local_id_, stale);
+        int required_clock = std::max(pull_count_ - staleness_, 0);
+        shared_state_.Get()->p_model_->Prepare(keys, local_id_, required_clock);
         delta_.clear();
         delta_.resize(keys.size());
     }
@@ -654,8 +654,8 @@ class PSMapChunkWorker : public mlworker::GenericMLWorker<Val> {
         // 3. Pull missing keys from process cache
         if (!uncached_keys.empty()) {
             std::vector<Val> tmp_vals;
-            int stale = std::max(pull_count_ - staleness_ -1, 0);
-            auto cache_ts = shared_state_.Get()->p_model_->PullWithMinClock(uncached_keys, &tmp_vals, local_id_, stale);
+            int required_clock = std::max(pull_count_ - staleness_, 0);
+            auto cache_ts = shared_state_.Get()->p_model_->PullWithMinClock(uncached_keys, &tmp_vals, local_id_, required_clock);
             if (keys.size() == uncached_keys.size()) {
                 cache_ts_ = cache_ts;
             }
