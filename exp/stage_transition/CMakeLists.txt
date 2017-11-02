@@ -1,0 +1,5 @@
+add_executable(StageTransition stage_transition.cpp)
+target_link_libraries(StageTransition husky)
+target_link_libraries(StageTransition husky-ml)
+target_link_libraries(StageTransition ${HUSKY_EXTERNAL_LIB})
+husky_default_properties(StageTransition)
