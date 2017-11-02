@@ -16,7 +16,7 @@ using husky::lib::ml::LabeledPointHObj;
 enum class DataFormat { kLIBSVMFormat, kTSVFormat };
 
 template <typename FeatureT, typename LabelT, bool is_sparse>
-void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, LabelT, is_sparse>>& data, DataFormat format, int num_features, int local_id) {
+void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, LabelT, is_sparse>>& data, DataFormat format, int num_features, int local_id, int lines_per_thread = 0) {
     ASSERT_MSG(num_features > 0, "the number of features is non-positive.");
     using DataObj = LabeledPointHObj<FeatureT, LabelT, is_sparse>;
 
@@ -52,7 +52,7 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
                     tok = strtok_r(NULL, " \t:", &pos);
                 }
                 data.Push(local_id, std::move(this_obj));
-            });
+            }, lines_per_thread);
             break;
        }
        case DataFormat::kTSVFormat: {
@@ -79,7 +79,7 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
                 }
 
                 data.Push(local_id, std::move(this_obj));
-            });
+            }, lines_per_thread);
             break;
        }
        default:
@@ -88,13 +88,13 @@ void load_data(std::string url, datastore::DataStore<LabeledPointHObj<FeatureT, 
 }
 
 template <typename ParseT>
-void load_line_input(std::string& url, ParseT parse) {
+void load_line_input(std::string& url, ParseT parse, int lines_per_thread = 0) {
     // setup input format
     auto& infmt = husky::io::InputFormatStore::create_line_inputformat();
     
     infmt.set_input(url);
 
-
+    int line_count = 0;
     // loading
     typename io::LineInputFormat::RecordT record;
     bool success = false;
@@ -103,6 +103,10 @@ void load_line_input(std::string& url, ParseT parse) {
         if (success == false)
             break;
         parse(io::LineInputFormat::recast(record));
+        line_count += 1;
+        if (lines_per_thread != 0 && line_count == lines_per_thread) {
+            break;
+        }
     }
 }
 

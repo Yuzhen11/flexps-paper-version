@@ -3,6 +3,7 @@ include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/husky ${HUSKY_EX
 add_subdirectory(svrg)
 add_subdirectory(elastic_ps)
 add_subdirectory(stage_transition)
+add_subdirectory(sgd_hogwild)
 
 ### Applications
 
