@@ -1,5 +1,7 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <glog/logging.h>
+#include <gflags/gflags.h>
 #include <cassert>
 #include <chrono>
 #include <string>
@@ -18,11 +20,11 @@
 /*
  * Configuration
  *
+ * task_scheduler_type=autoparallelism
  * batch_sizes=<stage_0_size>,<stage_1_size>...
  * nums_iters=<stage_i_iters>...
  * alphas=<stage_i_learning_rate>...
  * lr_coeffs=<stage_i_learning_rate_decay_steps>...
- * nums_train_workers=<stage_i_num_train_workers>...
  * num_load_workers=<number>
  * report_iterval=0 # no report
  * trainer=[lr|svm|lasso]
@@ -59,35 +61,33 @@ void get_stage_conf(const std::string& conf_str, std::vector<T>& vec, int num_st
 
 int main(int argc, char** argv) {
     // Get configs
-    bool rt = init_with_args(
-        argc, argv,
-        {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode", "hdfs_namenode_port", "input",
-         "num_features", "train_epoch", "trainer", "staleness", "consistency", "batch_sizes", "nums_iters", "alphas",
-         "nums_train_workers", "lr_coeffs", "num_load_workers", "report_interval", "lambda"});
+    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port",
+                                          "hdfs_namenode", "hdfs_namenode_port", "input", "num_features", "train_epoch",
+                                          "trainer", "staleness", "consistency", "batch_sizes", "nums_iters", "alphas",
+                                          "lr_coeffs", "num_load_workers", "report_interval", "lambda", "chunk_size"});
     ASSERT_MSG(rt, "cannot initialize with args");
 
+    int train_epoch = std::stoi(Context::get_param("train_epoch"));
     auto batch_size_str = Context::get_param("batch_sizes");
-    auto nums_workers_str = Context::get_param("nums_train_workers");
     auto nums_iters_str = Context::get_param("nums_iters");
     auto alphas_str = Context::get_param("alphas");
     auto lr_coeffs_str = Context::get_param("lr_coeffs");
-
-    int train_epoch = std::stoi(Context::get_param("train_epoch"));
-    const std::string& trainer = Context::get_param("trainer");
+    int chunk_size= std::stoi(Context::get_param("chunk_size"));
+    int staleness = std::stoi(Context::get_param("staleness"));
 
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
-    int num_features = std::stoi(Context::get_param("num_features"));
-    int num_params = num_features + 1;  // bias
     int report_interval = std::stoi(Context::get_param("report_interval"));
     float lambda = (Context::get_param("lambda") == "") ? 0. : std::stod(Context::get_param("lambda"));
+    const std::string& trainer = Context::get_param("trainer");
+    int num_features = std::stoi(Context::get_param("num_features"));
+    int num_params = num_features + 1;  // bias
+
     // Get configs for each stage
     std::vector<int> batch_sizes;
-    std::vector<int> nums_workers;
     std::vector<int> nums_iters;
     std::vector<float> alphas;
     std::vector<float> lr_coeffs;
     get_stage_conf(batch_size_str, batch_sizes, train_epoch);
-    get_stage_conf(nums_workers_str, nums_workers, train_epoch);
     get_stage_conf(nums_iters_str, nums_iters, train_epoch);
     get_stage_conf(alphas_str, alphas, train_epoch);
     get_stage_conf(lr_coeffs_str, lr_coeffs, train_epoch);
@@ -96,7 +96,6 @@ int main(int argc, char** argv) {
     if (Context::get_worker_info().get_process_id() == 0) {
         std::stringstream ss;
         vec_to_str("batch_sizes", batch_sizes, ss);
-        vec_to_str("nums_workers", nums_workers, ss);
         vec_to_str("nums_iters", nums_iters, ss);
         vec_to_str("alphas", alphas, ss);
         vec_to_str("lr_coeffs", lr_coeffs, ss);
@@ -134,30 +133,26 @@ int main(int argc, char** argv) {
     if (Context::get_param("consistency") == "SSP") {
         consistency = husky::Consistency::SSP;
         storage_type = "ssp_add_vector";
-    } else if (Context::get_param("consistency") == "ASP") {
-        consistency = husky::Consistency::ASP;
-        storage_type = "default_add_vector";
-    }
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>(storage_type, -1, -1, num_params);
+    } else {
+        LOG_I<<"Currently not supported!";
+        return -1;
+    } 
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>(storage_type, 1, staleness, num_params, chunk_size);
+    auto train_task = TaskFactory::Get().CreateTask<AutoParallelismTask>();
+    train_task.set_total_epoch(train_epoch);
     TableInfo table_info{
         kv, num_params,
         husky::ModeType::PS,
         consistency,
-        husky::WorkerType::PSWorker, 
-        husky::ParamType::None,
-    };
+        husky::WorkerType::PSNoneChunkWorker,
+        husky::ParamType::None};
     if (consistency == husky::Consistency::SSP) {
-        table_info.kStaleness = std::stoi(Context::get_param("staleness"));
+        table_info.kStaleness = staleness;
     }
 
-    auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
-    train_task.set_total_epoch(train_epoch);
-    train_task.set_worker_num(nums_workers);
-    train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_worker"));
-
-    engine.AddTask(train_task, [table_info, trainer, num_params, &report_interval, &data_store, lambda, &batch_sizes,
-                                &nums_iters, &alphas, &lr_coeffs, &nums_workers](const Info& info) {
-    auto start_time = std::chrono::steady_clock::now();
+    train_task.set_epoch_iters_and_batchsizes(nums_iters, batch_sizes);
+    train_task.set_epoch_lambda([&report_interval, &data_store, lambda, trainer, &batch_sizes, &alphas, &lr_coeffs,
+                                 num_params, table_info, chunk_size](const Info& info, int n_iters) {
         // set objective
         Objective* objective_ptr;
         if (trainer == "lr") {
@@ -171,33 +166,28 @@ int main(int argc, char** argv) {
         SGDOptimizer sgd(objective_ptr, report_interval);
 
         int current_stage = info.get_current_epoch();
-        int num_train_workers = nums_workers[current_stage] * info.get_worker_info().get_num_processes();
-        husky::ASSERT_MSG(num_train_workers > 0, "num_train_workers must be positive!");
-
-        // Config for optimizer
         lib::OptimizerConfig conf;
-        conf.num_iters = nums_iters[current_stage];
+        auto num_train_workers = info.get_num_workers();
+        husky::ASSERT_MSG(num_train_workers > 0, "num_train_workers must be positive!");
+        conf.num_iters = n_iters;
         // get batch size and learning rate for each worker thread
         conf.batch_size = batch_sizes[current_stage] / num_train_workers;
-        if (info.get_cluster_id() < batch_sizes[current_stage] % num_train_workers)
+        if (info.get_cluster_id() < batch_sizes[current_stage] % num_train_workers) {
             conf.batch_size += 1;
+        }
         conf.alpha = alphas[current_stage] / num_train_workers;
         conf.learning_rate_decay = lr_coeffs[current_stage];
         if (info.get_cluster_id() == 0) {
-            husky::LOG_I << "Stage " << current_stage << ": " << conf.num_iters << "," << conf.batch_size << ","
-                         << conf.alpha << "," << conf.learning_rate_decay;
+            husky::LOG_I << "Stage " << current_stage << " (" << num_train_workers << " workers): " << conf.num_iters
+                         << "," << conf.batch_size << "," << conf.alpha << "," << conf.learning_rate_decay;
         }
         int accum_iter = 0;
         for (int i = 0; i < info.get_current_epoch(); ++i) {
-            accum_iter += nums_iters[i];
+            accum_iter += n_iters;
         }
-        sgd.train(info, table_info, data_store, conf, accum_iter);
-    auto end_time = std::chrono::steady_clock::now();
-    auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    if (info.get_cluster_id() == 0) {
-        husky::LOG_I << "Stage " <<current_stage << " traintime:" << train_time <<"ms";
-    }
+        sgd.trainChunkModel(info, table_info, data_store, conf, chunk_size, accum_iter);
     });
+    engine.AddTask(train_task, [](const Info& info) {});
 
     // 5. Submit train task
     start_time = std::chrono::steady_clock::now();

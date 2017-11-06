@@ -145,6 +145,7 @@ int main(int argc, char** argv) {
     train_task.set_epoch_iters_and_batchsizes(nums_iters, batch_sizes);
     train_task.set_epoch_lambda([&report_interval, &data_store, lambda, trainer, &batch_sizes, &alphas, &lr_coeffs,
                                  num_params, table_info](const Info& info, int n_iters) {
+    auto t1 = std::chrono::steady_clock::now();
         // set objective
         Objective* objective_ptr;
         if (trainer == "lr") {
@@ -178,6 +179,11 @@ int main(int argc, char** argv) {
             accum_iter += n_iters;
         }
         sgd.train(info, table_info, data_store, conf, accum_iter);
+    auto t2 = std::chrono::steady_clock::now();
+    auto t = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+    if (info.get_cluster_id() == 0) {
+        husky::LOG_I << "Stage " <<current_stage << " traintime:" << t <<"ms";
+    }
     });
     engine.AddTask(train_task, [](const Info& info) {});
 

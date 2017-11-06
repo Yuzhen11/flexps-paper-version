@@ -55,4 +55,3 @@ target_link_libraries(ScalabilityTest husky)
 target_link_libraries(ScalabilityTest husky-ml)
 target_link_libraries(ScalabilityTest ${HUSKY_EXTERNAL_LIB})
 husky_default_properties(ScalabilityTest )
-

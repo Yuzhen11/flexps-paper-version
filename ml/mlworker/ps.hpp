@@ -441,7 +441,7 @@ class PSNoneChunkWorker : public mlworker::GenericMLWorker<Val> {
     PSNoneChunkWorker& operator=(PSNoneChunkWorker&&) = delete;
 
     PSNoneChunkWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context) :
-        shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
+        shared_state_(table_info.kv_id, info.is_leader(), info.get_num_local_workers(), context),
         info_(info),
         model_id_(table_info.kv_id) {
         size_t num_params = table_info.dims;
