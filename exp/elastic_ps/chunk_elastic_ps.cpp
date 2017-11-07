@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
         argc, argv,
         {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode", "hdfs_namenode_port", "input",
          "num_features", "train_epoch", "trainer", "staleness", "consistency", "batch_sizes", "nums_iters", "alphas",
-         "nums_train_workers", "lr_coeffs", "num_load_workers", "report_interval", "lambda"});
+         "nums_train_workers", "lr_coeffs", "num_load_workers", "report_interval", "lambda", "chunk_size"});
     ASSERT_MSG(rt, "cannot initialize with args");
 
     auto batch_size_str = Context::get_param("batch_sizes");
@@ -72,6 +72,8 @@ int main(int argc, char** argv) {
     auto alphas_str = Context::get_param("alphas");
     auto lr_coeffs_str = Context::get_param("lr_coeffs");
 
+    int staleness = std::stoi(Context::get_param("staleness"));
+    int chunk_size = std::stoi(Context::get_param("chunk_size"));
     int train_epoch = std::stoi(Context::get_param("train_epoch"));
     const std::string& trainer = Context::get_param("trainer");
 
@@ -134,20 +136,21 @@ int main(int argc, char** argv) {
     if (Context::get_param("consistency") == "SSP") {
         consistency = husky::Consistency::SSP;
         storage_type = "ssp_add_vector";
-    } else if (Context::get_param("consistency") == "ASP") {
-        consistency = husky::Consistency::ASP;
-        storage_type = "default_add_vector";
-    }
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>(storage_type, -1, -1, num_params);
+    } else {
+        LOG_I<<"Currently not supported!";
+        return -1;
+    } 
+
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>(storage_type, 1, staleness, num_params, chunk_size);
     TableInfo table_info{
         kv, num_params,
         husky::ModeType::PS,
         consistency,
-        husky::WorkerType::PSWorker, 
+        husky::WorkerType::PSNoneChunkWorker, 
         husky::ParamType::None,
     };
     if (consistency == husky::Consistency::SSP) {
-        table_info.kStaleness = std::stoi(Context::get_param("staleness"));
+        table_info.kStaleness = staleness;
     }
 
     auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
@@ -156,7 +159,7 @@ int main(int argc, char** argv) {
     train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_worker"));
 
     engine.AddTask(train_task, [table_info, trainer, num_params, &report_interval, &data_store, lambda, &batch_sizes,
-                                &nums_iters, &alphas, &lr_coeffs, &nums_workers](const Info& info) {
+                                &nums_iters, &alphas, &lr_coeffs, &nums_workers, chunk_size](const Info& info) {
     auto start_time = std::chrono::steady_clock::now();
         // set objective
         Objective* objective_ptr;
@@ -191,7 +194,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < info.get_current_epoch(); ++i) {
             accum_iter += nums_iters[i];
         }
-        sgd.train(info, table_info, data_store, conf, accum_iter);
+        sgd.trainChunkModel(info, table_info, data_store, conf, chunk_size, accum_iter);
     auto end_time = std::chrono::steady_clock::now();
     auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     if (info.get_cluster_id() == 0) {

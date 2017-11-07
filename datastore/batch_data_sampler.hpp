@@ -54,6 +54,15 @@ class BatchDataSampler {
         }
         return {index_set.begin(), index_set.end()};
     }
+    void prepare_next_batch_data() {
+        if (empty())
+            return;
+        for (int i = 0; i < batch_size_; ++ i) {
+            auto& data = data_sampler_.next();
+            batch_data_[i] = const_cast<T*>(&data);
+        }
+    }
+
     const std::vector<T*>& get_data_ptrs() {
         if (empty())
             return empty_batch_;
