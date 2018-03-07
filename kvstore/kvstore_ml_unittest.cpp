@@ -45,7 +45,7 @@ TEST_F(TestKVStore, Create) {
     kvstore::KVStore::Get().Start(worker_info, el, &zmq_context);
 
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(0);
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1);
     EXPECT_EQ(kv1, 0);
     EXPECT_EQ(kvstore::RangeManager::Get().GetNumServers(), 1);  // 1 server by default
     EXPECT_EQ(kvstore::RangeManager::Get().GetNumRanges(), 1);  // 1 range
@@ -76,7 +76,7 @@ TEST_F(TestKVStore, PushPull) {
     kvstore::KVStore::Get().Start(worker_info, el, &zmq_context);
 
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(0);
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>();
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1);
     // Withcout calling RangeManager::SetMaxKeyAndChunkSize(...), 
     // the max_key is the max, the chunk size is 100
 
@@ -92,8 +92,8 @@ TEST_F(TestKVStore, PushPull2) {
     kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 3);
 
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(0);
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({ {husky::constants::kStorageType, husky::constants::kUnorderedMapStorage} }, 9, 2);
-    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>({ {husky::constants::kStorageType, husky::constants::kVectorStorage} }, 9, 2);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
+    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_vector", -1, -1, 9, 2);
     // num_servers: 3, chunk_size: 2, max_key: 9
     // the result should be:
     // 5 chunks
@@ -157,8 +157,8 @@ TEST_F(TestKVStore, PushPullChunks) {
     kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 3);
 
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(0);
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({ {husky::constants::kStorageType, husky::constants::kUnorderedMapStorage}}, 10, 2);
-    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>({ {husky::constants::kStorageType, husky::constants::kVectorStorage} }, 10, 2);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 2);
+    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_vector", -1, -1, 10, 2);
     // num_servers: 3, chunk_size: 2, max_key: 10
     // the result should be:
     // 5 chunks

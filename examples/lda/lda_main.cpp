@@ -205,8 +205,6 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
 
     /*  difine the constants used int this function*/ 
     int need_compute_llh = std::stoi(Context::get_param("compute_llh"));
-    int num_epochs = std::stoi(Context::get_param("num_epochs"));
-    int num_process = std::stoi(Context::get_param("num_process"));
     int num_batches = std::stoi(Context::get_param("num_batches"));
     int max_vocs_each_pull = std::stoi(Context::get_param("max_vocs_each_pull"));
     std::string result_write_path = Context::get_param("result_write_path");
@@ -243,10 +241,6 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
     std::vector<float> llh_and_time(9, 0.0);
 
     auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
-
-    //---------------------------------------------
-    //For multiple epoch task only (SPMT for example)
-    bool is_last_epoch = (Context::get_param("kType") == "PS") ? true : ((info.get_current_epoch() + 1) % num_process == 0);
 
     std::vector<std::vector<int>> word_topic_count;
     std::vector<std::vector<int>> word_topic_updates;
@@ -372,12 +366,9 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
             for (int k = 0; k < num_topics; k++) {
                 topic_summary[k] = word_topic_count[topic_summary_start][k];
                 sum += topic_summary[k];
-                if (info.get_cluster_id() == 0) {
-                    std::cout<<topic_summary[k]<<" ";
-                }
             }
             if (info.get_cluster_id() == 0) {
-                std::cout<<" sum is:"<<sum<<std::endl;
+                LOG_I<<" sum is:"<<sum;
             }
 
             LDAStats lda_stats(topic_summary, num_topics, max_voc_id, alpha, beta);
@@ -385,24 +376,20 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
             double sum_llh = 0;
             // -------------------------------------------------------------
             // 1. Word llh. Only computed in the last iteration of last epoch
-            if ((i == num_iterations && is_last_epoch) || (Context::get_param("kType") == "PS")) {
-                sum_llh += lda_stats.ComputeWordLLH(vocab_id_start, vocab_id_end, word_topic_count, find_start_idx); 
-            }
+            sum_llh += lda_stats.ComputeWordLLH(vocab_id_start, vocab_id_end, word_topic_count, find_start_idx); 
             double word_llh = sum_llh;
 
             // ---------------------------------------------------------------
             // 2. Doc llh. Each thread computes by going through local corpus.
             // Computed in the last iteration of every epoch
-            if (i == num_iterations || Context::get_param("kType") == "PS") {
-                for (auto& doc : corpus) {
-                    sum_llh += lda_stats.ComputeOneDocLLH(doc);
-                }
+            for (auto& doc : corpus) {
+                sum_llh += lda_stats.ComputeOneDocLLH(doc);
             }
             double doc_llh = sum_llh - word_llh;
 
-            // 3. Word summary llh. Only one thread computes it at the end of all epochs for SPMT
+            // 3. Word summary llh.
             // But is computed in every epoch and every iteration for PS
-            if ((info.get_cluster_id() == 0 && is_last_epoch && i == num_iterations) || (info.get_cluster_id() == 0 && Context::get_param("kType") == "PS")) {
+            if (info.get_cluster_id() == 0 ) {
                 sum_llh += lda_stats.ComputeWordLLHSummary();
             }
             double summary_llh = sum_llh - doc_llh - word_llh;
@@ -427,13 +414,8 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
                         agg_llh += tmp;
                     }
                 }
-                // -----------------------------------------
-                // For SPMT task,
-                // only the last iteration sum all word llhs
-                if (i == num_iterations || Context::get_param("kType") == "PS") {
-                    LOG_I<<"local word llh:"<<word_llh<<" local doc_llh:"<<doc_llh<<" summary_llh:"<<summary_llh<<" agg_llh:"<<agg_llh;
-                    llh_and_time_updates[lda_llh_idx] = agg_llh;
-                }
+                LOG_I<<"local word llh:"<<word_llh<<" local doc_llh:"<<doc_llh<<" summary_llh:"<<summary_llh<<" agg_llh:"<<agg_llh;
+                llh_and_time_updates[lda_llh_idx] = agg_llh;
             }
             auto mailbox_end_time = std::chrono::steady_clock::now();
             mailbox_time = mailbox_end_time - mailbox_start_time;
@@ -454,65 +436,58 @@ void batch_training_by_chunk(std::vector<husky::LDADoc>& corpus, int lda_stat_ta
             llh_and_time_updates[mailbox_time_idx] = mailbox_time.count();
             llh_and_time_updates[llh_time_idx] = llh_time.count();
 
-            LOG_I<<"llh and time updates";
+            std::string update_msg = "llh and time updates\n";
             for (auto a : llh_and_time_updates) {
-                LOG_I<<a;
+                update_msg += std::to_string(a) + " ";
             }
+            LOG_I<<update_msg;
             int ts = kvworker->Push(lda_stat_table, stat_keys, llh_and_time_updates, true);
             kvworker->Wait(lda_stat_table, ts);
-        }
 
-        if ((info.get_cluster_id() == 0 && is_last_epoch && i == num_iterations) || (info.get_cluster_id() == 0 && Context::get_param("kType") == "PS")) {
+            std::fill(llh_and_time.begin(), llh_and_time.end(), 0);
+            ts = kvworker->Pull(lda_stat_table, stat_keys, &llh_and_time, true);
+            kvworker->Wait(lda_stat_table, ts);
+
             std::ofstream ofs;
             ofs.open(result_write_path, std::ofstream::out | std::ofstream::app);
             if (!ofs.is_open()) {
                 LOG_I<<"Error~ cannot open file";
             }
-            std::fill(llh_and_time.begin(), llh_and_time.end(), 0);
-            int ts = kvworker->Pull(lda_stat_table, stat_keys, &llh_and_time, true);
-            kvworker->Wait(lda_stat_table, ts);
-            // -----------------------------------
-            // For PS task, each iteration is just each one iteration since all the docs are went through
-            // For SPMT task, each iteration is num_process epochs when all the docs are went through
-            int iteration = (Context::get_param("kType") == "PS") ? i : (info.get_current_epoch() / num_process + 1);
-            ofs << iteration <<"   ";
-            //ofs << std::setw(4) << llh_and_time[pull_time_idx] <<"s "<< llh_and_time[push_time_idx] <<"s " << llh_and_time[sample_time_idx] << "s " 
+            ofs << i <<"   ";
             ofs << llh_and_time[train_time_idx] <<" "<< llh_and_time[lda_llh_idx]<<" ";
             ofs << std::setw(4) << llh_and_time[mailbox_time_idx]<<"s "<<llh_and_time[llh_time_idx]<<"s ";
             ofs << std::setw(4) << llh_and_time[lda_llh_idx] << "s\n";
-            LOG_I << "epoch:"<<info.get_current_epoch()<<" ";
+            ofs.close();
 
-            LOG_I<<"Push:";
+            update_msg = "epoch:" + std::to_string(info.get_current_epoch()) + "\nPush:\n";
             for (auto& a : llh_and_time) {
                 a *= -1.0;
-                LOG_I<<a;
+                update_msg += std::to_string(a) + " ";
             }
+            LOG_I<<update_msg;
+
             // clear the llh and start next iteration
             ts = kvworker->Push(lda_stat_table, stat_keys, llh_and_time, true);
             kvworker->Wait(lda_stat_table, ts);
-            ofs.close();
         }
     }  // end of iteration
 }
 
 int main(int argc, char** argv) {
-    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input", "kWorkerType",
-                                          "hdfs_namenode", "hdfs_namenode_port", "compute_llh", "result_write_path", "num_epochs", "num_process", "kType",
+    bool rt = init_with_args(argc, argv, {"worker_port", "cluster_manager_host", "cluster_manager_port", "input",
+                                          "hdfs_namenode", "hdfs_namenode_port", "compute_llh", "result_write_path",
                                           "alpha", "beta", "num_topics", "num_iterations", "num_load_workers", "num_train_workers", "max_voc_id", "staleness", 
                                           "num_batches", "max_vocs_each_pull", "consistency"}); 
     int num_topics = std::stoi(Context::get_param("num_topics"));
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
     int num_train_workers = std::stoi(Context::get_param("num_train_workers"));
     int max_voc_id = std::stoi(Context::get_param("max_voc_id"));
-    int num_epochs = std::stoi(Context::get_param("num_epochs"));
+    int num_epochs = 1;
     int num_iterations= std::stoi(Context::get_param("num_iterations"));
     float alpha = std::stof(Context::get_param("alpha"));
     float beta = std::stof(Context::get_param("beta"));
-    std::string staleness = Context::get_param("staleness"); 
-    std::string kType = Context::get_param("kType");
+    int staleness = std::stoi(Context::get_param("staleness")); 
     std::string consistency =  Context::get_param("consistency");
-    std::string kWorkerType = Context::get_param("kWorkerType");
-    int num_process = std::stoi(Context::get_param("num_process"));
 
     if (!rt)
         return 1;
@@ -529,97 +504,59 @@ int main(int argc, char** argv) {
     //            Store the number of word v assigned to topic k 
     //            
 
-    // Create the DataStore
+    /* Loadtask */
     datastore::DataStore<LDADoc> corpus(Context::get_worker_info().get_num_local_workers());
-    // Loadtask
-    auto load_task = TaskFactory::Get().CreateTask<HuskyTask>(1, num_load_workers);  // 1 epoch
+    auto load_task = TaskFactory::Get().CreateTask<Task>(1, num_load_workers); // 1 epoch
     auto load_task_lambda = [&corpus, num_topics](const Info& info) {
         auto local_id = info.get_local_id();
         load_data(corpus, num_topics, info);
     };
-    load_task.set_num_workers(num_load_workers);
     engine.AddTask(load_task, load_task_lambda); 
-    //engine.Submit(); cannot submit twice?
 
-    std::map<std::string, std::string> stat_hint = 
-    {
-        {husky::constants::kType, husky::constants::kPS},
-        {husky::constants::kStorageType, husky::constants::kVectorStorage},
-        {husky::constants::kNumWorkers, "1"},
-        {husky::constants::kConsistency, husky::constants::kASP}
+    int lda_stat_table = kvstore::KVStore::Get().CreateKVStore<float>("default_add_vector", -1, -1, 9, 9); // dimension is 9 chunck size is also 9
+
+    /* LDA Task */
+    int dim = (max_voc_id+1) * num_topics;
+    int lda_table = kvstore::KVStore::Get().CreateKVStore<int>("ssp_add_vector", num_train_workers, staleness, dim, num_topics); // chunk size is set to num_topics
+    auto lda_task = TaskFactory::Get().CreateTask<Task>(num_epochs, num_train_workers);
+    TableInfo lda_table_info {
+        lda_table, dim,
+        husky::ModeType::PS, 
+        husky::Consistency::SSP, 
+        husky::WorkerType::PSWorker, 
+        husky::ParamType::None,
+        staleness
     };
-    int lda_stat_table = kvstore::KVStore::Get().CreateKVStore<float>(stat_hint, 9, 9); // chunk size is set to num_topics
-
-    std::map<std::string, std::string> hint = 
-    {
-        //{husky::constants::kType, husky::constants::kPS},
-        {husky::constants::kType, kType},
-        //{husky::constants::kParamType, husky::constants::kChunkType},
-        {husky::constants::kEnableDirectModelTransfer, "true"},
-
-        
-        {husky::constants::kStaleness, staleness},
-        
-        {husky::constants::kStorageType, husky::constants::kVectorStorage},
-        {husky::constants::kNumWorkers, std::to_string(num_train_workers)},
-
-        {husky::constants::kWorkerType, kWorkerType},
-        
-        //{husky::constants::kConsistency, husky::constants::kSSP}
-        {husky::constants::kConsistency, consistency}
-        //{husky::constants::kConsistency, husky::constants::kASP}
-    };
-
-    // set up kvstore
-    int lda_table = kvstore::KVStore::Get().CreateKVStore<int>(hint, (max_voc_id+1) * num_topics, num_topics); // chunk size is set to num_topics
-
-    auto lda_task = TaskFactory::Get().CreateTask<MLTask>(); // 1 epoch 10 threads
-    lda_task.set_hint(hint);
-    lda_task.set_kvstore(lda_table); 
-    lda_task.set_dimensions((max_voc_id + 1) * num_topics);
-    lda_task.set_num_workers(num_train_workers);
-    lda_task.set_total_epoch(num_epochs);
-
-    engine.AddTask(lda_task, [&corpus, num_epochs, num_process, lda_stat_table, lda_table, num_topics, max_voc_id, num_iterations, alpha, beta](const Info& info) {
+    
+    engine.AddTask(lda_task, [&corpus, num_epochs,  lda_stat_table, lda_table, lda_table_info, num_topics, max_voc_id, num_iterations, alpha, beta](const Info& info) {
         int local_id = info.get_local_id();
         auto& local_corpus = corpus.get_local_data(local_id);
-        auto mlworker = ml::CreateMLWorker<int>(info);
+        auto mlworker = ml::CreateMLWorker<int>(info, lda_table_info);
         LOG_I<<info.get_cluster_id()<<" There are:"<<local_corpus.size()<<" docs locally"<<std::endl;
 
         //--------------------------------------------------
         // 0. Initialize two tables according to randomly assigned topics
-        // For multi epoch tasks(SPMT) this is to ensure same corpus will not contribute more than one times
         auto start_epoch_timer = std::chrono::steady_clock::now();
-        if (info.get_current_epoch() < num_process || Context::get_param("kType") == "PS") {
-            init_tables(local_corpus, mlworker, num_topics, max_voc_id);
-        }
+        init_tables(local_corpus, mlworker, num_topics, max_voc_id);
 
         // -----------------------------------
         // 1. statistic header only write once
-        if (info.get_cluster_id() == 0 && info.get_current_epoch() == 0) {
+        if (info.get_cluster_id() == 0) {
             std::ofstream ofs;
             ofs.open(Context::get_param("result_write_path"), std::ofstream::out | std::ofstream::app);
             ofs << Context::get_param("input") <<" num_topics:"<< Context::get_param("num_topics") <<" num_trian_workers:"<< Context::get_param("num_train_workers");
             ofs <<" staleness:" << Context::get_param("staleness");
-            ofs << "\nnum_epochs:"<<num_epochs<<" num_process"<<Context::get_param("num_process")<<" kType:"<<Context::get_param("kType") <<" kWorkerType:"<<Context::get_param("kWorkerType")<< "\n";
+            ofs << "\nnum_epochs:"<<num_epochs<<"\n";
             ofs << " iter | pull_t | push_t | samplet | P+S+S | mailboxt | llh_time | llh\n";
             ofs.close();
         }
         // 2. -----------------Main logic ---------------
-        LOG_I<<info.get_cluster_id()<<" start training ";
         batch_training_by_chunk(local_corpus, lda_stat_table, mlworker, num_topics, max_voc_id, num_iterations, alpha, beta, info);
 
         //------------------------------------------------
         // 3.(For multiple epoch task) calculate the statistics
         auto end_epoch_timer = std::chrono::steady_clock::now();
         std::chrono::duration<double> one_epoch_time = end_epoch_timer - start_epoch_timer;
-        if (info.get_cluster_id() == 0 && num_epochs > 1) {
-            std::ofstream ofs;
-            ofs.open(Context::get_param("result_write_path"), std::ofstream::out | std::ofstream::app);
-            ofs<<"epoch "<<info.get_current_epoch()<<" takes:"<<one_epoch_time.count()<<"s\n";
-            LOG_I<<"one_epoch_time:"<< one_epoch_time.count();
-            ofs.close();
-        }
     });
 
     engine.Submit();

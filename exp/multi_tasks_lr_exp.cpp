@@ -42,12 +42,12 @@ int main(int argc, char** argv) {
     };
 
     // Train task
-    std::vector<MLTask> tasks;
+    std::vector<Task> tasks;
     std::vector<config::AppConfig> task_configs;
     std::vector<int> kvs;
     // add 10 ps jobs
     for (int i = 0; i < 10; ++ i) {
-        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
+        auto train_task = TaskFactory::Get().CreateTask<Task>();
         config::AppConfig train_config = config;
         train_config.kType = "PS";
         train_config.kConsistency = "SSP";

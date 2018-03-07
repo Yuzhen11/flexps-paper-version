@@ -34,7 +34,7 @@ class ChunkBasedFrequencyModel : public ChunkBasedModel<Val> {
         }
     }
 
-    void Dump(int local_id, const std::string& hint) override {
+    void Dump(int local_id, int task_id, const std::string& hint) override {
         // 1. Dump all chunks
         DumpAllChunksToKV(local_id, model_id_, params_);
 

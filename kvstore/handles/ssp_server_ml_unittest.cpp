@@ -37,18 +37,10 @@ class TestSSPServer: public testing::Test {
 
 
 TEST_F(TestSSPServer, ConsistencyControlOff) {
-    std::map<std::string, std::string> hint =
-    {
-        {husky::constants::kType, husky::constants::kPS},
-        {husky::constants::kConsistency, husky::constants::kSSP},
-        {husky::constants::kNumWorkers, "2"},
-        {husky::constants::kStaleness, "1"}
-    };
-
     // Start KVStore with 3 servers on each process
     kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, 18, 4);
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_map", 2, 1, 9, 4);
     // num_servers: 3, chunk_size: 2, max_key: 9
     // the result should be:
     // 5 chunks
@@ -78,18 +70,10 @@ TEST_F(TestSSPServer, ConsistencyControlOff) {
 }
 
 TEST_F(TestSSPServer, PullChunksWithMinClock) {
-    std::map<std::string, std::string> hint =
-    {
-        {husky::constants::kType, husky::constants::kPS},
-        {husky::constants::kConsistency, husky::constants::kSSP},
-        {husky::constants::kNumWorkers, "2"},
-        {husky::constants::kStaleness, "1"}
-    };
-
     // Start KVStore with 3 servers on each process
     kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>(hint, 18, 4);
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_map", 2, 1, 9, 4);
     // num_servers: 3, chunk_size: 2, max_key: 9
     // the result should be:
     // 5 chunks

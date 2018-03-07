@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
         task1.set_worker_num({1});
         task1.set_worker_num_type({"threads_traverse_cluster"});
     } else {
-        task1.set_type(husky::Task::Type::MLTaskType);
+        task1.set_type(husky::Task::Type::BasicTaskType);
     }
     task1.set_dimensions(config.num_params);
     task1.set_total_epoch(config.train_epoch);  // set epoch number

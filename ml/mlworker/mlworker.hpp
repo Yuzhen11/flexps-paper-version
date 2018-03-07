@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "core/constants.hpp"
+#include "core/table_info.hpp"
 #include "husky/base/exception.hpp"
 
 namespace ml {

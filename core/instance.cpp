@@ -12,14 +12,6 @@ void Instance::set_task(const Task& task, const std::string& hint) {
         task_.reset(new Task(task));
         break;
     }
-    case Task::Type::HuskyTaskType: {  // Husky Task
-        task_.reset(new HuskyTask(static_cast<const HuskyTask&>(task)));
-        break;
-    }
-    case Task::Type::MLTaskType: {  // ML Task
-        task_.reset(new MLTask(static_cast<const MLTask&>(task)));
-        break;
-    }
     case Task::Type::ConfigurableWorkersTaskType: {  // TwoPhasesTask
         task_.reset(new ConfigurableWorkersTask(static_cast<const ConfigurableWorkersTask&>(task)));
         break;

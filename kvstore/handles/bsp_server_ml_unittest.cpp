@@ -36,17 +36,10 @@ class TestBSPServer: public testing::Test {
 };
 
 TEST_F(TestBSPServer, Consistency) {
-    std::map<std::string, std::string> hint =
-    {
-        {husky::constants::kType, husky::constants::kPS},
-        {husky::constants::kConsistency, husky::constants::kBSP},
-        {husky::constants::kNumWorkers, "2"},
-    };
-
     // Start KVStore with 3 servers on each process
     kvstore::KVStore::Get().Start(worker_info, el, zmq_context, 3);
 
-    int kv = kvstore::KVStore::Get().CreateKVStore<int>(hint, 18, 4);
+    int kv = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_map", 2, -1, 9, 4);
     // num_servers: 3, chunk_size: 2, max_key: 9
     // the result should be:
     // 5 chunks

@@ -47,41 +47,38 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
     /*
      * @param type: 0 for ssp, 1 for bsp
      */
-    SPMTWorker(const husky::Info& info, zmq::context_t& context, bool is_hogwild = false)
+    SPMTWorker(const husky::Info& info, const husky::TableInfo& table_info, zmq::context_t& context, bool is_hogwild = false)
         : shared_state_(info.get_task_id(), info.is_leader(), info.get_num_local_workers(), context),
           info_(info),
           is_hogwild_(is_hogwild) {
-        int model_id = static_cast<husky::MLTask*>(info_.get_task())->get_kvstore();
-        size_t num_params = static_cast<husky::MLTask*>(info_.get_task())->get_dimensions();
+        int model_id = table_info.kv_id;
+        size_t num_params = table_info.dims;
         // check valid
         if (info_.get_num_local_workers() != info_.get_num_workers()) {
             throw husky::base::HuskyException("[SPMT] threads are not in the same machine. Task is:" +
                                               std::to_string(info.get_task_id()));
         }
 
-        // Find flags from hint
-        auto& hint = info.get_task()->get_hint();
-        if (hint.find(husky::constants::kEnableDirectModelTransfer) != hint.end()) {
-            enable_direct_model_transfer_ = true;
-        }
-        if (hint.find(husky::constants::kParamType) != hint.end() 
-                && hint.at(husky::constants::kParamType) == husky::constants::kChunkType) {
+        enable_direct_model_transfer_ = table_info.kEnableDirectModelTransfer;
+        if (table_info.param_type == husky::ParamType::ChunkType) {
             use_chunk_model_ = true;
             assert(enable_direct_model_transfer_ == false);
-        } else {
+        } else if (table_info.param_type == husky::ParamType::IntegralType) {
             use_chunk_model_ = false;
+        } else {
+            husky::LOG_I << "table_info: " << table_info.DebugString();
+            assert(false);
         }
 
         if (info_.is_leader() == true) {
             SPMTState* state = new SPMTState;
             if (is_hogwild_ == false) {  // if it's not hogwild, set consistency
                 // Set controller
-                std::string type = info.get_task()->get_hint().at(husky::constants::kConsistency);
-                if (type == husky::constants::kBSP) {
+                if (table_info.consistency == husky::Consistency::BSP) {
                     state->p_controller_  = new consistency::BSPConsistencyController;
-                } else if (type == husky::constants::kSSP) {
+                } else if (table_info.consistency == husky::Consistency::SSP) {
                     state->p_controller_ = new consistency::SSPConsistencyController;
-                } else if (type == husky::constants::kASP) {
+                } else if (table_info.consistency == husky::Consistency::ASP) {
                     state->p_controller_ = new consistency::ASPConsistencyController;
                 } else {
                     assert(false);
@@ -98,26 +95,25 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
                 if (is_hogwild_) {
                     state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTModel<Val>(model_id, num_params);
                 } else {
-                    if (hint.find(husky::constants::kCacheStrategy) == hint.end()
-                            || hint.at(husky::constants::kCacheStrategy) == husky::constants::kEmpty) {
+                    if (table_info.cache_info.cache_strategy == husky::CacheStrategy::None) {
                         state->p_model_ = (model::Model<Val>*) new model::ChunkBasedMTLockModel<Val>(model_id, num_params);
                         husky::LOG_I << "Using ChunkBasedMTLockModel";
                     } else {
-                        int cache_threshold = std::stoi(hint.at(husky::constants::kCacheThreshold));
-                        float dump_factor = std::stof(hint.at(husky::constants::kDumpFactor));
+                        int cache_threshold = table_info.cache_info.threshold;
+                        float dump_factor = table_info.cache_info.dump_factor;
                         husky::LOG_I << "cache_threshold: " << cache_threshold << " dump_factor: " << dump_factor;
-                        if (hint.at(husky::constants::kCacheStrategy) == husky::constants::kLRU) {
+                        if (table_info.cache_info.cache_strategy == husky::CacheStrategy::LRU) {
                             state->p_model_ = (model::Model<Val>*) new model::ModelWithCMLRU<Val>(model_id, num_params, cache_threshold, dump_factor);
                             husky::LOG_I << "Using ModelWithCMLRU";
-                        } else if (hint.at(husky::constants::kCacheStrategy) == husky::constants::kLFU) {
+                        } else if (table_info.cache_info.cache_strategy == husky::CacheStrategy::LFU) {
                             state->p_model_ = (model::Model<Val>*) new model::ModelWithCMLFU<Val>(model_id, num_params, cache_threshold, dump_factor);
                             husky::LOG_I << "Using ModelWithCMLFU";
-                        } else if (hint.at(husky::constants::kCacheStrategy) == husky::constants::kRandom) {
+                        } else if (table_info.cache_info.cache_strategy == husky::CacheStrategy::Random) {
                             state->p_model_ = (model::Model<Val>*) new model::ModelWithCMRandom<Val>(model_id, num_params, cache_threshold, dump_factor);
                             husky::LOG_I << "Using ModelWithCMRandom";
                         } else {
-                            husky::LOG_I << "kCacheStrategy setting error";
-                            throw;
+                            husky::LOG_I << "kCacheStrategy setting error: " << table_info.DebugString();
+                            assert(false);
                         }
                     }
                 }
@@ -139,7 +135,7 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
         // For logging debug message
         if (info.is_leader() == true) {
             std::string model_type = use_chunk_model_ ? "ChunkBasedModel" : "IntegralModel";
-            std::string consistency = is_hogwild_ ? "hogwild ASP" : info.get_task()->get_hint().at(husky::constants::kConsistency);
+            std::string consistency = is_hogwild_ ? "hogwild ASP" : husky::ConsistencyName[static_cast<int>(table_info.consistency)];
             husky::LOG_I << CLAY("[SPMT] model_id: "+std::to_string(model_id)
                     +"; local_id: "+std::to_string(info.get_local_id())
                     +"; model_size: "+std::to_string(num_params)
@@ -221,7 +217,7 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
                     hint = husky::constants::kKVStoreIntegral;
                 }
             }
-            shared_state_.Get()->p_model_->Load(info_.get_local_id(), hint);
+            shared_state_.Get()->p_model_->Load(info_.get_local_id(), info_.get_task()->get_id(), hint);
         }
         shared_state_.Barrier();
     }
@@ -245,7 +241,7 @@ class SPMTWorker : public mlworker::GenericMLWorker<Val> {
                     hint = husky::constants::kKVStoreIntegral;
                 }
             }
-            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), hint);
+            shared_state_.Get()->p_model_->Dump(info_.get_local_id(), info_.get_task()->get_id(), hint);
         }
         shared_state_.Barrier();
     }
