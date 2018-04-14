@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
     // };
 
     // Train task
-    std::vector<Task> tasks;
+    std::vector<MLTask> tasks;
     std::vector<config::AppConfig> task_configs;
     std::vector<int> kvs;
     std::vector<std::function<void()>> funcs;
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 
         assert(num_workers_splitted.size() == num_stages_splitted.size() && num_stages_splitted.size() == time_splitted.size() && time_splitted.size() == type_splitted.size());
         for (int i = 0; i < num_workers_splitted.size(); ++ i) {
-            auto train_task = TaskFactory::Get().CreateTask<Task>();
+            auto train_task = TaskFactory::Get().CreateTask<MLTask>();
             config::AppConfig train_config = config;
             assert(type_splitted[i] == "PS" || type_splitted[i] == "SPMT");
             train_config.kType = type_splitted[i];  // type
@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     /*
     {
         // task 1
-        auto train_task = TaskFactory::Get().CreateTask<Task>();
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
         config::AppConfig train_config = config;
         train_config.kType = "PS";
         train_config.kConsistency = "SSP";
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
     }
     {
         // task 2
-        auto train_task = TaskFactory::Get().CreateTask<Task>();
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
         config::AppConfig train_config = config;
         train_config.kType = "Hogwild";
         train_config.num_train_workers = 4;
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
     // add 5 ps jobs
     /*
     for (int i = 0; i < 5; ++ i) {
-        auto train_task = TaskFactory::Get().CreateTask<Task>();
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
         config::AppConfig train_config = config;
         train_config.kType = "PS";
         train_config.kConsistency = "SSP";
@@ -173,7 +173,7 @@ int main(int argc, char** argv) {
     }
     // add 2 spmt jobs
     for (int i = 0; i < 2; ++ i) {
-        auto train_task = TaskFactory::Get().CreateTask<Task>();
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
         config::AppConfig train_config = config;
         train_config.kType = "SPMT";
         train_config.num_train_workers = 5;
@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
         });
     }
     for (int i = 0; i < 3; ++ i) {
-        auto train_task = TaskFactory::Get().CreateTask<Task>();
+        auto train_task = TaskFactory::Get().CreateTask<MLTask>();
         config::AppConfig train_config = config;
         train_config.kType = "PS";
         train_config.kConsistency = "SSP";

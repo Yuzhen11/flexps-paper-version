@@ -26,8 +26,8 @@ TEST_F(TestTaskManager, TestAddTasks) {
     int id = 0;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
     tasks.push_back(task2);
@@ -41,8 +41,8 @@ TEST_F(TestTaskManager, TestAddTasks) {
     EXPECT_EQ(task_manager.get_task_rej_times(0) , 0);
     EXPECT_EQ(task_manager.get_task_rej_times(1) , 0);
     
-    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+2, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task4(new Task(id+3, total_epoch+3, num_workers+3, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+2, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task4(new Task(id+3, total_epoch+3, num_workers+3, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks1;
     tasks1.push_back(task3);
     tasks1.push_back(task4);
@@ -62,8 +62,8 @@ TEST_F(TestTaskManager, TestFailSched) {
     int id = 0;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
     tasks.push_back(task2);
@@ -81,9 +81,9 @@ TEST_F(TestTaskManager, TestSucFailSched) {
     int id = 0;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+2, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+2, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
     tasks.push_back(task2);
@@ -111,9 +111,9 @@ TEST_F(TestTaskManager, TestOrderByPriority) {
     int id = 0;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+2, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+2, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
     tasks.push_back(task2);
@@ -140,8 +140,8 @@ TEST_F(TestTaskManager, TestRecordAndTrack) {
     int id = 0;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+1, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
     tasks.push_back(task2);
@@ -167,9 +167,9 @@ TEST_F(TestTaskManager, TestGetPreferredProc) {
     int id = 0;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+2, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+5, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task2(new Task(id+1, total_epoch+1, num_workers+2, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task3(new Task(id+2, total_epoch+2, num_workers+5, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
     tasks.push_back(task2);
@@ -207,7 +207,7 @@ TEST_F(TestTaskManager, TestFinishThread) {
     int id = 0;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
 
@@ -236,8 +236,8 @@ TEST_F(TestTaskManager, TestAngryListFunction) {
     int id = 0, id2 = 1;
     int total_epoch = 1;
     int num_workers = 1; 
-    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::BasicTaskType));
-    std::shared_ptr<Task> task2(new Task(id2, total_epoch+1, num_workers+1, Task::Type::BasicTaskType));
+    std::shared_ptr<Task> task1(new Task(id, total_epoch, num_workers, Task::Type::MLTaskType));
+    std::shared_ptr<Task> task2(new Task(id2, total_epoch+1, num_workers+1, Task::Type::MLTaskType));
     std::vector<std::shared_ptr<Task>> tasks;
     tasks.push_back(task1);
     tasks.push_back(task2);

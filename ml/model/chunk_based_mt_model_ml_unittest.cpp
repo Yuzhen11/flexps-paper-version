@@ -29,7 +29,7 @@ class TestChunkBasedMTModel : public testing::Test {
 
        // 3. Start and create KVStore
        kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 1);
-       kv = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1);
+       kv = kvstore::KVStore::Get().CreateKVStore<float>();
 
        // 4. Set RangeManager
        kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv, num_params, chunk_size);

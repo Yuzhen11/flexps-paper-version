@@ -36,8 +36,8 @@ void LoadIntegralFromKV(int local_id, int model_id, int num_params, std::vector<
  * Load the params from ModelTransferManager
  */
 template<typename Val>
-void LoadIntegralFromStore(int local_id, int task_id, std::vector<Val>* params) {
-    husky::LOG_I << PURPLE("[LoadIntegralFromStore] task_id: " + std::to_string(task_id) + " local_id: " + 
+void LoadIntegralFromStore(int local_id, int model_id, std::vector<Val>* params) {
+    husky::LOG_I << PURPLE("[LoadIntegralFromStore] model_id: " + std::to_string(model_id) + " local_id: " + 
                         std::to_string(local_id));
     // Receive from mailbox
     auto* mailbox = husky::Context::get_mailbox(local_id);
@@ -84,8 +84,8 @@ void LoadAllChunksFromKV(int local_id, int model_id, std::vector<std::vector<Val
 }
 
 template<typename Val>
-void LoadAllChunksFromStore(int local_id, int task_id, std::vector<std::vector<Val>>* chunks) {
-    husky::LOG_I << PURPLE("[LoadAllChunksFromStore] task_id: " + std::to_string(task_id) + " local_id: " + 
+void LoadAllChunksFromStore(int local_id, int model_id, std::vector<std::vector<Val>>* chunks) {
+    husky::LOG_I << PURPLE("[LoadAllChunksFromStore] model_id: " + std::to_string(model_id) + " local_id: " + 
                         std::to_string(local_id));
     // Receive from mailbox
     auto* mailbox = husky::Context::get_mailbox(local_id);

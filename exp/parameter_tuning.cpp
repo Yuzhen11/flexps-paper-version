@@ -116,14 +116,14 @@ int main(int argc, char** argv) {
     };
 
     // Train tasks
-    std::vector<Task> tasks;
+    std::vector<MLTask> tasks;
     std::vector<config::AppConfig> task_configs;
     std::vector<int> kvs;
     for (auto& batch_size : batch_sizes) {
         for (auto& learning_rate : learning_rates) {
             for (auto& lr_coeff : lr_coeffs) {
                 // Create tasks
-                auto train_task = TaskFactory::Get().CreateTask<Task>();
+                auto train_task = TaskFactory::Get().CreateTask<MLTask>();
                 config::AppConfig train_config = config;
                 train_config.batch_size = batch_size;
                 train_config.learning_rate_coefficient = lr_coeff;

@@ -1,4 +1,4 @@
-#include "cluster_manager/task_scheduler/priority_task_scheduler.hpp"
+#include "cluster_manager/task_scheduler/sequential_task_scheduler.hpp"
 
 #include <vector>
 #include <memory>
@@ -6,13 +6,14 @@
 #include "gtest/gtest.h"
 
 #include "cluster_manager/task_scheduler/history_manager.hpp"
+#include "core/constants.hpp"
 
 namespace husky {
 namespace {
 
-class TestPriorityTaskScheduler: public testing::Test {
+class TestSequentialTaskScheduler: public testing::Test {
    public:
-    TestPriorityTaskScheduler() {
+    TestSequentialTaskScheduler() {
         int num_local_workers = 10;
         for (int i = 0; i<num_process; i++) {
             int process_id = i;
@@ -28,11 +29,12 @@ class TestPriorityTaskScheduler: public testing::Test {
         int num_workers = 1; 
         int num_tasks = 3;
         for (int i=0; i<num_tasks; i++) {
-            std::shared_ptr<Task> task_ptr(new Task(id+i, total_epoch+i, num_workers+i, Task::Type::MLTaskType));
+        // insert three tasks with the same id
+            std::shared_ptr<Task> task_ptr(new Task(id, total_epoch+i, num_workers+i, Task::Type::MLTaskType));
             tasks.push_back(std::move(task_ptr));
         }
     }
-    ~TestPriorityTaskScheduler() {}
+    ~TestSequentialTaskScheduler() {}
     
     int num_process = 10;
     std::vector<std::shared_ptr<Task>> tasks;
@@ -44,16 +46,16 @@ class TestPriorityTaskScheduler: public testing::Test {
 };
 
 
-TEST_F(TestPriorityTaskScheduler, TestCreate) {
-    PriorityTaskScheduler pts(worker_info);
+TEST_F(TestSequentialTaskScheduler, TestCreate) {
+    SequentialTaskScheduler sts(worker_info);
 }
 
-TEST_F(TestPriorityTaskScheduler, TestInitTasks) {
-    PriorityTaskScheduler pts(worker_info);
-    pts.init_tasks(tasks);
+TEST_F(TestSequentialTaskScheduler, TestInitTasks) {
+    SequentialTaskScheduler sts(worker_info);
+    sts.init_tasks(tasks);
 }
 
-TEST_F(TestPriorityTaskScheduler, TestExtractInstancesSingleProc) {
+TEST_F(TestSequentialTaskScheduler, TestExtractInstancesSingleProc) {
     HistoryManager::get().clear_history();
     std::map<std::string, std::string> hint_single = 
     {
@@ -75,12 +77,12 @@ TEST_F(TestPriorityTaskScheduler, TestExtractInstancesSingleProc) {
         }
     }
     HistoryManager::get().start(num_process);
-    PriorityTaskScheduler pts(worker_info);
-    pts.init_tasks(tasks);
-    pts.extract_instances();
+    SequentialTaskScheduler sts(worker_info);
+    sts.init_tasks(tasks);
+    sts.extract_instances();
 }
 
-TEST_F(TestPriorityTaskScheduler, TestExtractInstancesPS) {
+TEST_F(TestSequentialTaskScheduler, TestExtractInstancesPS) {
     HistoryManager::get().clear_history();
     std::map<std::string, std::string> hint = 
     {
@@ -91,9 +93,9 @@ TEST_F(TestPriorityTaskScheduler, TestExtractInstancesPS) {
         task_ptr->set_hint(hint);
     }
     HistoryManager::get().start(num_process);
-    PriorityTaskScheduler pts(worker_info);
-    pts.init_tasks(tasks);
-    pts.extract_instances();
+    SequentialTaskScheduler sts(worker_info);
+    sts.init_tasks(tasks);
+    sts.extract_instances();
 }
 
 } // namespace

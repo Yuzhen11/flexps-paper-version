@@ -159,11 +159,15 @@ void ClusterManager:: send_instances(const std::vector<std::shared_ptr<Instance>
  * Possibly enable the ModelTransferManager
  */
 void ClusterManager::send_last_instance(const std::shared_ptr<Instance>& instance) {
-    bool local  = instance->get_task()->get_local();
+    auto& hint = instance->get_task()->get_hint();
     // if there's not kType or not kEnableDirectModelTransfer, return
-    if (local == false || instance->get_task()->get_dmt() == false)
+    if (hint.find(husky::constants::kType) == hint.end() || hint.find(husky::constants::kEnableDirectModelTransfer) == hint.end())
         return;
-
+    // TODO SMPT not done yet
+    if (hint.at(husky::constants::kType) != husky::constants::kSingle
+            && hint.at(husky::constants::kType) != husky::constants::kHogwild
+            && hint.at(husky::constants::kType) != husky::constants::kSPMT)  // support Single, Hogwild and SPMT
+        return;
     if (instance->get_epoch() == 0)  // skip for the first epoch
         return;
     // If it is single, enable ModelTransferManager
@@ -185,12 +189,12 @@ void ClusterManager::send_last_instance(const std::shared_ptr<Instance>& instanc
     }
     assert(dst != -1);
 
-    int task_id = instance->get_task()->get_id();
-    husky::LOG_I << RED("Enable ModelTransferManager: src: "+std::to_string(src)+" dst: "+std::to_string(dst)+" task_id: "+std::to_string(task_id));
+    int model_id = static_cast<MLTask*>(instance->get_task())->get_kvstore();
+    husky::LOG_I << RED("Enable ModelTransferManager: src: "+std::to_string(src)+" dst: "+std::to_string(dst)+" model_id: "+std::to_string(model_id));
     auto& socket = cluster_manager_connection_->get_send_socket(worker_info_.get_process_id(src));
     zmq_sendmore_int32(&socket, constants::kClusterManagerDirectTransferModel);
     zmq_sendmore_int32(&socket, dst);
-    zmq_send_int32(&socket, task_id);
+    zmq_send_int32(&socket, model_id);
 }
 
 void ClusterManager::set_last_instance(const std::shared_ptr<Instance>& instance) {

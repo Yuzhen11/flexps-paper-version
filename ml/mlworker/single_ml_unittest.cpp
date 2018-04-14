@@ -47,25 +47,20 @@ class TestSingle: public testing::Test {
 };
 
 TEST_F(TestSingle, Construct) {
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 9, 2);
     // Create a task
-    husky::Task task(0);
+    husky::MLTask task(0);
+    task.set_total_epoch(1);
+    task.set_dimensions(9);
+    task.set_kvstore(kv1);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0}, true);
-    // Create a TableInfo
-    TableInfo table_info {
-        kv1, 9,
-        husky::ModeType::Single, 
-        husky::Consistency::None, 
-        husky::WorkerType::None, 
-        husky::ParamType::IntegralType
-    };
     // Create SingleWorker
-    ml::mlworker::SingleWorker<float> worker(info, table_info);
+    ml::mlworker::SingleWorker<float> worker(info);
 }
 
 void testPushPull(ml::mlworker::SingleWorker<float>& worker) {
@@ -93,63 +88,58 @@ void testV2(ml::mlworker::SingleWorker<float>& worker) {
 }
 
 TEST_F(TestSingle, Integral) {
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 9, 2);
     // Create a task
-    husky::Task task(0);
+    husky::MLTask task(0);
+    task.set_total_epoch(1);
+    task.set_dimensions(9);
+    task.set_kvstore(kv1);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0}, true);
-    TableInfo table_info {
-        kv1, 9,
-        husky::ModeType::Single, 
-        husky::Consistency::None, 
-        husky::WorkerType::None, 
-        husky::ParamType::IntegralType
-    };
 
     // Test Push/Pull API
     {
-        ml::mlworker::SingleWorker<float> worker(info, table_info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testPushPull(worker);
     }
     // Test V2 API
     {
-        ml::mlworker::SingleWorker<float> worker(info, table_info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testV2(worker);
     }
 }
 
 TEST_F(TestSingle, Chunk) {
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kParamType, husky::constants::kChunkType}
+    };
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 9, 2);
     // Create a task
-    husky::Task task(0);
+    husky::MLTask task(0);
     task.set_total_epoch(1);
+    task.set_dimensions(9);
+    task.set_kvstore(kv1);
+    task.set_hint(hint);  // set hint
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, worker_info, {0, 0}, true);
-    // Create a TableInfo
-    TableInfo table_info {
-        kv1, 9,
-        husky::ModeType::Single, 
-        husky::Consistency::None, 
-        husky::WorkerType::None, 
-        husky::ParamType::ChunkType
-    };
 
     // Test Push/Pull API
     {
-        ml::mlworker::SingleWorker<float> worker(info, table_info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testPushPull(worker);
     }
     // Test V2 API
     {
-        ml::mlworker::SingleWorker<float> worker(info, table_info);
+        ml::mlworker::SingleWorker<float> worker(info);
         testV2(worker);
     }
 }
