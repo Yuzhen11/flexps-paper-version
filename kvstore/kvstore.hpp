@@ -45,76 +45,23 @@ class KVStore {
      */
     void Stop();
 
-    template <typename Val>
-    std::unique_ptr<ServerBase> ServerFactory(int id, const std::string& hint, int num_workers, int staleness, int server_id) {
-        using Key = husky::constants::Key;
-        std::unique_ptr<ServerBase> server;
-        if (hint == "default_assign_map") {
-            std::unordered_map<Key, Val> store;
-            server.reset(new DefaultUpdateServer<Val,
-                std::unordered_map<Key, Val>>(id, server_id, std::move(store), false, true));  // unordered_map, assign
-        } else if (hint == "default_add_map") {
-            std::unordered_map<Key, Val> store;
-            server.reset(new DefaultUpdateServer<Val,
-                std::unordered_map<Key, Val>>(id, server_id, std::move(store), false, true));  // unordered_map, assign
-        } else if (hint == "bsp_add_map") {
-            std::unordered_map<Key, Val> store;
-            server.reset(new BSPServer<Val, 
-                std::unordered_map<Key, Val>>(server_id, num_workers, std::move(store), false, false));  // unordered_map, bsp
-        } else if (hint == "ssp_add_map") {
-            std::unordered_map<Key, Val> store;
-            server.reset(new SSPServer<Val, 
-                std::unordered_map<Key, Val>>(server_id, num_workers, std::move(store), false, staleness));  // unordered_map, ssp
-        } else if (hint == "default_assign_vector") {
-            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
-            std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(id, server_id));
-            server.reset(new DefaultUpdateServer<Val,
-                std::vector<Val>>(id, server_id, std::move(store), true, true));  // vector, assign
-        } else if (hint == "default_add_vector") {
-            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
-            std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(id, server_id));
-            server.reset(new DefaultUpdateServer<Val,
-                std::vector<Val>>(id, server_id, std::move(store), true, false));  // vector, add
-        } else if (hint == "bsp_add_vector") {
-            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
-            std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(id, server_id));
-            server.reset(new BSPServer<Val, 
-                std::vector<Val>>(server_id, num_workers, std::move(store), true, false));  // vector, bsp
-        } else if (hint == "ssp_add_vector") {
-            assert(RangeManager::Get().GetMaxKey(id) != std::numeric_limits<Key>::max());
-            std::vector<Val> store;
-            store.resize(RangeManager::Get().GetServerSize(id, server_id));
-            server.reset(new 
-                SSPServer<Val, std::vector<Val>>(server_id, num_workers, std::move(store), true, staleness));  // vector, ssp
-        } else {
-            husky::LOG_I << "Unknown hint: " << hint;
-            assert(false);
-        }
-        return server;
-    }
-
     /*
      * \brief Create a new kvstore
      *
+     * @param hint the hint privded, may contain kType, kUpdateType, kStorageType.
      * @param max_key max key of hte kvstore
      * @param chunk_size the chunk_size
      * @return kvstore id created
      */
     template <typename Val>
-    int CreateKVStore(const std::string& hint, int num_workers, int staleness,
+    int CreateKVStore(const std::map<std::string, std::string>& hint = {},
             husky::constants::Key max_key = std::numeric_limits<husky::constants::Key>::max(),
             int chunk_size = RangeManager::GetDefaultChunkSize()) {
         assert(is_started_);
         // set the default max key and chunk size
         RangeManager::Get().SetMaxKeyAndChunkSize(kv_id, max_key, chunk_size);  
-        for (int i = 0; i < kvservers.size(); ++ i) {
-            assert(i < server_ids.size());
-            int server_id = server_ids[i];
-            std::unique_ptr<ServerBase> server = ServerFactory<Val>(kv_id, hint, num_workers, staleness, server_id);
-            kvservers[i]->CreateKVManager<Val>(kv_id, std::move(server));
+        for (auto* kvserver : kvservers) {
+            kvserver->CreateKVManager<Val>(kv_id, hint);
         }
         for (auto* kvworker : kvworkers) {
             kvworker->AddProcessFunc<Val>(kv_id);
@@ -132,12 +79,9 @@ class KVStore {
         return kv_id++;
     }
     template<typename Val>
-    void SetupKVStore(int id, const std::string& hint, int num_workers, int staleness) {
-        for (int i = 0; i < kvservers.size(); ++ i) {
-            assert(i < server_ids.size());
-            int server_id = server_ids[i];
-            std::unique_ptr<ServerBase> server = ServerFactory<Val>(id, hint, num_workers, staleness, server_id);
-            kvservers[i]->CreateKVManager<Val>(id, std::move(server));
+    void SetupKVStore(int id, const std::map<std::string, std::string>& hint = {}) {
+        for (auto* kvserver : kvservers) {
+            kvserver->CreateKVManager<Val>(id, hint);
         }
         for (auto* kvworker : kvworkers) {
             kvworker->AddProcessFunc<Val>(id);
@@ -163,7 +107,6 @@ class KVStore {
     // mailbox for kvserver
     std::vector<std::unique_ptr<husky::LocalMailbox>> kvserver_mailboxes;
     std::vector<KVManager*> kvservers;
-    std::vector<int> server_ids;
 
     int num_processes_ = -1;
 

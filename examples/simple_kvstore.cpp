@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
                                   Context::get_zmq_context(), 2);
 
     auto task = TaskFactory::Get().CreateTask<Task>(1, 1);
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 10, 10);
     engine.AddTask(task, [kv1](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<husky::constants::Key> keys{0};
@@ -50,26 +50,43 @@ int main(int argc, char** argv) {
     engine.Submit();
 
     // Test KVStore using KVServerBSPHandle: BSP
-    int num_workers = 4;
-    task = TaskFactory::Get().CreateTask<Task>(1, num_workers);
-    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>("bsp_add_map", num_workers, -1, 10, 10);
+    std::map<std::string, std::string> hint = 
+    {
+        {husky::constants::kType, husky::constants::kPS},
+        {husky::constants::kConsistency, husky::constants::kBSP},
+        {husky::constants::kNumWorkers, "4"},
+    };
+    task = TaskFactory::Get().CreateTask<Task>(1, 4);
+    int kv2 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     engine.AddTask(task, [kv2](const Info& info) {
         test_simple_kvstore_lambda(info, kv2);
     });
     engine.Submit();
 
     // Test KVStore using KVServerSSPHandle: SSP
-    int staleness = 1;
-    task = TaskFactory::Get().CreateTask<Task>(1, num_workers);
-    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>("ssp_add_map", num_workers, staleness, 10, 10);
+    hint = 
+    {
+        {husky::constants::kType, husky::constants::kPS},
+        {husky::constants::kConsistency, husky::constants::kSSP},
+        {husky::constants::kStaleness, "1"},
+        {husky::constants::kNumWorkers, "4"},
+    };
+    task = TaskFactory::Get().CreateTask<Task>(1, 4);
+    int kv3 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     engine.AddTask(task, [kv3](const Info& info) {
         test_simple_kvstore_lambda(info, kv3);
     });
     engine.Submit();
 
     // Test KVStore using KVServerDefaultAddHandle: ASP
-    task = TaskFactory::Get().CreateTask<Task>(1, num_workers);
-    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>("default_add_map", -1, -1, 10, 10);
+    hint = 
+    {
+        {husky::constants::kType, husky::constants::kPS},
+        {husky::constants::kConsistency, husky::constants::kASP},
+        {husky::constants::kNumWorkers, "4"},
+    };
+    task = TaskFactory::Get().CreateTask<Task>(1, 4);
+    int kv4 = kvstore::KVStore::Get().CreateKVStore<float>(hint, 10, 10);
     engine.AddTask(task, [kv4](const Info& info) {
         test_simple_kvstore_lambda(info, kv4);
     });
@@ -77,7 +94,7 @@ int main(int argc, char** argv) {
 
     // Test KVStore PushChunks and PullChunks
     task = TaskFactory::Get().CreateTask<Task>(1, 1);
-    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 98, 10);  // max_keys is 98, chunksize is 10
+    int kv5 = kvstore::KVStore::Get().CreateKVStore<float>({}, 98, 10);  // max_keys is 98, chunksize is 10
     engine.AddTask(task, [kv5](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<std::vector<float>> params(10, std::vector<float>(10));
@@ -133,7 +150,7 @@ int main(int argc, char** argv) {
     engine.Submit();
 
     task = TaskFactory::Get().CreateTask<Task>(1, 1);
-    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 10, 10);
+    int kv6 = kvstore::KVStore::Get().CreateKVStore<float>({}, 10, 10);
     engine.AddTask(task, [kv6](const Info& info) {
         auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
         std::vector<husky::constants::Key> keys{0};

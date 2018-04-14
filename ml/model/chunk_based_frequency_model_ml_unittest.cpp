@@ -38,7 +38,7 @@ class TestFrequencyModel : public testing::Test {
 
         // 3. Start and create KVStore
         kvstore::KVStore::Get().Start(worker_info, el, &zmq_context, 1);
-        kv = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1);
+        kv = kvstore::KVStore::Get().CreateKVStore<float>();
 
         // 4. Set RangeManager
         kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv, num_params, chunk_size);
@@ -106,7 +106,7 @@ TEST_F(TestFrequencyModel, Dump) {
 
     model1.Pull(all_keys, &res, 0);
     model1.Push(all_keys, vals);
-    model1.Dump(0, -1, "");
+    model1.Dump(0, "");
     model2.Pull(all_keys, &res, 1);
     EXPECT_EQ(res, vals);
 }

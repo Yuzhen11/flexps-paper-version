@@ -33,23 +33,23 @@ void DumpIntegralToKV(int local_id, int model_id, int num_params,
  * Dump the params into model_transfer_store
  */
 template<typename Val>
-void DumpIntegralToStore(int task_id, const std::vector<Val>& params) {
-    husky::LOG_I << PURPLE("[DumpIntegralToStore] task_id: " + std::to_string(task_id)
+void DumpIntegralToStore(int model_id, const std::vector<Val>& params) {
+    husky::LOG_I << PURPLE("[DumpIntegralToStore] model_id: " + std::to_string(model_id)
             + "model_size: "+std::to_string(params.size()));
     auto& store = husky::ModelTransferStore::Get();
     husky::base::BinStream bin;
     bin << params;
-    store.Add(task_id, std::move(bin));
+    store.Add(model_id, std::move(bin));
 }
 
 template<typename Val>
-void DumpAllChunksToStore(int task_id, const std::vector<std::vector<Val>>& params) {
-    husky::LOG_I << PURPLE("[DumpAllChunksToStore] task_id: " + std::to_string(task_id)
+void DumpAllChunksToStore(int model_id, const std::vector<std::vector<Val>>& params) {
+    husky::LOG_I << PURPLE("[DumpAllChunksToStore] model_id: " + std::to_string(model_id)
             + " chunk_num: "+std::to_string(params.size()));
     auto& store = husky::ModelTransferStore::Get();
     husky::base::BinStream bin;
     bin << params;
-    store.Add(task_id, std::move(bin));
+    store.Add(model_id, std::move(bin));
 }
 
 template<typename Val>

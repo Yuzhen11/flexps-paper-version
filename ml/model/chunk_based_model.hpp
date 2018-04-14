@@ -31,7 +31,7 @@ class ChunkBasedModel : public Model<Val> {
         params_(num_chunks_),
         is_cached_(num_chunks_, false) {}
 
-    void Load(int local_id, int task_id, const std::string& hint) override {
+    void Load(int local_id, const std::string& hint) override {
         if (hint == husky::constants::kKVStoreChunks) {
             // Do nothing
         } else if (hint == husky::constants::kKVStoreIntegral) {
@@ -40,14 +40,14 @@ class ChunkBasedModel : public Model<Val> {
             std::fill(is_cached_.begin(), is_cached_.end(), 1);
         } else if (hint == husky::constants::kTransferIntegral) {
             // Load from kTransferChunks
-            LoadAllChunksFromStore(local_id, task_id, &params_);
+            LoadAllChunksFromStore(local_id, model_id_, &params_);
             std::fill(is_cached_.begin(), is_cached_.end(), 1);
         } else {
             throw husky::base::HuskyException("Unknown hint in ChunkModel: "+hint);
         }
     }
 
-    virtual void Dump(int local_id, int task_id, const std::string& hint) override {
+    virtual void Dump(int local_id, const std::string& hint) override {
         if (hint == husky::constants::kKVStoreChunks) {
             // just need to dump some chunks, if chunk is null, it needn't dumped
             std::vector<std::vector<Val>*> chunks;
@@ -63,7 +63,7 @@ class ChunkBasedModel : public Model<Val> {
         } else if (hint == husky::constants::kKVStoreIntegral) {
             DumpAllChunksToKV(local_id, model_id_, params_);
         } else if (hint == husky::constants::kTransferIntegral) {
-            DumpAllChunksToStore(task_id, params_);
+            DumpAllChunksToStore(model_id_, params_);
         } else {
             throw husky::base::HuskyException("Unknown hint in ChunkModel: "+hint);
         }

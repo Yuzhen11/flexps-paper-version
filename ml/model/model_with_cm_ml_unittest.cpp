@@ -49,7 +49,7 @@ class TestModelWithCM : public testing::Test {
 
         // 3. Start and create KVStore
         kvstore::KVStore::Get().Start(*worker_info, el, zmq_context, 1);
-        kv = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1);
+        kv = kvstore::KVStore::Get().CreateKVStore<float>();
 
         // 4. Set RangeManager
         kvstore::RangeManager::Get().SetMaxKeyAndChunkSize(kv, num_params, chunk_size);
@@ -73,7 +73,6 @@ class TestModelWithCM : public testing::Test {
     husky::MailboxEventLoop* el;
     husky::CentralRecver* recver;
 };
-/*
 
 TEST_F(TestChunkFileEditor, ReadWrite) {
     int num_chunks = 10;
@@ -109,7 +108,6 @@ TEST_F(TestChunkFileEditor, ReadWrite) {
 }
 
 TEST_F(TestModelWithCM, Start) {}  // For Setup and TearDown
-*/
 
 void test_model_push_pull(ModelWithCM<float>* model) {
     std::vector<husky::constants::Key> keys1{0, 10, 20, 30};
@@ -156,7 +154,6 @@ void test_mt_model_push_pull(ModelWithCM<float>* model) {
     EXPECT_EQ(res, ans_val);
 }
 
-/*
 TEST_F(TestModelWithCM, PushPullLFU) {
     ModelWithCMLFU<float> model(kv, num_params, 5);  // threshold set to 5
     test_model_push_pull(&model);
@@ -186,7 +183,6 @@ TEST_F(TestModelWithCM, MTPushPullRandom) {
     ModelWithCMRandom<float> model(kv, num_params, 5);  // threshold set to 5
     test_mt_model_push_pull(&model);
 }
-*/
 
 }  // namespace model
 }  // namespace ml

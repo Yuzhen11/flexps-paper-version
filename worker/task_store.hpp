@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <cassert>
 #include <functional>
 #include <type_traits>
@@ -22,13 +21,9 @@ class TaskStore {
     void add_task(const TaskT& task, const FuncT& func) {
         std::unique_ptr<Task> ptask(new TaskT(task));
         int tid = ptask->get_id();
-        if (task_map.find(tid) == task_map.end()) {
-            task_map.insert(std::make_pair(tid, std::make_pair(std::move(ptask), func)));
-            buffered_tasks.push_back(tid);
-        } else {
-            if (std::find(buffered_tasks.begin(), buffered_tasks.end(), tid) == buffered_tasks.end())
-                buffered_tasks.push_back(tid);
-        }
+        assert(task_map.find(tid) == task_map.end());
+        task_map.insert(std::make_pair(tid, std::make_pair(std::move(ptask), func)));
+        buffered_tasks.push_back(tid);
     }
     void clear_buffered_tasks() { buffered_tasks.clear(); }
     std::vector<int>& get_buffered_tasks() { return buffered_tasks; }

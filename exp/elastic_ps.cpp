@@ -8,9 +8,12 @@
 #include "core/task.hpp"
 #include "datastore/datastore.hpp"
 #include "datastore/datastore_utils.hpp"
+#include "lib/app_config.hpp"
 #include "lib/load_data.hpp"
+#include "lib/ml_lambda.hpp"
 #include "lib/objectives.hpp"
 #include "lib/optimizers.hpp"
+#include "lib/task_utils.hpp"
 #include "worker/engine.hpp"
 
 #include "husky/lib/ml/feature_label.hpp"
@@ -59,27 +62,16 @@ void get_stage_conf(const std::string& conf_str, std::vector<T>& vec, int num_st
 
 int main(int argc, char** argv) {
     // Get configs
-    bool rt = init_with_args(
-        argc, argv,
-        {"worker_port", "cluster_manager_host", "cluster_manager_port", "hdfs_namenode", "hdfs_namenode_port", "input",
-         "num_features", "train_epoch", "trainer", "staleness", "consistency", "batch_sizes", "nums_iters", "alphas",
-         "nums_train_workers", "lr_coeffs", "num_load_workers", "report_interval", "lambda", "chunk_size"});
-    ASSERT_MSG(rt, "cannot initialize with args");
-
+    config::InitContext(argc, argv, {"batch_sizes", "nums_iters", "alphas", "lr_coeffs", "nums_train_workers",
+                                     "num_load_workers", "report_interval" /*, "model_input"*/, "lambda"});
+    config::AppConfig config = config::SetAppConfigWithContext();
     auto batch_size_str = Context::get_param("batch_sizes");
     auto nums_workers_str = Context::get_param("nums_train_workers");
     auto nums_iters_str = Context::get_param("nums_iters");
     auto alphas_str = Context::get_param("alphas");
     auto lr_coeffs_str = Context::get_param("lr_coeffs");
-
-    int staleness = std::stoi(Context::get_param("staleness"));
-    int chunk_size = std::stoi(Context::get_param("chunk_size"));
-    int train_epoch = std::stoi(Context::get_param("train_epoch"));
-    const std::string& trainer = Context::get_param("trainer");
-
+    auto model_file = Context::get_param("model_input");
     int num_load_workers = std::stoi(Context::get_param("num_load_workers"));
-    int num_features = std::stoi(Context::get_param("num_features"));
-    int num_params = num_features + 1;  // bias
     int report_interval = std::stoi(Context::get_param("report_interval"));
     float lambda = (Context::get_param("lambda") == "") ? 0. : std::stod(Context::get_param("lambda"));
     // Get configs for each stage
@@ -88,14 +80,15 @@ int main(int argc, char** argv) {
     std::vector<int> nums_iters;
     std::vector<float> alphas;
     std::vector<float> lr_coeffs;
-    get_stage_conf(batch_size_str, batch_sizes, train_epoch);
-    get_stage_conf(nums_workers_str, nums_workers, train_epoch);
-    get_stage_conf(nums_iters_str, nums_iters, train_epoch);
-    get_stage_conf(alphas_str, alphas, train_epoch);
-    get_stage_conf(lr_coeffs_str, lr_coeffs, train_epoch);
+    get_stage_conf(batch_size_str, batch_sizes, config.train_epoch);
+    get_stage_conf(nums_workers_str, nums_workers, config.train_epoch);
+    get_stage_conf(nums_iters_str, nums_iters, config.train_epoch);
+    get_stage_conf(alphas_str, alphas, config.train_epoch);
+    get_stage_conf(lr_coeffs_str, lr_coeffs, config.train_epoch);
 
     // Show Config
     if (Context::get_worker_info().get_process_id() == 0) {
+        config::ShowConfig(config);
         std::stringstream ss;
         vec_to_str("batch_sizes", batch_sizes, ss);
         vec_to_str("nums_workers", nums_workers, ss);
@@ -114,12 +107,25 @@ int main(int argc, char** argv) {
     datastore::DataStore<LabeledPointHObj<float, float, true>> data_store(
         Context::get_worker_info().get_num_local_workers());
     // 2. Add load task
-    auto load_task = TaskFactory::Get().CreateTask<Task>();
-    load_task.set_total_epoch(1);
-    load_task.set_num_workers(num_load_workers);
-    engine.AddTask(load_task, [&data_store, num_features](const Info& info) {
+    std::vector<float> benchmark_model;
+    int kv_true = -1;
+    if (model_file != "") {
+        kv_true = kvstore::KVStore::Get().CreateKVStore<float>();
+        assert(kv_true != -1);
+    }
+    auto load_task = TaskFactory::Get().CreateTask<HuskyTask>(1, num_load_workers);
+    engine.AddTask(load_task, [&data_store, config, &benchmark_model, &model_file, &kv_true](const Info& info) {
+        /*
+        if (model_file != "" && info.get_cluster_id() == 0) {
+            lr::load_benchmark_model(benchmark_model, model_file, config.num_params);
+            std::vector<husky::constants::Key> keys(config.num_params);
+            for (int i = 0; i < config.num_params; ++i) keys[i] = i;
+            auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
+            kvworker->Wait(kv_true, kvworker->Push(kv_true, keys, benchmark_model));
+        }
+        */
         auto local_id = info.get_local_id();
-        load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, num_features, local_id);
+        load_data(Context::get_param("input"), data_store, DataFormat::kLIBSVMFormat, config.num_features, local_id);
     });
 
     // 3. Submit load task
@@ -131,75 +137,58 @@ int main(int argc, char** argv) {
         husky::LOG_I << YELLOW("Load time: ") << std::to_string(load_time) << " ms";
 
     // 4. Train task
-    std::string storage_type = "bsp_add_vector";
-    husky::Consistency consistency = husky::Consistency::BSP;
-    if (Context::get_param("consistency") == "SSP") {
-        consistency = husky::Consistency::SSP;
-        storage_type = "ssp_add_vector";
-    } else {
-        LOG_I<<"Currently not supported!";
-        return -1;
-    } 
-
-    int kv = kvstore::KVStore::Get().CreateKVStore<float>(storage_type, 1, staleness, num_params, chunk_size);
-    TableInfo table_info{
-        kv, num_params,
-        husky::ModeType::PS,
-        consistency,
-        husky::WorkerType::PSNoneChunkWorker, 
-        husky::ParamType::None,
-    };
-    if (consistency == husky::Consistency::SSP) {
-        table_info.kStaleness = staleness;
-    }
-
     auto train_task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
-    train_task.set_total_epoch(train_epoch);
+    train_task.set_dimensions(config.num_params);
+    train_task.set_total_epoch(config.train_epoch);
+    train_task.set_num_workers(config.num_train_workers);
     train_task.set_worker_num(nums_workers);
-    train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_worker"));
+    train_task.set_worker_num_type(std::vector<std::string>(nums_workers.size(), "threads_per_cluster"));
+    auto hint = config::ExtractHint(config);
+    int kv = create_kvstore_and_set_hint(hint, train_task, config.num_params);
 
-    engine.AddTask(train_task, [table_info, trainer, num_params, &report_interval, &data_store, lambda, &batch_sizes,
-                                &nums_iters, &alphas, &lr_coeffs, &nums_workers, chunk_size](const Info& info) {
-    auto start_time = std::chrono::steady_clock::now();
+    engine.AddTask(train_task, [&report_interval, &data_store, &config, lambda, &batch_sizes, &nums_iters, &alphas,
+                                &lr_coeffs, &nums_workers, &benchmark_model, kv_true](const Info& info) {
         // set objective
         Objective* objective_ptr;
-        if (trainer == "lr") {
-            objective_ptr = new SigmoidObjective(num_params);
-        } else if (trainer == "lasso") {
-            objective_ptr = new LassoObjective(num_params, lambda);
+        if (config.trainer == "lr") {
+            objective_ptr = new SigmoidObjective(config.num_params);
+        } else if (config.trainer == "lasso") {
+            objective_ptr = new LassoObjective(config.num_params, lambda);
         } else {  // default svm
-            objective_ptr = new SVMObjective(num_params, lambda);
+            objective_ptr = new SVMObjective(config.num_params, lambda);
         }
         // set optimizer
         SGDOptimizer sgd(objective_ptr, report_interval);
 
         int current_stage = info.get_current_epoch();
-        int num_train_workers = nums_workers[current_stage] * info.get_worker_info().get_num_processes();
-        husky::ASSERT_MSG(num_train_workers > 0, "num_train_workers must be positive!");
-
-        // Config for optimizer
-        lib::OptimizerConfig conf;
+        config::AppConfig conf = config;
+        conf.num_train_workers = nums_workers[current_stage];
+        husky::ASSERT_MSG(conf.num_train_workers > 0, "num_train_workers must be positive!");
         conf.num_iters = nums_iters[current_stage];
         // get batch size and learning rate for each worker thread
-        conf.batch_size = batch_sizes[current_stage] / num_train_workers;
-        if (info.get_cluster_id() < batch_sizes[current_stage] % num_train_workers)
+        conf.batch_size = batch_sizes[current_stage] / conf.num_train_workers;
+        if (info.get_cluster_id() < batch_sizes[current_stage] % conf.num_train_workers)
             conf.batch_size += 1;
-        conf.alpha = alphas[current_stage] / num_train_workers;
-        conf.learning_rate_decay = lr_coeffs[current_stage];
+        conf.alpha = alphas[current_stage] / conf.num_train_workers;
+        conf.learning_rate_coefficient = lr_coeffs[current_stage];
         if (info.get_cluster_id() == 0) {
             husky::LOG_I << "Stage " << current_stage << ": " << conf.num_iters << "," << conf.batch_size << ","
-                         << conf.alpha << "," << conf.learning_rate_decay;
+                         << conf.alpha << "," << conf.learning_rate_coefficient;
+            /* load benchmark model
+            if (kv_true != -1 && benchmark_model.empty()) {
+                std::vector<husky::constants::Key> keys(conf.num_params);
+                for (int i = 0; i < conf.num_params; ++i) keys[i] = i;
+                auto* kvworker = kvstore::KVStore::Get().get_kvworker(info.get_local_id());
+                kvworker->Wait(kv_true, kvworker->Pull(kv_true, keys, &benchmark_model));
+            }
+            */
         }
         int accum_iter = 0;
         for (int i = 0; i < info.get_current_epoch(); ++i) {
             accum_iter += nums_iters[i];
         }
-        sgd.trainChunkModel(info, table_info, data_store, conf, chunk_size, accum_iter);
-    auto end_time = std::chrono::steady_clock::now();
-    auto train_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    if (info.get_cluster_id() == 0) {
-        husky::LOG_I << "Stage " <<current_stage << " traintime:" << train_time <<"ms";
-    }
+        sgd.train(info, data_store, conf, accum_iter);
+        // lr::sgd_train(info, data_store, conf, benchmark_model, report_interval, accum_iter, false);
     });
 
     // 5. Submit train task

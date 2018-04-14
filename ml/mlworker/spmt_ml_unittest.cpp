@@ -54,25 +54,25 @@ class TestSPMT: public testing::Test {
 };
 
 TEST_F(TestSPMT, Construct) {
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
+    std::map<std::string, std::string> hint = {
+        {husky::constants::kParamType, husky::constants::kIntegralType},
+        {husky::constants::kConsistency, husky::constants::kBSP}
+    };
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 9, 2);
     // Create a task
-    husky::Task task(0);
+    husky::MLTask task(0);
+    task.set_total_epoch(1);
+    task.set_dimensions(9);
+    task.set_kvstore(kv1);
+    task.set_hint(hint);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, *worker_info, {0, 0}, true);
-    // Create a TableInfo
-    TableInfo table_info {
-        kv1, 9,
-        husky::ModeType::SPMT, 
-        husky::Consistency::ASP, 
-        husky::WorkerType::None, 
-        husky::ParamType::IntegralType
-    };
     // Create SPMTWorker
-    ml::mlworker::SPMTWorker<float> worker(info, table_info, *zmq_context);
+    ml::mlworker::SPMTWorker<float> worker(info, *zmq_context);
 }
 
 void testPushPull(ml::mlworker::SPMTWorker<float>& worker, bool check = false) {
@@ -110,41 +110,36 @@ void testV2(ml::mlworker::SPMTWorker<float>& worker, bool check = false) {
     worker.Clock_v2();
 }
 
-void test_single_thread(const husky::ParamType& param_type, const husky::Consistency& consistency, 
+void test_single_thread(const std::string& param_type, const std::string& consistency_type, 
         TestSPMT* obj) {
     bool is_hogwild = false;
-    if (consistency == husky::Consistency::None)
+    if (consistency_type == "hogwild")
         is_hogwild = true;
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
+    std::map<std::string, std::string> hint = {
+        {husky::constants::kParamType, param_type},
+        {husky::constants::kConsistency, consistency_type}
+    };
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 9, 2);
     // Create a task
-    husky::Task task(0);
+    husky::MLTask task(0);
+    task.set_total_epoch(2);
+    task.set_dimensions(9);
+    task.set_kvstore(kv1);
+    task.set_hint(hint);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.set_task(task);
     // Create an Info
     husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {0, 0}, true);
-    // Create a TableInfo
-    TableInfo table_info {
-        kv1, 9,
-        husky::ModeType::SPMT, 
-        husky::Consistency::None, 
-        husky::WorkerType::None, 
-        husky::ParamType::None
-    };
-    table_info.param_type = param_type;
-    table_info.consistency = consistency;
-    if (table_info.consistency == husky::Consistency::SSP) {
-        table_info.kStaleness = 1;
-    }
 
     // Test Push/Pull API
     {
         if (is_hogwild) {
-            ml::mlworker::HogwildWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
             testPushPull(worker, true);
         } else {
-            ml::mlworker::SPMTWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
             testPushPull(worker, true);
         }
     }
@@ -152,64 +147,59 @@ void test_single_thread(const husky::ParamType& param_type, const husky::Consist
     // Test V2 API
     {
         if (is_hogwild) {
-            ml::mlworker::HogwildWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
             testV2(worker, true);
         } else {
-            ml::mlworker::SPMTWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
             testV2(worker, true);
         }
     }
 }
 
-void test_multiple_threads(const husky::ParamType& param_type, const husky::Consistency& consistency, 
+void test_multiple_threads(const std::string& param_type, const std::string& consistency_type, 
         TestSPMT* obj) {
     bool is_hogwild = false;
-    if (consistency == husky::Consistency::None)
+    if (consistency_type == "hogwild")
         is_hogwild = true;
-    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>("default_assign_map", -1, -1, 9, 2);
+    std::map<std::string, std::string> hint = {
+        {husky::constants::kParamType, param_type},
+        {husky::constants::kConsistency, consistency_type}
+    };
+    int kv1 = kvstore::KVStore::Get().CreateKVStore<float>({}, 9, 2);
     // Create a task
-    husky::Task task(0);
+    husky::MLTask task(0);
+    task.set_total_epoch(2);
+    task.set_dimensions(9);
+    task.set_kvstore(kv1);
+    task.set_hint(hint);
     // Create an Instance
     husky::Instance instance;
     instance.add_thread(0, 0, 0);  // pid, tid, cid
     instance.add_thread(0, 1, 1);  // pid, tid, cid
     instance.set_task(task);
 
-    TableInfo table_info {
-        kv1, 9,
-        husky::ModeType::Single, 
-        husky::Consistency::None, 
-        husky::WorkerType::None, 
-        husky::ParamType::None
-    };
-    table_info.consistency = consistency;
-    table_info.param_type = param_type;
-    if (table_info.consistency == husky::Consistency::SSP) {
-        table_info.kStaleness = 1;
-    }
-
-    std::thread th1([&instance, obj, is_hogwild, table_info]() {
+    std::thread th1([&instance, obj, is_hogwild]() {
         if (is_hogwild) {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {0, 0}, true);
-            ml::mlworker::HogwildWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);
         } else {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {0, 0}, true);
-            ml::mlworker::SPMTWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);
         }
     });
-    std::thread th2([&instance, obj, is_hogwild, table_info]() {
+    std::thread th2([&instance, obj, is_hogwild]() {
         if (is_hogwild) {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {1, 1}, false);
-            ml::mlworker::HogwildWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::HogwildWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);
@@ -223,7 +213,7 @@ void test_multiple_threads(const husky::ParamType& param_type, const husky::Cons
         } else {
             // Create an Info
             husky::Info info = husky::utility::instance_to_info(instance, *obj->worker_info, {1, 1}, false);
-            ml::mlworker::SPMTWorker<float> worker(info, table_info, *obj->zmq_context);
+            ml::mlworker::SPMTWorker<float> worker(info, *obj->zmq_context);
 
             testPushPull(worker, false);
             testV2(worker, false);
@@ -242,18 +232,18 @@ void test_multiple_threads(const husky::ParamType& param_type, const husky::Cons
 }
 
 TEST_F(TestSPMT, Single) {
-    using namespace husky;
-    for (auto param_type : {ParamType::IntegralType, ParamType::ChunkType}) {
-        for (auto consistency_type : {Consistency::BSP, Consistency::SSP, Consistency::ASP, Consistency::None}) {
+    using namespace husky::constants;
+    for (auto param_type : {kIntegralType, kChunkType}) {
+        for (auto consistency_type : {kBSP, kSSP, kASP, "hogwild"}) {
             test_single_thread(param_type, consistency_type, static_cast<TestSPMT*>(this));
         }
     }
 }
 
 TEST_F(TestSPMT, Multiple) {
-    using namespace husky;
-    for (auto param_type : {ParamType::IntegralType, ParamType::ChunkType}) {
-        for (auto consistency_type : {Consistency::BSP, Consistency::SSP, Consistency::ASP, Consistency::None}) {
+    using namespace husky::constants;
+    for (auto param_type : {kIntegralType, kChunkType}) {
+        for (auto consistency_type : {kBSP, kSSP, kASP, "hogwild"}) {
             test_multiple_threads(param_type, consistency_type, static_cast<TestSPMT*>(this));
         }
     }

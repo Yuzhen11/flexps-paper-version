@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
         husky::LOG_I << YELLOW("Load time: " + std::to_string(load_time) + " ms");
 
     // Train tasks
-    std::vector<Task> tasks;
+    std::vector<MLTask> tasks;
     std::vector<config::AppConfig> task_configs;
     task_configs.reserve(batch_sizes.size() * nums_workers.size());
     for (auto& batch_size : batch_sizes) {
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
                 husky::LOG_I << CLAY("batch_size is not dividable by num_workers, use approximation.");
             }
             // Create tasks
-            auto train_task = TaskFactory::Get().CreateTask<Task>();
+            auto train_task = TaskFactory::Get().CreateTask<MLTask>();
             config::AppConfig train_config = config;
             train_config.num_train_workers = num_workers;
             train_config.batch_size = (batch_size-1) / num_workers + 1;
