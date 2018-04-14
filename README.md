@@ -1,3 +1,6 @@
+FlexPS is a Parameter-Server based system that introduces a novel multi-stage abstraction to support flexible parallelism control, which is crucial for the efficient execution of machine learning tasks with dynamic workloads. Distinguishing system designs such as stage scheduler, stage-aware consistency controller, flexible model preparation, and direct model transfer are introduced to support efficient multi-stage machine learning. FlexPS includes optimizations such as customizable parameter partition, customizable KV-server, and repetitive get avoidance to support general machine learning. FlexPS achieves significant speedups and resource saving compared with existing PS systems. 
+
+Note: some functionalites are in dev branch.
 
 ## Build
 
