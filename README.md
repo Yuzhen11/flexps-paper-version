@@ -5,7 +5,7 @@ FlexPS is a Parameter-Server based system that introduces a novel multi-stage ab
 
 Download the source code with submodule Husky.
 ```sh
-git clone --recursive https://github.com/Yuzhen11/husky-45123.git
+git clone --recursive https://github.com/Yuzhen11/flexps-paper-version.git
 ```
 
 Go to the project root and do an out-of-source build using CMake:
@@ -36,7 +36,8 @@ worker_port=12345
 comm_port=33244
 
 cluster_manager_host=proj10
-cluster_manager_port=45123
+cluster_manager_port=
+
 
 hdfs_namenode=proj10
 hdfs_namenode_port=9000
