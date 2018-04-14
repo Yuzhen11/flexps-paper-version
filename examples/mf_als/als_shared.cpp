@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     kvstore::RangeManager::Get().CustomizeRanges(kv1, max_key, kChunkSize, kChunkNum,
             server_key_ranges, server_chunk_ranges);
     // 1.6 Setup kvstore
-    kvstore::KVStore::Get().SetupKVStore<float>(kv1, "default_add_vector", -1, -1);
+    kvstore::KVStore::Get().SetupKVStore<float>(kv1, "default_assign_vector", -1, -1);
 
     // All the process should have this task running
     auto task = TaskFactory::Get().CreateTask<ConfigurableWorkersTask>();
